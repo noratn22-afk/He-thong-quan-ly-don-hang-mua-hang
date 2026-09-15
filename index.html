@@ -72,7 +72,7 @@
                 <div class="flex items-center space-x-3 w-full sm:w-auto">
                     <div class="relative flex-1 sm:w-80">
                         <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
-                        <input type="text" id="search-order" oninput="filterOrders()" placeholder="Tìm kiếm From, mặt hàng..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="text" id="search-order" oninput="filterOrders()" placeholder="Tìm kiếm From, mặt hàng, khu vực..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
                 </div>
                 <div class="flex items-center space-x-2">
@@ -85,10 +85,11 @@
                     <table class="w-full text-left border-collapse">
                         <thead class="sticky top-0 bg-slate-100 z-10 shadow-xs">
                             <tr class="text-slate-600 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
-                                <th class="py-3.5 px-4 w-20">STT</th>
+                                <th class="py-3.5 px-4 w-16">STT</th>
                                 <th class="py-3.5 px-4">Tên mặt hàng</th>
                                 <th class="py-3.5 px-4">ĐVT</th>
                                 <th class="py-3.5 px-4">Số lượng</th>
+                                <th class="py-3.5 px-4">Khu vực</th>
                                 <th class="py-3.5 px-4">Ghi chú</th>
                                 <th class="py-3.5 px-4">Người Order</th>
                                 <th class="py-3.5 px-4 text-right">Thao tác</th>
@@ -305,6 +306,7 @@
                                 <th class="py-3 px-3 w-16">STT</th>
                                 <th class="py-3 px-3">Tên mặt hàng</th>
                                 <th class="py-3 px-3">SL & ĐVT</th>
+                                <th class="py-3 px-3">Khu vực</th>
                                 <th class="py-3 px-3">Ghi chú</th>
                                 <th class="py-3 px-3">NCC được chọn</th>
                                 <th class="py-3 px-3">Giai đoạn</th>
@@ -347,7 +349,7 @@
 
                 <div class="space-y-3 pt-2">
                     <div class="flex justify-between items-center">
-                        <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider">Danh sách mặt hàng cần order:</label>
+                        <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider">Danh sách mặt hàng cần order (Chọn Khu vực HCM / HN / Cả hai):</label>
                         <button type="button" onclick="addItemRow()" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition flex items-center space-x-1">
                             <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                             <span>Thêm dòng mặt hàng</span>
@@ -436,7 +438,7 @@
         </div>
     </div>
 
-    <!-- Upload/Edit Quote Modal with Direct File Upload & Naming Rule Helper -->
+    <!-- Upload/Edit Quote Modal -->
     <div id="modal-quote" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
         <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -444,7 +446,6 @@
                 <button onclick="closeModal('modal-quote')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             
-            <!-- Naming Convention Rule Box -->
             <div class="p-3 bg-indigo-50/80 border border-indigo-100 rounded-xl space-y-1">
                 <div class="flex items-center space-x-1.5 text-indigo-900 font-bold text-xs">
                     <i data-lucide="info" class="w-4 h-4 text-indigo-600"></i>
@@ -471,7 +472,6 @@
                     </select>
                 </div>
 
-                <!-- File Input & Direct Upload -->
                 <div>
                     <label class="block text-xs font-medium text-slate-700 mb-1">Chọn file từ máy tính (PDF, Excel, Word, Hình ảnh)</label>
                     <input type="file" id="quote-file-picker" onchange="handleFilePicked(event)" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-lg p-1 bg-slate-50">
@@ -560,17 +560,17 @@
         ];
 
         let orders = [
-            { id: 101, restaurant: "MTN", name: "Dây cáp mạng Cat6", qty: 2, unit: "Cuộn", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "Hoàng Hà", contractNo: "HD-MTN-01", contractStt: "STT 01", stage: "Phát hành hoá đơn", invoiceNo: "HĐ-9901", invoiceDate: "2026-09-15", paymentRequestDone: true, paymentRequestTime: "15/09/2026, 14:30:00", note: "Hàng gấp" },
-            { id: 102, restaurant: "MTN", name: "Bộ phát Wifi Unifi", qty: 4, unit: "Bộ", requester: "Ngọc", date: "2026-09-15", type: "ĐNMH", supplier: "Samtech", contractNo: "", contractStt: "", stage: "Đặt hàng", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
-            { id: 1, restaurant: "BD - I.E KFC ATP", name: "Dây điện đơn 1.5", qty: 3, unit: "Cuộn", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "Hoàng Hà", contractNo: "HD-2026/08-01", contractStt: "STT 01", stage: "Đã giao hàng", invoiceNo: "HĐ-8821", invoiceDate: "2026-09-15", paymentRequestDone: false, paymentRequestTime: null, note: "" },
-            { id: 2, restaurant: "BD - I.E KFC ATP", name: "Dây điện đơn 2.5", qty: 2, unit: "Cuộn", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "King Parts", contractNo: "HD-2026/08-02", contractStt: "STT 02", stage: "Đã giao hàng", invoiceNo: "HĐ-8822", invoiceDate: "2026-09-15", paymentRequestDone: false, paymentRequestTime: null, note: "" },
-            { id: 3, restaurant: "BD - I.E KFC ATP", name: "Ổ cắm điện", qty: 20, unit: "Cái", requester: "Hà", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Thịnh", contractNo: "", contractStt: "", stage: "Đã giao hàng", invoiceNo: "HĐ-8823", invoiceDate: "2026-09-15", paymentRequestDone: false, paymentRequestTime: null, note: "" },
-            { id: 4, restaurant: "BD - I.E KFC ATP", name: "Đế âm ổ cắm điện", qty: 10, unit: "Cái", requester: "Hà", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Thịnh", contractNo: "", contractStt: "", stage: "Đã giao hàng", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
-            { id: 5, restaurant: "BD - I.E KFC ATP", name: "Dây chống cháy Nano", qty: 3, unit: "Cuộn", requester: "Ngọc", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Thịnh", contractNo: "", contractStt: "", stage: "Đặt hàng", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
-            { id: 6, restaurant: "BD - I.E KFC ATP", name: "Đèn rọi tranh", qty: 15, unit: "Cái", requester: "Ngọc", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Trí", contractNo: "", contractStt: "", stage: "Đặt hàng", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
-            { id: 7, restaurant: "BD - I.E KFC ATP", name: "Băng keo đen", qty: 20, unit: "Cuộn", requester: "Hà", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Thịnh", contractNo: "", contractStt: "", stage: "SSG", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
-            { id: 8, restaurant: "BD - I.E KFC ATP", name: "Đèn led 12w trung tính", qty: 50, unit: "Cái", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "Hữu Duy", contractNo: "HD-2026/08-03", contractStt: "STT 08", stage: "SSG", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "Loại lớn 17cm" },
-            { id: 9, restaurant: "BD - I.E KFC ATP", name: "Đèn led 12w ánh sáng trắng", qty: 40, unit: "Cái", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "Hữu Duy", contractNo: "HD-2026/08-04", contractStt: "STT 09", stage: "SSG", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "Loại nhỏ (14cm)" }
+            { id: 101, restaurant: "MTN", name: "Dây cáp mạng Cat6", qty: 2, unit: "Cuộn", region: "HCM", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "Hoàng Hà", contractNo: "HD-MTN-01", contractStt: "STT 01", stage: "Phát hành hoá đơn", invoiceNo: "HĐ-9901", invoiceDate: "2026-09-15", paymentRequestDone: true, paymentRequestTime: "15/09/2026, 14:30:00", note: "Hàng gấp" },
+            { id: 102, restaurant: "MTN", name: "Bộ phát Wifi Unifi", qty: 4, unit: "Bộ", region: "HCM & HN", requester: "Ngọc", date: "2026-09-15", type: "ĐNMH", supplier: "Samtech", contractNo: "", contractStt: "", stage: "Đặt hàng", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
+            { id: 1, restaurant: "BD - I.E KFC ATP", name: "Dây điện đơn 1.5", qty: 3, unit: "Cuộn", region: "HCM", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "Hoàng Hà", contractNo: "HD-2026/08-01", contractStt: "STT 01", stage: "Đã giao hàng", invoiceNo: "HĐ-8821", invoiceDate: "2026-09-15", paymentRequestDone: false, paymentRequestTime: null, note: "" },
+            { id: 2, restaurant: "BD - I.E KFC ATP", name: "Dây điện đơn 2.5", qty: 2, unit: "Cuộn", region: "HCM", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "King Parts", contractNo: "HD-2026/08-02", contractStt: "STT 02", stage: "Đã giao hàng", invoiceNo: "HĐ-8822", invoiceDate: "2026-09-15", paymentRequestDone: false, paymentRequestTime: null, note: "" },
+            { id: 3, restaurant: "BD - I.E KFC ATP", name: "Ổ cắm điện", qty: 20, unit: "Cái", region: "HN", requester: "Hà", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Thịnh", contractNo: "", contractStt: "", stage: "Đã giao hàng", invoiceNo: "HĐ-8823", invoiceDate: "2026-09-15", paymentRequestDone: false, paymentRequestTime: null, note: "" },
+            { id: 4, restaurant: "BD - I.E KFC ATP", name: "Đế âm ổ cắm điện", qty: 10, unit: "Cái", region: "HCM", requester: "Hà", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Thịnh", contractNo: "", contractStt: "", stage: "Đã giao hàng", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
+            { id: 5, restaurant: "BD - I.E KFC ATP", name: "Dây chống cháy Nano", qty: 3, unit: "Cuộn", region: "HCM & HN", requester: "Ngọc", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Thịnh", contractNo: "", contractStt: "", stage: "Đặt hàng", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
+            { id: 6, restaurant: "BD - I.E KFC ATP", name: "Đèn rọi tranh", qty: 15, unit: "Cái", region: "HCM", requester: "Ngọc", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Trí", contractNo: "", contractStt: "", stage: "Đặt hàng", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
+            { id: 7, restaurant: "BD - I.E KFC ATP", name: "Băng keo đen", qty: 20, unit: "Cuộn", region: "HN", requester: "Hà", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Thịnh", contractNo: "", contractStt: "", stage: "SSG", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
+            { id: 8, restaurant: "BD - I.E KFC ATP", name: "Đèn led 12w trung tính", qty: 50, unit: "Cái", region: "HCM", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "Hữu Duy", contractNo: "HD-2026/08-03", contractStt: "STT 08", stage: "SSG", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "Loại lớn 17cm" },
+            { id: 9, restaurant: "BD - I.E KFC ATP", name: "Đèn led 12w ánh sáng trắng", qty: 40, unit: "Cái", region: "HCM & HN", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "Hữu Duy", contractNo: "HD-2026/08-04", contractStt: "STT 09", stage: "SSG", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "Loại nhỏ (14cm)" }
         ];
 
         let quotes = [
@@ -649,13 +649,13 @@
             
             const container = document.getElementById('order-items-container');
             container.innerHTML = '';
-            addItemRow("Dây điện", 1, "Cuộn", "");
+            addItemRow("Dây điện", 1, "Cuộn", "HCM", "");
             
             document.getElementById('modal-order').classList.remove('hidden');
             lucide.createIcons();
         }
 
-        function addItemRow(name = "", qty = 1, unit = "Cái", note = "") {
+        function addItemRow(name = "", qty = 1, unit = "Cái", region = "HCM", note = "") {
             const container = document.getElementById('order-items-container');
             const rowId = 'row-' + Date.now() + '-' + Math.floor(Math.random()*1000);
             const rowDiv = document.createElement('div');
@@ -665,11 +665,18 @@
                 <div class="flex-1">
                     <input type="text" placeholder="Tên mặt hàng..." value="${name}" required class="item-name-input w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
-                <div class="w-20">
+                <div class="w-16">
                     <input type="number" placeholder="SL" value="${qty}" min="1" required class="item-qty-input w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
-                <div class="w-24">
+                <div class="w-20">
                     <input type="text" placeholder="ĐVT" value="${unit}" required class="item-unit-input w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div class="w-28">
+                    <select class="item-region-input w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="HCM" ${region === 'HCM' ? 'selected' : ''}>HCM</option>
+                        <option value="HN" ${region === 'HN' ? 'selected' : ''}>HN</option>
+                        <option value="HCM & HN" ${region === 'HCM & HN' ? 'selected' : ''}>HCM & HN</option>
+                    </select>
                 </div>
                 <div class="flex-1">
                     <input type="text" placeholder="Ghi chú (tuỳ chọn)" value="${note}" class="item-note-input w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
@@ -705,6 +712,7 @@
                     o.name = firstRow.querySelector('.item-name-input').value;
                     o.qty = parseFloat(firstRow.querySelector('.item-qty-input').value) || 1;
                     o.unit = firstRow.querySelector('.item-unit-input').value;
+                    o.region = firstRow.querySelector('.item-region-input').value;
                     o.note = firstRow.querySelector('.item-note-input').value;
                 }
                 showToast("Đã cập nhật order thành công!");
@@ -713,6 +721,7 @@
                     const name = row.querySelector('.item-name-input').value;
                     const qty = parseFloat(row.querySelector('.item-qty-input').value) || 1;
                     const unit = row.querySelector('.item-unit-input').value;
+                    const region = row.querySelector('.item-region-input').value;
                     const note = row.querySelector('.item-note-input').value;
 
                     if (name.trim()) {
@@ -723,6 +732,7 @@
                             name,
                             qty,
                             unit,
+                            region,
                             requester,
                             date,
                             type: 'ĐNMH',
@@ -755,7 +765,7 @@
 
             const container = document.getElementById('order-items-container');
             container.innerHTML = '';
-            addItemRow(o.name, o.qty, o.unit, o.note);
+            addItemRow(o.name, o.qty, o.unit, o.region || 'HCM', o.note);
 
             document.getElementById('modal-order').classList.remove('hidden');
         }
@@ -782,14 +792,15 @@
             const filtered = orders.filter(o => 
                 o.name.toLowerCase().includes(search) || 
                 o.restaurant.toLowerCase().includes(search) || 
-                o.requester.toLowerCase().includes(search)
+                o.requester.toLowerCase().includes(search) ||
+                (o.region && o.region.toLowerCase().includes(search))
             );
             
             const countEl = document.getElementById('order-count');
             if (countEl) countEl.innerText = orders.length;
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">Không tìm thấy order nào phù hợp.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400">Không tìm thấy order nào phù hợp.</td></tr>`;
                 return;
             }
 
@@ -798,7 +809,7 @@
             Object.keys(grouped).forEach(groupTitle => {
                 tbody.innerHTML += `
                     <tr class="bg-indigo-50/80 border-y border-indigo-100">
-                        <td colspan="7" class="py-2.5 px-4 font-bold text-indigo-900 text-sm">
+                        <td colspan="8" class="py-2.5 px-4 font-bold text-indigo-900 text-sm">
                             <div class="flex items-center space-x-2">
                                 <i data-lucide="store" class="w-4 h-4 text-indigo-600"></i>
                                 <span>${groupTitle}</span>
@@ -810,12 +821,14 @@
 
                 grouped[groupTitle].forEach((o, index) => {
                     const noteBadge = o.note ? `<span class="px-2 py-0.5 bg-amber-50 text-amber-800 rounded text-xs">${o.note}</span>` : `<span class="text-slate-400 italic text-xs">-</span>`;
+                    const regionBadge = `<span class="px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded-full text-xs font-semibold">${o.region || 'HCM'}</span>`;
                     tbody.innerHTML += `
                         <tr class="hover:bg-slate-50 transition border-b border-slate-100">
                             <td class="py-3 px-4 font-bold text-slate-700">${index + 1}</td>
                             <td class="py-3 px-4 font-semibold text-slate-800">${o.name}</td>
                             <td class="py-3 px-4 text-slate-600">${o.unit}</td>
                             <td class="py-3 px-4 text-slate-600 font-medium">${o.qty}</td>
+                            <td class="py-3 px-4">${regionBadge}</td>
                             <td class="py-3 px-4">${noteBadge}</td>
                             <td class="py-3 px-4 text-slate-600"><span class="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium">${o.requester}</span></td>
                             <td class="py-3 px-4 text-right space-x-2">
@@ -869,7 +882,7 @@
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50 transition border-b border-slate-100">
                         <td class="py-3.5 px-4">
-                            <span class="text-xs font-bold text-indigo-700 block">${o.restaurant}</span>
+                            <span class="text-xs font-bold text-indigo-700 block">${o.restaurant} (${o.region || 'HCM'})</span>
                             <span class="font-semibold text-slate-800">${o.name} (${o.qty} ${o.unit})</span>
                         </td>
                         <td class="py-3.5 px-4 text-slate-600 font-medium">${o.qty}</td>
@@ -891,7 +904,7 @@
             const o = orders.find(x => x.id === id);
             if (!o) return;
             document.getElementById('check-item-id').value = o.id;
-            document.getElementById('check-item-name').value = `${o.restaurant} - ${o.name}`;
+            document.getElementById('check-item-name').value = `${o.restaurant} - ${o.name} (${o.region || 'HCM'})`;
             document.getElementById('check-type').value = o.type || 'Hợp đồng';
             populateSupplierSelect('check-supplier', o.supplier);
             document.getElementById('check-contract-no').value = o.contractNo || '';
@@ -965,7 +978,7 @@
             });
         }
 
-        // --- TAB 3: QUOTES & COMPARISON WITH FILE UPLOAD & NAMING RULE ---
+        // --- TAB 3: QUOTES & COMPARISON ---
         function renderQuotes() {
             const searchInput = document.getElementById('search-quotes');
             const search = searchInput ? searchInput.value.toLowerCase() : '';
@@ -997,7 +1010,7 @@
                     <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
                         <div class="flex justify-between items-start">
                             <div>
-                                <span class="text-xs font-bold text-indigo-600 uppercase">${o.restaurant}</span>
+                                <span class="text-xs font-bold text-indigo-600 uppercase">${o.restaurant} (${o.region || 'HCM'})</span>
                                 <h4 class="font-bold text-slate-800 text-sm">${o.name} (${o.qty} ${o.unit})</h4>
                             </div>
                             <button onclick="openQuoteUploadModalForItem(${o.id})" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition flex items-center space-x-1 shadow-xs">
@@ -1018,7 +1031,7 @@
                 `;
             });
 
-            // 2. Render Comparison & Multi-Quote Selection Table
+            // 2. Render Comparison Table
             const compTbody = document.getElementById('comparison-table-body');
             compTbody.innerHTML = '';
 
@@ -1027,7 +1040,7 @@
                 if (itemQuotes.length === 0) {
                     compTbody.innerHTML += `
                         <tr class="border-b border-slate-100">
-                            <td class="py-3 px-3 font-semibold text-slate-800">${o.name}<br><span class="text-xs font-normal text-slate-500">${o.restaurant}</span></td>
+                            <td class="py-3 px-3 font-semibold text-slate-800">${o.name}<br><span class="text-xs font-normal text-slate-500">${o.restaurant} (${o.region || 'HCM'})</span></td>
                             <td colspan="4" class="py-3 px-3 text-slate-400 italic text-xs">Chưa có file báo giá từ NCC nào.</td>
                         </tr>
                     `;
@@ -1052,7 +1065,7 @@
 
                         compTbody.innerHTML += `
                             <tr class="border-b border-slate-100 hover:bg-slate-50">
-                                <td class="py-3 px-3 font-semibold text-slate-800">${idx === 0 ? `${o.name}<br><span class="text-xs font-normal text-slate-500">${o.restaurant}</span>` : ''}</td>
+                                <td class="py-3 px-3 font-semibold text-slate-800">${idx === 0 ? `${o.name}<br><span class="text-xs font-normal text-slate-500">${o.restaurant} (${o.region || 'HCM'})</span>` : ''}</td>
                                 <td class="py-3 px-3 font-medium text-slate-700">${q.supplier}</td>
                                 <td class="py-3 px-3 text-indigo-600 font-bold">${q.price.toLocaleString()} VNĐ ${cheapestTag}</td>
                                 <td class="py-3 px-3 text-xs text-slate-600">${fileLink}</td>
@@ -1069,7 +1082,6 @@
             lucide.createIcons();
         }
 
-        // File Naming Rule: BG_[Tên_NCC]_[Tên_Mặt_Hàng]_[Ngày_Báo_Giá].ext
         function autoFormatQuoteFilename() {
             const supplierSelect = document.getElementById('quote-supplier');
             const itemSelect = document.getElementById('quote-item-id');
@@ -1086,7 +1098,6 @@
             const yyyy = today.getFullYear();
             const dateStr = `${dd}${mm}${yyyy}`;
 
-            // Check if user uploaded a real file to keep extension
             let ext = '.pdf';
             if (filenameInput.value.includes('.')) {
                 const parts = filenameInput.value.split('.');
@@ -1101,8 +1112,6 @@
             if (file) {
                 uploadedFileObjectUrl = URL.createObjectURL(file);
                 const filenameInput = document.getElementById('quote-filename');
-                
-                // If filename input is empty or default, suggest standardized name based on uploaded file extension
                 const originalName = file.name;
                 const ext = originalName.substring(originalName.lastIndexOf('.'));
                 
@@ -1119,7 +1128,7 @@
                 const yyyy = today.getFullYear();
                 
                 filenameInput.value = `BG_${supplierName}_${itemName}_${dd}${mm}${yyyy}${ext}`;
-                showToast(`Đã chọn file: ${originalName} (Áp dụng quy tắc đặt tên chuẩn)`);
+                showToast(`Đã chọn file: ${originalName}`);
             }
         }
 
@@ -1304,6 +1313,7 @@
                         <tr class="hover:bg-slate-50 transition border-b border-slate-100">
                             <td class="py-3.5 px-4">
                                 <span class="font-semibold text-slate-800">${index + 1}. ${o.name}</span>
+                                <span class="text-xs text-indigo-600 block">Khu vực: ${o.region || 'HCM'}</span>
                                 ${warningBadge}
                             </td>
                             <td class="py-3.5 px-4 text-slate-600">${o.qty} ${o.unit}</td>
@@ -1336,7 +1346,7 @@
             const o = orders.find(x => x.id === id);
             if (!o) return;
             document.getElementById('status-item-id').value = o.id;
-            document.getElementById('status-item-name').value = `${o.restaurant} - ${o.name}`;
+            document.getElementById('status-item-name').value = `${o.restaurant} - ${o.name} (${o.region || 'HCM'})`;
             document.getElementById('status-stage').value = o.stage || 'SSG';
             document.getElementById('invoice-no').value = o.invoiceNo || '';
             document.getElementById('invoice-date').value = o.invoiceDate || '';
@@ -1416,14 +1426,14 @@
             const grouped = groupOrdersByFromAndDate(filteredOrders);
 
             if (Object.keys(grouped).length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">Không tìm thấy báo cáo phù hợp.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400">Không tìm thấy báo cáo phù hợp.</td></tr>`;
                 return;
             }
 
             Object.keys(grouped).forEach(groupTitle => {
                 tbody.innerHTML += `
                     <tr class="bg-slate-100/90 border-y border-slate-200">
-                        <td colspan="7" class="py-2.5 px-3 font-bold text-slate-800 text-xs uppercase tracking-wide">
+                        <td colspan="8" class="py-2.5 px-3 font-bold text-slate-800 text-xs uppercase tracking-wide">
                             <i data-lucide="folder" class="w-3.5 h-3.5 inline mr-1 text-indigo-600"></i> ${groupTitle}
                         </td>
                     </tr>
@@ -1433,11 +1443,13 @@
                     const payText = o.paymentRequestDone ? `<br><span class="text-emerald-700 font-medium">Đã làm ĐN thanh toán (${o.paymentRequestTime || ''})</span>` : '';
                     const invText = o.invoiceNo ? `HĐ: ${o.invoiceNo} (${formatDateVN(o.invoiceDate)})${payText}` : '-';
                     const noteText = o.note || '-';
+                    const regionBadge = `<span class="px-2 py-0.5 bg-sky-50 text-sky-700 border border-sky-200 rounded text-xs font-semibold">${o.region || 'HCM'}</span>`;
                     tbody.innerHTML += `
                         <tr class="border-b border-slate-100 hover:bg-slate-50">
                             <td class="py-2.5 px-3 font-bold text-slate-700 text-xs">${index + 1}</td>
                             <td class="py-2.5 px-3 font-semibold text-slate-800">${o.name}</td>
                             <td class="py-2.5 px-3 text-slate-600">${o.qty} ${o.unit}</td>
+                            <td class="py-2.5 px-3">${regionBadge}</td>
                             <td class="py-2.5 px-3 text-slate-600 text-xs">${noteText}</td>
                             <td class="py-2.5 px-3 text-slate-700 font-medium">${o.supplier || 'N/A'}</td>
                             <td class="py-2.5 px-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-800">${o.stage}</span></td>
@@ -1480,7 +1492,7 @@
             orders.forEach(o => {
                 const opt = document.createElement('option');
                 opt.value = o.id;
-                opt.textContent = `${o.restaurant} - ${o.name} (${o.qty} ${o.unit})`;
+                opt.textContent = `${o.restaurant} (${o.region || 'HCM'}) - ${o.name} (${o.qty} ${o.unit})`;
                 if (selectedId && o.id === selectedId) opt.selected = true;
                 select.appendChild(opt);
             });
