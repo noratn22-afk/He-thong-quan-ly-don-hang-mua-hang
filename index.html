@@ -1,142 +1,78 @@
 <!DOCTYPE html>
-<html lang="vi">
+<html lang="vi" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Procurement Dashboard - Quản Lý Mua Hàng & Hợp Đồng</title>
-    <!-- Tailwind CSS -->
+    <title>Hệ Thống Quản Lý Đơn Hàng & Mua Hàng (Procurement Dashboard)</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Lucide Icons -->
     <script src="https://unpkg.com/lucide@latest"></script>
-    <!-- Inter Font -->
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Inter', sans-serif; }
-        ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #f1f5f9; }
-        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
-        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
     </style>
 </head>
-<body class="bg-slate-100 text-slate-800 antialiased min-h-screen flex flex-col">
+<body class="bg-slate-50 text-slate-800 h-full flex flex-col">
 
-    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-xs">
+    <header class="bg-white border-b border-slate-200 sticky top-0 z-30 shadow-sm">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
             <div class="flex items-center space-x-3">
-                <div class="w-10 h-10 rounded-xl bg-indigo-600 flex items-center justify-center text-white shadow-md shadow-indigo-200">
-                    <i data-lucide="package-check" class="w-5 h-5"></i>
+                <div class="bg-indigo-600 text-white p-2 rounded-xl shadow-md">
+                    <i data-lucide="shopping-cart" class="w-6 h-6"></i>
                 </div>
                 <div>
-                    <h1 class="font-bold text-slate-900 text-base sm:text-lg tracking-tight">ProcureFlow Pro</h1>
-                    <p class="text-xs text-slate-500 hidden sm:block">Hệ thống quản lý mua hàng, hợp đồng và báo giá nhà cung cấp</p>
+                    <h1 class="text-lg font-bold text-slate-900">ProcureFlow Pro</h1>
+                    <p class="text-xs text-slate-500">Hệ thống quản lý Order, Hợp đồng, Báo giá & Tiến độ</p>
                 </div>
             </div>
             <div class="flex items-center space-x-3">
-                <button onclick="openNewOrderModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-sm transition flex items-center space-x-2">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    <span>Thêm Order Mới</span>
+                <button onclick="openNewOrderModal()" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm transition">
+                    <i data-lucide="plus" class="w-4 h-4 mr-2"></i> Thêm Order mới
                 </button>
+                <div class="h-8 w-px bg-slate-200"></div>
+                <div class="flex items-center space-x-2">
+                    <div class="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-semibold text-sm">
+                        NV
+                    </div>
+                    <span class="text-sm font-medium text-slate-700 hidden sm:inline">Ngọc (Purchasing)</span>
+                </div>
             </div>
         </div>
     </header>
 
-    <nav class="bg-white border-b border-slate-200 shadow-xs">
-        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex overflow-x-auto space-x-6">
-            <button onclick="switchTab('tab-dashboard')" class="tab-btn py-4 px-2 border-b-2 font-medium text-sm transition flex items-center space-x-2 border-indigo-600 text-indigo-600 whitespace-nowrap" data-target="tab-dashboard">
-                <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
-                <span>Tổng quan</span>
+    <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
+        
+        <!-- Tab Navigation Bar -->
+        <div class="flex border-b border-slate-200 mb-6 overflow-x-auto no-scrollbar">
+            <button onclick="switchTab('orders')" id="tab-btn-orders" class="tab-btn active px-5 py-3 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap transition border-indigo-600 text-indigo-600">
+                <i data-lucide="clipboard-list" class="w-4 h-4"></i>
+                <span>1. Danh sách Order</span>
             </button>
-            <button onclick="switchTab('tab-orders')" class="tab-btn py-4 px-2 border-b-2 font-medium text-sm transition flex items-center space-x-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap" data-target="tab-orders">
-                <i data-lucide="shopping-cart" class="w-4 h-4"></i>
-                <span>Danh sách Order</span>
+            <button onclick="switchTab('check')" id="tab-btn-check" class="tab-btn px-5 py-3 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap transition border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300">
+                <i data-lucide="check-square" class="w-4 h-4"></i>
+                <span>2. Kiểm tra HĐ & ĐNMH</span>
             </button>
-            <button onclick="switchTab('tab-check')" class="tab-btn py-4 px-2 border-b-2 font-medium text-sm transition flex items-center space-x-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap" data-target="tab-check">
-                <i data-lucide="file-text" class="w-4 h-4"></i>
-                <span>Check HĐ & ĐNMH</span>
-            </button>
-            <button onclick="switchTab('tab-quotes')" class="tab-btn py-4 px-2 border-b-2 font-medium text-sm transition flex items-center space-x-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap" data-target="tab-quotes">
-                <i data-lucide="badge-percent" class="w-4 h-4"></i>
-                <span>Báo giá NCC</span>
-            </button>
-            <button onclick="switchTab('tab-summary')" class="tab-btn py-4 px-2 border-b-2 font-medium text-sm transition flex items-center space-x-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap" data-target="tab-summary">
-                <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
-                <span>Tổng hợp ĐM & HĐ</span>
-            </button>
-            <button onclick="switchTab('tab-suppliers')" class="tab-btn py-4 px-2 border-b-2 font-medium text-sm transition flex items-center space-x-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap" data-target="tab-suppliers">
-                <i data-lucide="truck" class="w-4 h-4"></i>
-                <span>Nhà cung cấp</span>
-            </button>
-            <button onclick="switchTab('tab-report')" class="tab-btn py-4 px-2 border-b-2 font-medium text-sm transition flex items-center space-x-2 border-transparent text-slate-500 hover:text-slate-700 whitespace-nowrap" data-target="tab-report">
+            <button onclick="switchTab('quotes')" id="tab-btn-quotes" class="tab-btn px-5 py-3 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap transition border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300">
                 <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
-                <span>Báo cáo Tuần</span>
+                <span>3. Báo giá & So sánh NCC</span>
+            </button>
+            <button onclick="switchTab('status')" id="tab-btn-status" class="tab-btn px-5 py-3 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap transition border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300">
+                <i data-lucide="activity" class="w-4 h-4"></i>
+                <span>4. Trạng thái & Tiến độ</span>
+            </button>
+            <button onclick="switchTab('report')" id="tab-btn-report" class="tab-btn px-5 py-3 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap transition border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300">
+                <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
+                <span>5. Báo cáo cuối tuần</span>
             </button>
         </div>
-    </nav>
 
-    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 flex flex-col w-full">
-
-        <!-- TAB 0: DASHBOARD -->
-        <div id="tab-dashboard" class="tab-content flex-1 space-y-6">
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center space-x-4">
-                    <div class="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center text-indigo-600 font-bold"><i data-lucide="shopping-bag" class="w-6 h-6"></i></div>
-                    <div>
-                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Tổng số Order</p>
-                        <h3 id="stat-total-orders" class="text-2xl font-bold text-slate-900 mt-1">0</h3>
-                    </div>
-                </div>
-                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center space-x-4">
-                    <div class="w-12 h-12 bg-amber-50 rounded-xl flex items-center justify-center text-amber-600 font-bold"><i data-lucide="clock" class="w-6 h-6"></i></div>
-                    <div>
-                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Đang Đặt / SSG</p>
-                        <h3 id="stat-pending-orders" class="text-2xl font-bold text-slate-900 mt-1">0</h3>
-                    </div>
-                </div>
-                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center space-x-4">
-                    <div class="w-12 h-12 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 font-bold"><i data-lucide="check-circle-2" class="w-6 h-6"></i></div>
-                    <div>
-                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Đã Giao Hàng</p>
-                        <h3 id="stat-delivered-orders" class="text-2xl font-bold text-slate-900 mt-1">0</h3>
-                    </div>
-                </div>
-                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center space-x-4">
-                    <div class="w-12 h-12 bg-sky-50 rounded-xl flex items-center justify-center text-sky-600 font-bold"><i data-lucide="truck" class="w-6 h-6"></i></div>
-                    <div>
-                        <p class="text-xs font-medium text-slate-500 uppercase tracking-wider">Số Nhà Cung Cấp</p>
-                        <h3 id="stat-total-suppliers" class="text-2xl font-bold text-slate-900 mt-1">0</h3>
-                    </div>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                    <h3 class="font-bold text-slate-800 text-base flex items-center space-x-2">
-                        <i data-lucide="trending-up" class="w-5 h-5 text-indigo-600"></i>
-                        <span>Order gần đây</span>
-                    </h3>
-                    <div id="recent-orders-list" class="space-y-3">
-                        <!-- Populated by JS -->
-                    </div>
-                </div>
-                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                    <h3 class="font-bold text-slate-800 text-base flex items-center space-x-2">
-                        <i data-lucide="pie-chart" class="w-5 h-5 text-indigo-600"></i>
-                        <span>Phân bổ theo khu vực (HCM / HN)</span>
-                    </h3>
-                    <div id="region-distribution" class="space-y-4 pt-2">
-                        <!-- Populated by JS -->
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 1: DANH SÁCH ORDER -->
-        <div id="tab-orders" class="tab-content hidden flex-1 flex flex-col space-y-4">
-            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-2xl border border-slate-200 shadow-xs">
+        <div id="tab-orders" class="tab-content flex-1 flex flex-col space-y-4">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                 <div class="flex items-center space-x-3 w-full sm:w-auto">
                     <div class="relative flex-1 sm:w-80">
                         <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
-                        <input type="text" id="search-order" oninput="filterOrders()" placeholder="Tìm kiếm From, mặt hàng, khu vực..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="text" id="search-order" oninput="filterOrders()" placeholder="Tìm kiếm From, mặt hàng, khu vực..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
                 </div>
                 <div class="flex items-center space-x-2">
@@ -144,7 +80,7 @@
                 </div>
             </div>
 
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex-1">
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex-1">
                 <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
                     <table class="w-full text-left border-collapse">
                         <thead class="sticky top-0 bg-slate-100 z-10 shadow-xs">
@@ -167,30 +103,35 @@
             </div>
         </div>
 
-        <!-- TAB 2: CHECK HĐ & ĐNMH -->
         <div id="tab-check" class="tab-content hidden flex-1 flex flex-col space-y-4">
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex flex-col sm:flex-row justify-between items-center gap-4">
-                <div class="flex items-center space-x-3 w-full sm:w-auto">
-                    <div class="relative flex-1 sm:w-80">
-                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
-                        <input type="text" id="search-check" oninput="renderCheckTable()" placeholder="Tìm kiếm hợp đồng, NCC..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    </div>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900">Kiểm tra Hợp đồng & Đề nghị mua hàng (ĐNMH)</h2>
+                    <p class="text-xs text-slate-500">Liên kết các mặt hàng order vào Hợp đồng hiện hữu hoặc ĐNMH với các Nhà cung cấp.</p>
                 </div>
-                <div class="text-xs text-slate-500">Cập nhật tiến độ giao hàng & hóa đơn</div>
+                <div class="flex items-center space-x-3 w-full sm:w-auto">
+                    <div class="relative flex-1 sm:w-64">
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+                        <input type="text" id="search-check" oninput="renderCheckTable()" placeholder="Tìm kiếm mặt hàng, HĐ..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <button onclick="openSupplierModal()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition flex items-center space-x-1 whitespace-nowrap">
+                        <i data-lucide="plus-circle" class="w-4 h-4"></i>
+                        <span>Quản lý NCC</span>
+                    </button>
+                </div>
             </div>
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex-1">
+
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex-1">
                 <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
                     <table class="w-full text-left border-collapse">
                         <thead class="sticky top-0 bg-slate-100 z-10 shadow-xs">
                             <tr class="text-slate-600 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
-                                <th class="py-3.5 px-4">STT</th>
-                                <th class="py-3.5 px-4">Nhà cung cấp</th>
-                                <th class="py-3.5 px-4">Mặt hàng</th>
-                                <th class="py-3.5 px-4">Phân loại</th>
-                                <th class="py-3.5 px-4">Số HĐ / STT</th>
-                                <th class="py-3.5 px-4">Tiến độ</th>
-                                <th class="py-3.5 px-4">Số HĐơn & Ngày</th>
-                                <th class="py-3.5 px-4 text-center">Yêu cầu thanh toán</th>
+                                <th class="py-3.5 px-4">From & Mặt hàng</th>
+                                <th class="py-3.5 px-4">SL</th>
+                                <th class="py-3.5 px-4">Hình thức</th>
+                                <th class="py-3.5 px-4">Nhà cung cấp (NCC) / ĐNMH</th>
+                                <th class="py-3.5 px-4">Số Hợp đồng / STT mặt hàng</th>
+                                <th class="py-3.5 px-4 text-right">Cập nhật</th>
                             </tr>
                         </thead>
                         <tbody id="check-table-body" class="divide-y divide-slate-200 text-sm">
@@ -201,29 +142,94 @@
             </div>
         </div>
 
-        <!-- TAB 3: BÁO GIÁ NCC -->
         <div id="tab-quotes" class="tab-content hidden flex-1 flex flex-col space-y-4">
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex justify-between items-center">
-                <h3 class="font-bold text-slate-800 text-base">So sánh báo giá từ các nhà cung cấp</h3>
-                <button onclick="openAddQuoteModal()" class="px-3 py-2 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-xl transition flex items-center space-x-1">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    <span>Thêm Báo Giá</span>
-                </button>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900">Báo giá đa NCC & Theo dõi trạng thái Báo giá (ĐNMH / HĐ)</h2>
+                    <p class="text-xs text-slate-500">Tải lên file báo giá thực tế từ máy tính và quản lý quy tắc đặt tên file báo giá chuẩn.</p>
+                </div>
+                <div class="flex items-center space-x-3 w-full sm:w-auto">
+                    <div class="relative flex-1 sm:w-64">
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+                        <input type="text" id="search-quotes" oninput="renderQuotes()" placeholder="Tìm kiếm mặt hàng, NCC..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <button onclick="openQuoteUploadModal()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm transition flex items-center space-x-2 whitespace-nowrap">
+                        <i data-lucide="upload" class="w-4 h-4"></i>
+                        <span>Tải Lên Báo Giá</span>
+                    </button>
+                </div>
             </div>
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex-1">
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <!-- Left Column: Quote Tracking Matrix -->
+                <div class="lg:col-span-1 bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-semibold text-sm text-slate-800 flex items-center space-x-2">
+                            <i data-lucide="users" class="w-4 h-4 text-indigo-600"></i>
+                            <span>Theo dõi NCC Báo Giá & Chưa Báo Giá</span>
+                        </h3>
+                    </div>
+                    <p class="text-xs text-slate-500">Xem nhanh các NCC đã nộp báo giá và các NCC chưa nộp cho từng mặt hàng.</p>
+                    <div id="quote-tracking-list" class="space-y-4 overflow-y-auto max-h-[500px] pr-1">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Right Column: Price Comparison & Best Supplier Selection -->
+                <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col space-y-4">
+                    <div class="flex justify-between items-center">
+                        <h3 class="font-semibold text-sm text-slate-800 flex items-center space-x-2">
+                            <i data-lucide="trending-down" class="w-4 h-4 text-emerald-600"></i>
+                            <span>So sánh giá & Chọn NCC tối ưu (Multi-Quote)</span>
+                        </h3>
+                        <span class="text-xs text-slate-400">Hỗ trợ file báo giá đính kèm thực tế</span>
+                    </div>
+                    <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
+                        <table class="w-full text-left border-collapse">
+                            <thead class="sticky top-0 bg-slate-100 z-10">
+                                <tr class="text-slate-600 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
+                                    <th class="py-3 px-3">Mặt hàng</th>
+                                    <th class="py-3 px-3">NCC Báo Giá</th>
+                                    <th class="py-3 px-3">Đơn giá (VNĐ)</th>
+                                    <th class="py-3 px-3">File Báo Giá (Tải lên)</th>
+                                    <th class="py-3 px-3 text-right">Lựa chọn / Thao tác</th>
+                                </tr>
+                            </thead>
+                            <tbody id="comparison-table-body" class="divide-y divide-slate-200 text-sm">
+                                <!-- Populated by JS -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-status" class="tab-content hidden flex-1 flex flex-col space-y-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900">Theo dõi Trạng thái & Phát hành Hóa đơn</h2>
+                    <p class="text-xs text-slate-500">Các giai đoạn: SSG → Đặt hàng → Đã giao hàng → Phát hành hoá đơn & Đề nghị thanh toán.</p>
+                </div>
+                <div class="relative flex-1 sm:w-72">
+                    <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+                    <input type="text" id="search-status" oninput="renderStatusTable()" placeholder="Tìm kiếm mặt hàng, số HĐ..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex-1">
                 <div class="overflow-x-auto max-h-[600px] overflow-y-auto">
                     <table class="w-full text-left border-collapse">
-                        <thead class="sticky top-0 bg-slate-100 z-10 shadow-xs">
+                        <thead class="sticky top-0 bg-slate-100 z-10">
                             <tr class="text-slate-600 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
-                                <th class="py-3.5 px-4">Tên mặt hàng</th>
-                                <th class="py-3.5 px-4">Nhà cung cấp</th>
-                                <th class="py-3.5 px-4">Đơn giá (VNĐ)</th>
-                                <th class="py-3.5 px-4">Thời gian giao</th>
-                                <th class="py-3.5 px-4">Đánh giá / Ghi chú</th>
+                                <th class="py-3.5 px-4">From & Mặt hàng</th>
+                                <th class="py-3.5 px-4">Số lượng</th>
+                                <th class="py-3.5 px-4">NCC được chọn</th>
+                                <th class="py-3.5 px-4">Trạng thái (Giai đoạn)</th>
+                                <th class="py-3.5 px-4">Thông tin Hóa đơn</th>
                                 <th class="py-3.5 px-4 text-right">Thao tác</th>
                             </tr>
                         </thead>
-                        <tbody id="quotes-table-body" class="divide-y divide-slate-200 text-sm">
+                        <tbody id="status-table-body" class="divide-y divide-slate-200 text-sm">
                             <!-- Populated by JS -->
                         </tbody>
                     </table>
@@ -231,79 +237,95 @@
             </div>
         </div>
 
-        <!-- TAB 4: TỔNG HỢP ĐM & HĐ -->
-        <div id="tab-summary" class="tab-content hidden flex-1 flex flex-col space-y-4">
-            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-                    <p class="text-xs text-slate-500 font-semibold uppercase">Tổng Đơn Đặt Mua (ĐNMH)</p>
-                    <h3 id="sum-dnmh" class="text-2xl font-bold text-indigo-600 mt-1">0</h3>
-                </div>
-                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-                    <p class="text-xs text-slate-500 font-semibold uppercase">Tổng Hợp Đồng</p>
-                    <h3 id="sum-contract" class="text-2xl font-bold text-emerald-600 mt-1">0</h3>
-                </div>
-                <div class="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs">
-                    <p class="text-xs text-slate-500 font-semibold uppercase">Đã Thanh Toán Đề Nghị</p>
-                    <h3 id="sum-paid" class="text-2xl font-bold text-sky-600 mt-1">0</h3>
-                </div>
-            </div>
-            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs flex-1 space-y-4">
-                <h3 class="font-bold text-slate-800 text-base">Thống kê theo nhà cung cấp</h3>
-                <div class="overflow-x-auto">
-                    <table class="w-full text-left border-collapse">
-                        <thead>
-                            <tr class="bg-slate-50 text-slate-600 text-xs font-semibold uppercase border-b border-slate-200">
-                                <th class="py-3 px-4">Nhà cung cấp</th>
-                                <th class="py-3 px-4">Tổng số đơn / HĐ</th>
-                                <th class="py-3 px-4">Đã giao hàng</th>
-                                <th class="py-3 px-4">Đang xử lý</th>
-                            </tr>
-                        </thead>
-                        <tbody id="supplier-summary-body" class="divide-y divide-slate-100 text-sm">
-                            <!-- Populated by JS -->
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 5: NHÀ CUNG CẤP -->
-        <div id="tab-suppliers" class="tab-content hidden flex-1 flex flex-col space-y-4">
-            <div class="bg-white p-4 rounded-2xl border border-slate-200 shadow-xs flex justify-between items-center">
-                <h3 class="font-bold text-slate-800 text-base">Danh sách đối tác cung ứng</h3>
-                <button onclick="openSupplierModal()" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-xl transition flex items-center space-x-1">
-                    <i data-lucide="plus" class="w-4 h-4"></i>
-                    <span>Thêm NCC</span>
-                </button>
-            </div>
-            <div class="bg-white rounded-2xl border border-slate-200 shadow-xs overflow-hidden flex-1">
-                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 p-6" id="suppliers-grid">
-                    <!-- Populated by JS -->
-                </div>
-            </div>
-        </div>
-
-        <!-- TAB 6: BÁO CÁO TUẦN -->
         <div id="tab-report" class="tab-content hidden flex-1 flex flex-col space-y-4">
-            <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-xs space-y-4">
-                <div class="flex justify-between items-center flex-wrap gap-4">
-                    <h3 class="font-bold text-slate-800 text-lg">Báo cáo tổng hợp tuần</h3>
-                    <div class="flex items-center space-x-3">
-                        <input type="week" id="report-week-input" class="px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                        <button onclick="generateWeeklyReport()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-xl shadow-sm transition">Tạo Báo Cáo</button>
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900">Báo cáo Tổng hợp Cuối tuần</h2>
+                    <p class="text-xs text-slate-500">Tổng kết toàn bộ hoạt động mua hàng, tiến độ giao hàng và phát hành hóa đơn trong tuần.</p>
+                </div>
+                <div class="flex items-center space-x-3 w-full sm:w-auto">
+                    <div class="relative flex-1 sm:w-64">
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+                        <input type="text" id="search-report" oninput="renderReport()" placeholder="Tìm kiếm báo cáo..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <button onclick="printReport()" class="px-4 py-2 bg-slate-800 hover:bg-slate-900 text-white text-sm font-medium rounded-lg shadow-sm transition flex items-center space-x-2 whitespace-nowrap">
+                        <i data-lucide="printer" class="w-4 h-4"></i>
+                        <span>In Báo cáo</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl">
+                        <i data-lucide="shopping-bag" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Tổng số Order</p>
+                        <h4 id="rep-total-orders" class="text-xl font-bold text-slate-800">0</h4>
                     </div>
                 </div>
-                <div id="report-content" class="bg-slate-50 p-6 rounded-2xl border border-slate-200 text-sm space-y-4">
-                    <p class="text-slate-500 italic">Chọn tuần và nhấn "Tạo Báo Cáo" để xem tổng kết số liệu mua hàng và tình trạng đơn hàng.</p>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-amber-50 text-amber-600 rounded-xl">
+                        <i data-lucide="clock" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Đang xử lý / Đặt hàng</p>
+                        <h4 id="rep-processing" class="text-xl font-bold text-slate-800">0</h4>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl">
+                        <i data-lucide="check-circle-2" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Đã giao hàng</p>
+                        <h4 id="rep-delivered" class="text-xl font-bold text-slate-800">0</h4>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-blue-50 text-blue-600 rounded-xl">
+                        <i data-lucide="file-text" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Đã phát hành HĐ</p>
+                        <h4 id="rep-invoiced" class="text-xl font-bold text-slate-800">0</h4>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex-1 flex flex-col space-y-4">
+                <h3 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
+                    <i data-lucide="file-spreadsheet" class="w-4 h-4 text-indigo-600"></i>
+                    <span>Chi tiết Báo cáo Tiến độ Mua Hàng Nhóm Theo From</span>
+                </h3>
+                <div class="overflow-x-auto flex-1 max-h-[500px] overflow-y-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="sticky top-0 bg-slate-100 z-10 shadow-xs">
+                            <tr class="text-slate-600 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
+                                <th class="py-3 px-3 w-16">STT</th>
+                                <th class="py-3 px-3">Tên mặt hàng</th>
+                                <th class="py-3 px-3">SL & ĐVT</th>
+                                <th class="py-3 px-3">Khu vực</th>
+                                <th class="py-3 px-3">Ghi chú</th>
+                                <th class="py-3 px-3">NCC được chọn</th>
+                                <th class="py-3 px-3">Giai đoạn</th>
+                                <th class="py-3 px-3">Hóa đơn</th>
+                            </tr>
+                        </thead>
+                        <tbody id="report-table-body" class="divide-y divide-slate-200 text-sm">
+                            <!-- Populated by JS -->
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
 
     </main>
 
-    <!-- Order Modal (Supports Multi-Items with Region selection) -->
+    <!-- New/Edit Order Modal -->
     <div id="modal-order" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b border-slate-100 pb-3">
                 <h3 class="font-bold text-slate-900 text-base" id="order-modal-title">Thêm Order Nhiều Mặt Hàng</h3>
                 <button onclick="closeModal('modal-order')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
@@ -313,79 +335,220 @@
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
                         <label class="block text-xs font-medium text-slate-700 mb-1">From</label>
-                        <input type="text" id="order-restaurant" required value="BD - I.E KFC ATP" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <input type="text" id="order-restaurant" required value="BD - I.E KFC ATP" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-700 mb-1">Người order</label>
-                        <input type="text" id="order-by" required value="Ngọc" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <input type="text" id="order-by" required value="Ngọc" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-slate-700 mb-1">Ngày order</label>
-                        <input type="date" id="order-date" required class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <input type="date" id="order-date" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     </div>
                 </div>
 
                 <div class="space-y-3 pt-2">
                     <div class="flex justify-between items-center">
-                        <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider">Danh sách mặt hàng (chọn khu vực HCM hoặc HN riêng cho từng mặt hàng):</label>
-                        <button type="button" onclick="addItemRow()" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-xl transition flex items-center space-x-1">
+                        <label class="block text-xs font-bold text-slate-800 uppercase tracking-wider">Danh sách mặt hàng cần order (Chọn Khu vực HCM / HN / Cả hai):</label>
+                        <button type="button" onclick="addItemRow()" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition flex items-center space-x-1">
                             <i data-lucide="plus" class="w-3.5 h-3.5"></i>
                             <span>Thêm dòng mặt hàng</span>
                         </button>
                     </div>
                     
                     <div id="order-items-container" class="space-y-3 max-h-72 overflow-y-auto pr-1">
-                        <!-- Populated by JS -->
+                        <!-- Rows populated by JS -->
                     </div>
                 </div>
 
                 <div class="flex justify-end space-x-3 pt-3 border-t border-slate-100">
-                    <button type="button" onclick="closeModal('modal-order')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-xl hover:bg-slate-50 transition">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition">Lưu Tất Cả Order</button>
+                    <button type="button" onclick="closeModal('modal-order')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition">Hủy</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm transition">Lưu Tất Cả Order</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Supplier Modal -->
+    <!-- Supplier Management Modal -->
     <div id="modal-supplier" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4">
             <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-                <h3 class="font-bold text-slate-900 text-base">Thêm Nhà Cung Cấp Mới</h3>
+                <h3 class="font-bold text-slate-900 text-base">Quản lý & Thêm Nhà Cung Cấp (NCC) mới</h3>
                 <button onclick="closeModal('modal-supplier')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
-            <form onsubmit="saveSupplier(event)" class="space-y-4">
-                <div>
-                    <label class="block text-xs font-medium text-slate-700 mb-1">Tên nhà cung cấp</label>
-                    <input type="text" id="supplier-name-input" required placeholder="Nhập tên NCC..." class="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+            <div class="space-y-4">
+                <div class="flex space-x-2">
+                    <input type="text" id="new-supplier-name" placeholder="Nhập tên nhà cung cấp mới..." class="flex-1 px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <button onclick="addSupplier()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg transition">Thêm</button>
                 </div>
-                <div class="flex justify-end space-x-3 pt-2">
-                    <button type="button" onclick="closeModal('modal-supplier')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-xl hover:bg-slate-50 transition">Hủy</button>
-                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-xl shadow-sm transition">Lưu NCC</button>
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-2">Danh sách nhà cung cấp hiện có:</label>
+                    <div id="suppliers-list-tags" class="flex flex-wrap gap-2 max-h-48 overflow-y-auto p-2 border border-slate-200 rounded-lg bg-slate-50">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+            </div>
+            <div class="flex justify-end pt-3 border-t border-slate-100">
+                <button onclick="closeModal('modal-supplier')" class="px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200 transition">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Check & Contract Modal -->
+    <div id="modal-check" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-base">Cập nhật Kiểm tra HĐ & ĐNMH</h3>
+                <button onclick="closeModal('modal-check')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form id="check-form" onsubmit="saveCheckInfo(event)" class="space-y-4">
+                <input type="hidden" id="check-item-id">
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Mặt hàng</label>
+                    <input type="text" id="check-item-name" readonly class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-600">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Hình thức kiểm tra</label>
+                    <select id="check-type" onchange="toggleCheckFields()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="Hợp đồng">Hợp đồng</option>
+                        <option value="ĐNMH">Đề nghị mua hàng (ĐNMH - Đa NCC báo giá)</option>
+                    </select>
+                </div>
+                <div id="supplier-single-wrapper">
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Nhà cung cấp chính / Được chọn</label>
+                    <select id="check-supplier" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+                <div id="contract-fields" class="space-y-4">
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Số Hợp đồng</label>
+                        <input type="text" id="check-contract-no" placeholder="VD: HD-2026/08-01" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">STT mặt hàng trong hợp đồng</label>
+                        <input type="text" id="check-contract-stt" placeholder="VD: STT 01" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('modal-check')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition">Hủy</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm transition">Lưu thông tin</button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Custom Confirmation Modal -->
-    <div id="modal-confirm" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
-        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4 text-center">
-            <div class="w-12 h-12 bg-rose-50 text-rose-600 rounded-full flex items-center justify-center mx-auto">
-                <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+    <!-- Upload/Edit Quote Modal -->
+    <div id="modal-quote" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-base" id="quote-modal-title">Tải Lên Báo Giá Từ NCC</h3>
+                <button onclick="closeModal('modal-quote')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
-            <h3 class="font-bold text-slate-900 text-base" id="confirm-title">Xác nhận</h3>
-            <p class="text-sm text-slate-600" id="confirm-message">Bạn có chắc chắn muốn thực hiện thao tác này?</p>
-            <div class="flex justify-center space-x-3 pt-2">
-                <button type="button" onclick="closeModal('modal-confirm')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-xl hover:bg-slate-50 transition">Hủy</button>
-                <button type="button" id="confirm-yes-btn" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-medium rounded-xl shadow-sm transition">Xác Nhận</button>
+            
+            <div class="p-3 bg-indigo-50/80 border border-indigo-100 rounded-xl space-y-1">
+                <div class="flex items-center space-x-1.5 text-indigo-900 font-bold text-xs">
+                    <i data-lucide="info" class="w-4 h-4 text-indigo-600"></i>
+                    <span>Quy tắc đặt tên file báo giá chuẩn:</span>
+                </div>
+                <p class="text-xs text-indigo-800 font-mono bg-white/80 p-1.5 rounded border border-indigo-200">
+                    BG_[Tên_NCC]_[Tên_Mặt_Hàng]_[Ngày_Báo_Giá].ext<br>
+                    <span class="text-[11px] text-slate-500 font-sans italic">VD: BG_HoangHa_DayDienDon1.5_15092026.pdf</span>
+                </p>
             </div>
+
+            <form id="quote-form" onsubmit="saveQuoteFile(event)" class="space-y-4">
+                <input type="hidden" id="quote-edit-id">
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Mặt hàng áp dụng</label>
+                    <select id="quote-item-id" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Chọn Nhà Cung Cấp Báo Giá</label>
+                    <select id="quote-supplier" required onchange="autoFormatQuoteFilename()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <!-- Populated by JS -->
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Chọn file từ máy tính (PDF, Excel, Word, Hình ảnh)</label>
+                    <input type="file" id="quote-file-picker" onchange="handleFilePicked(event)" class="w-full text-xs text-slate-500 file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100 cursor-pointer border border-slate-200 rounded-lg p-1 bg-slate-50">
+                </div>
+
+                <div>
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="block text-xs font-medium text-slate-700">Tên file báo giá (Theo quy tắc chuẩn)</label>
+                        <button type="button" onclick="autoFormatQuoteFilename()" class="text-[11px] text-indigo-600 hover:underline font-semibold flex items-center">
+                            <i data-lucide="refresh-cw" class="w-3 h-3 mr-1"></i> Áp dụng quy tắc chuẩn
+                        </button>
+                    </div>
+                    <input type="text" id="quote-filename" required placeholder="VD: BG_HoangHa_DayDien_15092026.pdf" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-mono focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Đơn giá báo (VNĐ)</label>
+                    <input type="number" id="quote-price" required min="0" placeholder="VD: 450000" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div class="flex justify-end space-x-3 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('modal-quote')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition">Hủy</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm transition">Tải Lên & Lưu Báo Giá</button>
+                </div>
+            </form>
         </div>
     </div>
 
-    <!-- Toast Notification -->
-    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl z-50 transform translate-y-20 opacity-0 transition-all duration-300 flex items-center space-x-2">
+    <!-- Status & Invoice Modal -->
+    <div id="modal-status" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <h3 class="font-bold text-slate-900 text-base">Cập nhật Trạng thái & Hóa đơn</h3>
+                <button onclick="closeModal('modal-status')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <form id="status-form" onsubmit="saveStatusInfo(event)" class="space-y-4">
+                <input type="hidden" id="status-item-id">
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Mặt hàng</label>
+                    <input type="text" id="status-item-name" readonly class="w-full px-3 py-2 bg-slate-100 border border-slate-200 rounded-lg text-sm text-slate-600">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Giai đoạn / Trạng thái</label>
+                    <select id="status-stage" onchange="toggleInvoiceFields()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="SSG">SSG</option>
+                        <option value="Đặt hàng">Đặt hàng</option>
+                        <option value="Đã giao hàng">Đã giao hàng</option>
+                        <option value="Phát hành hoá đơn">Phát hành hoá đơn</option>
+                    </select>
+                </div>
+                <div id="invoice-fields" class="space-y-4 hidden p-3 bg-blue-50/50 border border-blue-100 rounded-xl">
+                    <div>
+                        <label class="block text-xs font-medium text-blue-900 mb-1">Số Hóa Đơn (HĐ)</label>
+                        <input type="text" id="invoice-no" placeholder="VD: 0001245" class="w-full px-3 py-2 border border-blue-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-medium text-blue-900 mb-1">Ngày phát hành HĐ</label>
+                        <input type="date" id="invoice-date" class="w-full px-3 py-2 border border-blue-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                    </div>
+                    <div class="pt-2 border-t border-blue-200/60">
+                        <label class="flex items-center space-x-2 cursor-pointer">
+                            <input type="checkbox" id="payment-request-checkbox" class="w-4 h-4 text-indigo-600 rounded border-blue-300 focus:ring-indigo-500">
+                            <span class="text-xs font-bold text-blue-900">Đã làm đề nghị thanh toán</span>
+                        </label>
+                        <p id="payment-request-time-display" class="text-[11px] text-blue-700 mt-1 pl-6 italic"></p>
+                    </div>
+                </div>
+                <div class="flex justify-end space-x-3 pt-3 border-t border-slate-100">
+                    <button type="button" onclick="closeModal('modal-status')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition">Hủy</button>
+                    <button type="submit" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm transition">Cập nhật</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-lg transform translate-y-20 opacity-0 transition-all duration-300 z-50 flex items-center space-x-2">
         <i data-lucide="check-circle" class="w-5 h-5 text-emerald-400"></i>
-        <span id="toast-message" class="text-sm font-medium">Thông báo thành công</span>
+        <span id="toast-msg" class="text-sm font-medium">Thành công!</span>
     </div>
 
     <script>
@@ -398,25 +561,27 @@
 
         let orders = [
             { id: 101, restaurant: "MTN", name: "Dây cáp mạng Cat6", qty: 2, unit: "Cuộn", region: "HCM", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "Hoàng Hà", contractNo: "HD-MTN-01", contractStt: "STT 01", stage: "Phát hành hoá đơn", invoiceNo: "HĐ-9901", invoiceDate: "2026-09-15", paymentRequestDone: true, paymentRequestTime: "15/09/2026, 14:30:00", note: "Hàng gấp" },
-            { id: 102, restaurant: "MTN", name: "Bộ phát Wifi Unifi", qty: 4, unit: "Bộ", region: "HN", requester: "Ngọc", date: "2026-09-15", type: "ĐNMH", supplier: "Samtech", contractNo: "", contractStt: "", stage: "Đặt hàng", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
+            { id: 102, restaurant: "MTN", name: "Bộ phát Wifi Unifi", qty: 4, unit: "Bộ", region: "HCM & HN", requester: "Ngọc", date: "2026-09-15", type: "ĐNMH", supplier: "Samtech", contractNo: "", contractStt: "", stage: "Đặt hàng", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
             { id: 1, restaurant: "BD - I.E KFC ATP", name: "Dây điện đơn 1.5", qty: 3, unit: "Cuộn", region: "HCM", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "Hoàng Hà", contractNo: "HD-2026/08-01", contractStt: "STT 01", stage: "Đã giao hàng", invoiceNo: "HĐ-8821", invoiceDate: "2026-09-15", paymentRequestDone: false, paymentRequestTime: null, note: "" },
-            { id: 2, restaurant: "BD - I.E KFC ATP", name: "Dây điện đơn 2.5", qty: 2, unit: "Cuộn", region: "HN", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "King Parts", contractNo: "HD-2026/08-02", contractStt: "STT 02", stage: "Đã giao hàng", invoiceNo: "HĐ-8822", invoiceDate: "2026-09-15", paymentRequestDone: false, paymentRequestTime: null, note: "" },
+            { id: 2, restaurant: "BD - I.E KFC ATP", name: "Dây điện đơn 2.5", qty: 2, unit: "Cuộn", region: "HCM", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "King Parts", contractNo: "HD-2026/08-02", contractStt: "STT 02", stage: "Đã giao hàng", invoiceNo: "HĐ-8822", invoiceDate: "2026-09-15", paymentRequestDone: false, paymentRequestTime: null, note: "" },
             { id: 3, restaurant: "BD - I.E KFC ATP", name: "Ổ cắm điện", qty: 20, unit: "Cái", region: "HN", requester: "Hà", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Thịnh", contractNo: "", contractStt: "", stage: "Đã giao hàng", invoiceNo: "HĐ-8823", invoiceDate: "2026-09-15", paymentRequestDone: false, paymentRequestTime: null, note: "" },
             { id: 4, restaurant: "BD - I.E KFC ATP", name: "Đế âm ổ cắm điện", qty: 10, unit: "Cái", region: "HCM", requester: "Hà", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Thịnh", contractNo: "", contractStt: "", stage: "Đã giao hàng", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
-            { id: 5, restaurant: "BD - I.E KFC ATP", name: "Dây chống cháy Nano", qty: 3, unit: "Cuộn", region: "HCM", requester: "Ngọc", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Thịnh", contractNo: "", contractStt: "", stage: "Đặt hàng", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
-            { id: 6, restaurant: "BD - I.E KFC ATP", name: "Đèn rọi tranh", qty: 15, unit: "Cái", region: "HN", requester: "Ngọc", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Trí", contractNo: "", contractStt: "", stage: "Đặt hàng", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
-            { id: 7, restaurant: "BD - I.E KFC ATP", name: "Băng keo đen", qty: 20, unit: "Cuộn", region: "HCM", requester: "Hà", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Thịnh", contractNo: "", contractStt: "", stage: "SSG", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
+            { id: 5, restaurant: "BD - I.E KFC ATP", name: "Dây chống cháy Nano", qty: 3, unit: "Cuộn", region: "HCM & HN", requester: "Ngọc", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Thịnh", contractNo: "", contractStt: "", stage: "Đặt hàng", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
+            { id: 6, restaurant: "BD - I.E KFC ATP", name: "Đèn rọi tranh", qty: 15, unit: "Cái", region: "HCM", requester: "Ngọc", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Trí", contractNo: "", contractStt: "", stage: "Đặt hàng", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
+            { id: 7, restaurant: "BD - I.E KFC ATP", name: "Băng keo đen", qty: 20, unit: "Cuộn", region: "HN", requester: "Hà", date: "2026-09-15", type: "ĐNMH", supplier: "Hưng Thịnh", contractNo: "", contractStt: "", stage: "SSG", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "" },
             { id: 8, restaurant: "BD - I.E KFC ATP", name: "Đèn led 12w trung tính", qty: 50, unit: "Cái", region: "HCM", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "Hữu Duy", contractNo: "HD-2026/08-03", contractStt: "STT 08", stage: "SSG", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "Loại lớn 17cm" },
-            { id: 9, restaurant: "BD - I.E KFC ATP", name: "Đèn led 12w ánh sáng trắng", qty: 40, unit: "Cái", region: "HN", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "Hữu Duy", contractNo: "HD-2026/08-04", contractStt: "STT 09", stage: "SSG", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "Loại nhỏ (14cm)" }
+            { id: 9, restaurant: "BD - I.E KFC ATP", name: "Đèn led 12w ánh sáng trắng", qty: 40, unit: "Cái", region: "HCM & HN", requester: "Ngọc", date: "2026-09-15", type: "Hợp đồng", supplier: "Hữu Duy", contractNo: "HD-2026/08-04", contractStt: "STT 09", stage: "SSG", invoiceNo: "", invoiceDate: "", paymentRequestDone: false, paymentRequestTime: null, note: "Loại nhỏ (14cm)" }
         ];
 
         let quotes = [
-            { id: 1, itemName: "Dây điện đơn 1.5", supplier: "Hoàng Hà", price: 350000, deliveryTime: "1 ngày", note: "Giá tốt, chất lượng cao" },
-            { id: 2, itemName: "Dây điện đơn 1.5", supplier: "King Parts", price: 360000, deliveryTime: "2 ngày", note: "Miễn phí vận chuyển" },
-            { id: 3, itemName: "Ổ cắm điện", supplier: "Hưng Thịnh", price: 45000, deliveryTime: "Trong ngày", note: "Hàng sẵn kho" }
+            { id: 1, itemId: 1, supplier: "Hoàng Hà", filename: "BG_HoangHa_DayDienDon1.5_15092026.pdf", price: 450000, fileUrl: "#" },
+            { id: 2, itemId: 2, supplier: "King Parts", filename: "BG_KingParts_WifiUnifi_15092026.pdf", price: 520000, fileUrl: "#" },
+            { id: 3, itemId: 3, supplier: "Hưng Thịnh", filename: "BG_HungThinh_OcCamDien_15092026.pdf", price: 35000, fileUrl: "#" },
+            { id: 4, itemId: 3, supplier: "Hoàng Ngọc", filename: "BG_HoangNgoc_OcCamDien_15092026.pdf", price: 38000, fileUrl: "#" },
+            { id: 5, itemId: 5, supplier: "Hưng Thịnh", filename: "BG_HungThinh_DayChongChay_15092026.pdf", price: 210000, fileUrl: "#" }
         ];
 
-        let currentTab = 'tab-dashboard';
+        let uploadedFileObjectUrl = null;
 
         // Initialize application on load
         window.onload = function() {
@@ -424,192 +589,99 @@
             lucide.createIcons();
         };
 
-        function switchTab(tabId) {
-            currentTab = tabId;
-            document.querySelectorAll('.tab-content').forEach(el => {
-                if (el) el.classList.add('hidden');
-            });
-            const targetEl = document.getElementById(tabId);
-            if (targetEl) {
-                targetEl.classList.remove('hidden');
-            }
-
-            document.querySelectorAll('.tab-btn').forEach(btn => {
-                const target = btn.getAttribute('data-target');
-                if (target === tabId) {
-                    btn.classList.add('border-indigo-600', 'text-indigo-600');
-                    btn.classList.remove('border-transparent', 'text-slate-500');
-                } else {
-                    btn.classList.remove('border-indigo-600', 'text-indigo-600');
-                    btn.classList.add('border-transparent', 'text-slate-500');
-                }
-            });
-            renderAll();
-        }
-
         function renderAll() {
-            renderDashboard();
             renderOrders();
             renderCheckTable();
             renderQuotes();
-            renderSummary();
-            renderSuppliers();
+            renderStatusTable();
+            renderReport();
+            populateDropdowns();
             lucide.createIcons();
         }
 
-        function showToast(msg) {
-            const toast = document.getElementById('toast');
-            if (!toast) return;
-            document.getElementById('toast-message').innerText = msg;
-            toast.classList.remove('translate-y-20', 'opacity-0');
-            setTimeout(() => {
-                toast.classList.add('translate-y-20', 'opacity-0');
-            }, 3000);
-        }
+        // Tab Switching Logic
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-indigo-600', 'text-indigo-600');
+                btn.classList.add('border-transparent', 'text-slate-500');
+            });
 
-        function closeModal(modalId) {
-            const m = document.getElementById(modalId);
-            if (m) m.classList.add('hidden');
-        }
-
-        function openModal(modalId) {
-            const m = document.getElementById(modalId);
-            if (m) m.classList.remove('hidden');
+            document.getElementById('tab-' + tabId).classList.remove('hidden');
+            const activeBtn = document.getElementById('tab-btn-' + tabId);
+            activeBtn.classList.remove('border-transparent', 'text-slate-500');
+            activeBtn.classList.add('border-indigo-600', 'text-indigo-600');
             lucide.createIcons();
         }
 
-        function showConfirm(title, message, onYes) {
-            document.getElementById('confirm-title').innerText = title;
-            document.getElementById('confirm-message').innerText = message;
-            const yesBtn = document.getElementById('confirm-yes-btn');
-            yesBtn.onclick = function() {
-                closeModal('modal-confirm');
-                onYes();
-            };
-            openModal('modal-confirm');
+        function formatDateVN(dateStr) {
+            if (!dateStr) return '';
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            return dateStr;
         }
 
-        // --- DASHBOARD RENDERING ---
-        function renderDashboard() {
-            const statTotal = document.getElementById('stat-total-orders');
-            if (statTotal) statTotal.innerText = orders.length;
-
-            const pending = orders.filter(o => o.stage === 'Đặt hàng' || o.stage === 'SSG').length;
-            const statPending = document.getElementById('stat-pending-orders');
-            if (statPending) statPending.innerText = pending;
-
-            const delivered = orders.filter(o => o.stage === 'Đã giao hàng').length;
-            const statDelivered = document.getElementById('stat-delivered-orders');
-            if (statDelivered) statDelivered.innerText = delivered;
-
-            const statSuppliers = document.getElementById('stat-total-suppliers');
-            if (statSuppliers) statSuppliers.innerText = suppliers.length;
-
-            // Recent orders
-            const recentContainer = document.getElementById('recent-orders-list');
-            if (recentContainer) {
-                recentContainer.innerHTML = '';
-                orders.slice(-5).reverse().forEach(o => {
-                    const regionBadge = `<span class="px-2 py-0.5 bg-sky-50 text-sky-700 border border-sky-200 rounded text-xs font-bold">${o.region || 'HCM'}</span>`;
-                    recentContainer.innerHTML += `
-                        <div class="flex items-center justify-between p-3 bg-slate-50 rounded-xl border border-slate-100">
-                            <div class="flex items-center space-x-3">
-                                <div class="w-8 h-8 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold text-xs"><i data-lucide="package" class="w-4 h-4"></i></div>
-                                <div>
-                                    <h4 class="font-semibold text-slate-800 text-sm">${o.name}</h4>
-                                    <p class="text-xs text-slate-500">${o.restaurant} • SL: ${o.qty} ${o.unit}</p>
-                                </div>
-                            </div>
-                            <div class="flex items-center space-x-2">
-                                ${regionBadge}
-                                <span class="text-xs px-2.5 py-1 bg-indigo-50 text-indigo-700 font-medium rounded-lg">${o.stage}</span>
-                            </div>
-                        </div>
-                    `;
-                });
-            }
-
-            // Region distribution
-            const hcmCount = orders.filter(o => (o.region || 'HCM') === 'HCM').length;
-            const hnCount = orders.filter(o => o.region === 'HN').length;
-            const totalReg = hcmCount + hnCount || 1;
-            const hcmPercent = Math.round((hcmCount / totalReg) * 100);
-            const hnPercent = 100 - hcmPercent;
-
-            const regionContainer = document.getElementById('region-distribution');
-            if (regionContainer) {
-                regionContainer.innerHTML = `
-                    <div>
-                        <div class="flex justify-between text-xs font-semibold text-slate-700 mb-1">
-                            <span>Khu vực TP. Hồ Chí Minh (HCM)</span>
-                            <span>${hcmCount} order (${hcmPercent}%)</span>
-                        </div>
-                        <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-                            <div class="bg-indigo-600 h-3 rounded-full" style="width: ${hcmPercent}%"></div>
-                        </div>
-                    </div>
-                    <div>
-                        <div class="flex justify-between text-xs font-semibold text-slate-700 mb-1">
-                            <span>Khu vực Hà Nội (HN)</span>
-                            <span>${hnCount} order (${hnPercent}%)</span>
-                        </div>
-                        <div class="w-full bg-slate-100 rounded-full h-3 overflow-hidden">
-                            <div class="bg-sky-500 h-3 rounded-full" style="width: ${hnPercent}%"></div>
-                        </div>
-                    </div>
-                `;
-            }
+        function groupOrdersByFromAndDate(orderList) {
+            const groups = {};
+            orderList.forEach(o => {
+                const formattedDate = formatDateVN(o.date);
+                const key = `From: ${o.restaurant} ngày ${formattedDate}`;
+                if (!groups[key]) {
+                    groups[key] = [];
+                }
+                groups[key].push(o);
+            });
+            Object.keys(groups).forEach(key => {
+                groups[key].sort((a, b) => new Date(b.date) - new Date(a.date) || b.id - a.id);
+            });
+            return groups;
         }
 
         // --- ORDER MANAGEMENT ---
         function openNewOrderModal() {
-            const titleEl = document.getElementById('order-modal-title');
-            if (titleEl) titleEl.innerText = "Thêm Order Nhiều Mặt Hàng";
-            const editIdEl = document.getElementById('order-edit-id');
-            if (editIdEl) editIdEl.value = "";
-            const restEl = document.getElementById('order-restaurant');
-            if (restEl) restEl.value = "BD - I.E KFC ATP";
-            const byEl = document.getElementById('order-by');
-            if (byEl) byEl.value = "Ngọc";
-            const dateEl = document.getElementById('order-date');
-            if (dateEl) dateEl.value = new Date().toISOString().split('T')[0];
+            document.getElementById('order-modal-title').innerText = "Thêm Order Nhiều Mặt Hàng";
+            document.getElementById('order-edit-id').value = "";
+            document.getElementById('order-restaurant').value = "BD - I.E KFC ATP";
+            document.getElementById('order-by').value = "Ngọc";
+            document.getElementById('order-date').value = new Date().toISOString().split('T')[0];
             
             const container = document.getElementById('order-items-container');
-            if (container) {
-                container.innerHTML = '';
-                addItemRow("Dây điện", 1, "Cuộn", "HCM", "");
-            }
+            container.innerHTML = '';
+            addItemRow("Dây điện", 1, "Cuộn", "HCM", "");
             
-            openModal('modal-order');
+            document.getElementById('modal-order').classList.remove('hidden');
+            lucide.createIcons();
         }
 
         function addItemRow(name = "", qty = 1, unit = "Cái", region = "HCM", note = "") {
             const container = document.getElementById('order-items-container');
-            if (!container) return;
             const rowId = 'row-' + Date.now() + '-' + Math.floor(Math.random()*1000);
             const rowDiv = document.createElement('div');
             rowDiv.id = rowId;
             rowDiv.className = "flex items-center space-x-2 bg-slate-50 p-2.5 rounded-xl border border-slate-200";
             rowDiv.innerHTML = `
                 <div class="flex-1">
-                    <input type="text" placeholder="Tên mặt hàng..." value="${name}" required class="item-name-input w-full px-3 py-1.5 border border-slate-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <input type="text" placeholder="Tên mặt hàng..." value="${name}" required class="item-name-input w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div class="w-16">
-                    <input type="number" placeholder="SL" value="${qty}" min="1" required class="item-qty-input w-full px-3 py-1.5 border border-slate-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <input type="number" placeholder="SL" value="${qty}" min="1" required class="item-qty-input w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div class="w-20">
-                    <input type="text" placeholder="ĐVT" value="${unit}" required class="item-unit-input w-full px-3 py-1.5 border border-slate-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <input type="text" placeholder="ĐVT" value="${unit}" required class="item-unit-input w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div class="w-28">
-                    <select class="item-region-input w-full px-2 py-1.5 border border-slate-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none font-semibold text-sky-700">
+                    <select class="item-region-input w-full px-2 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                         <option value="HCM" ${region === 'HCM' ? 'selected' : ''}>HCM</option>
                         <option value="HN" ${region === 'HN' ? 'selected' : ''}>HN</option>
+                        <option value="HCM & HN" ${region === 'HCM & HN' ? 'selected' : ''}>HCM & HN</option>
                     </select>
                 </div>
                 <div class="flex-1">
-                    <input type="text" placeholder="Ghi chú (tuỳ chọn)" value="${note}" class="item-note-input w-full px-3 py-1.5 border border-slate-300 rounded-xl text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <input type="text" placeholder="Ghi chú (tuỳ chọn)" value="${note}" class="item-note-input w-full px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
-                <button type="button" onclick="this.parentElement.remove()" class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-xl transition">
+                <button type="button" onclick="this.parentElement.remove()" class="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition">
                     <i data-lucide="trash-2" class="w-4 h-4"></i>
                 </button>
             `;
@@ -692,40 +764,27 @@
             document.getElementById('order-date').value = o.date || new Date().toISOString().split('T')[0];
 
             const container = document.getElementById('order-items-container');
-            if (container) {
-                container.innerHTML = '';
-                addItemRow(o.name, o.qty, o.unit, o.region || 'HCM', o.note);
-            }
+            container.innerHTML = '';
+            addItemRow(o.name, o.qty, o.unit, o.region || 'HCM', o.note);
 
-            openModal('modal-order');
+            document.getElementById('modal-order').classList.remove('hidden');
         }
 
         function deleteOrder(id) {
-            showConfirm("Xóa Order", "Bạn có chắc chắn muốn xóa order này không?", function() {
+            if (confirm("Bạn có chắc chắn muốn xóa order này không?")) {
                 orders = orders.filter(x => x.id !== id);
                 quotes = quotes.filter(q => q.itemId !== id);
                 renderAll();
                 showToast("Đã xóa order!");
-            });
+            }
         }
 
         function filterOrders() {
             renderOrders();
         }
 
-        function groupOrdersByFromAndDate(list) {
-            const grouped = {};
-            list.forEach(o => {
-                const key = `${o.restaurant} (${o.date || 'Chưa rõ ngày'})`;
-                if (!grouped[key]) grouped[key] = [];
-                grouped[key].push(o);
-            });
-            return grouped;
-        }
-
         function renderOrders() {
             const tbody = document.getElementById('orders-table-body');
-            if (!tbody) return;
             const searchInput = document.getElementById('search-order');
             const search = searchInput ? searchInput.value.toLowerCase() : '';
             tbody.innerHTML = '';
@@ -762,7 +821,7 @@
 
                 grouped[groupTitle].forEach((o, index) => {
                     const noteBadge = o.note ? `<span class="px-2 py-0.5 bg-amber-50 text-amber-800 rounded text-xs">${o.note}</span>` : `<span class="text-slate-400 italic text-xs">-</span>`;
-                    const regionBadge = `<span class="px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded-md text-xs font-bold">${o.region || 'HCM'}</span>`;
+                    const regionBadge = `<span class="px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded-full text-xs font-semibold">${o.region || 'HCM'}</span>`;
                     tbody.innerHTML += `
                         <tr class="hover:bg-slate-50 transition border-b border-slate-100">
                             <td class="py-3 px-4 font-bold text-slate-700">${index + 1}</td>
@@ -773,8 +832,8 @@
                             <td class="py-3 px-4">${noteBadge}</td>
                             <td class="py-3 px-4 text-slate-600"><span class="px-2.5 py-1 bg-slate-100 text-slate-700 rounded-full text-xs font-medium">${o.requester}</span></td>
                             <td class="py-3 px-4 text-right space-x-2">
-                                <button onclick="editOrder(${o.id})" class="text-indigo-600 hover:text-indigo-900 text-xs font-medium px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-xl transition">Sửa</button>
-                                <button onclick="deleteOrder(${o.id})" class="text-rose-600 hover:text-rose-900 text-xs font-medium px-2.5 py-1 bg-rose-50 hover:bg-rose-100 rounded-xl transition">Xóa</button>
+                                <button onclick="editOrder(${o.id})" class="text-indigo-600 hover:text-indigo-900 text-xs font-medium px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 rounded-lg transition">Sửa</button>
+                                <button onclick="deleteOrder(${o.id})" class="text-rose-600 hover:text-rose-900 text-xs font-medium px-2.5 py-1 bg-rose-50 hover:bg-rose-100 rounded-lg transition">Xóa</button>
                             </td>
                         </tr>
                     `;
@@ -786,59 +845,54 @@
         // --- TAB 2: CHECK HĐ & ĐNMH ---
         function renderCheckTable() {
             const tbody = document.getElementById('check-table-body');
-            if (!tbody) return;
             const searchInput = document.getElementById('search-check');
             const search = searchInput ? searchInput.value.toLowerCase() : '';
             tbody.innerHTML = '';
 
             const filtered = orders.filter(o => 
-                (o.supplier && o.supplier.toLowerCase().includes(search)) || 
-                o.name.toLowerCase().includes(search) ||
+                o.name.toLowerCase().includes(search) || 
+                o.restaurant.toLowerCase().includes(search) || 
+                (o.supplier && o.supplier.toLowerCase().includes(search)) ||
                 (o.contractNo && o.contractNo.toLowerCase().includes(search))
             );
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400">Không tìm thấy dữ liệu check phù hợp.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">Không tìm thấy dữ liệu kiểm tra phù hợp.</td></tr>`;
                 return;
             }
 
-            filtered.forEach((o, index) => {
+            filtered.forEach(o => {
                 const typeBadge = o.type === 'Hợp đồng' 
-                    ? `<span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-lg text-xs font-bold">Hợp đồng</span>`
-                    : `<span class="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold">ĐNMH</span>`;
+                    ? `<span class="px-2.5 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded-full text-xs font-semibold">Hợp đồng</span>`
+                    : `<span class="px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-xs font-semibold">ĐNMH (Đa NCC)</span>`;
                 
-                const supplierSelect = `<select onchange="updateOrderSupplier(${o.id}, this.value)" class="px-2.5 py-1 border border-slate-300 rounded-lg text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <option value="">-- Chọn NCC --</option>
-                    ${suppliers.map(s => `<option value="${s}" ${o.supplier === s ? 'selected' : ''}>${s}</option>`).join('')}
-                </select>`;
+                const itemQuotes = quotes.filter(q => q.itemId === o.id);
+                const quotedSuppliersText = itemQuotes.length > 0 
+                    ? itemQuotes.map(q => `${q.supplier} (${q.price.toLocaleString()}đ)`).join(', ')
+                    : '<span class="text-slate-400 italic">Chưa có NCC báo giá</span>';
 
-                const stageSelect = `<select onchange="updateOrderStage(${o.id}, this.value)" class="px-2.5 py-1 border border-slate-300 rounded-lg text-xs font-medium bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
-                    <option value="SSG" ${o.stage === 'SSG' ? 'selected' : ''}>SSG</option>
-                    <option value="Đặt hàng" ${o.stage === 'Đặt hàng' ? 'selected' : ''}>Đặt hàng</option>
-                    <option value="Đã giao hàng" ${o.stage === 'Đã giao hàng' ? 'selected' : ''}>Đã giao hàng</option>
-                    <option value="Phát hành hoá đơn" ${o.stage === 'Phát hành hoá đơn' ? 'selected' : ''}>Phát hành hoá đơn</option>
-                </select>`;
+                const supplierOrQuoteSummary = o.type === 'Hợp đồng' 
+                    ? `<span class="font-medium text-slate-700">${o.supplier || 'Chưa chọn'}</span>`
+                    : `<span class="font-medium text-indigo-700">Đã nhận ${itemQuotes.length} báo giá</span><br><span class="text-xs text-slate-500">${quotedSuppliersText}</span>`;
 
-                const paymentCheck = `<input type="checkbox" ${o.paymentRequestDone ? 'checked' : ''} onchange="togglePayment(${o.id}, this.checked)" class="w-4 h-4 text-indigo-600 rounded border-slate-300 focus:ring-indigo-500">`;
+                const contractDetail = o.type === 'Hợp đồng' && o.contractNo
+                    ? `<span class="text-xs text-slate-700 font-medium">Số HĐ: ${o.contractNo} (${o.contractStt || '-'})</span>`
+                    : `<span class="text-xs text-indigo-600 font-medium">Chọn NCC tốt nhất qua so sánh báo giá</span>`;
 
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-                        <td class="py-3 px-4 font-bold text-slate-700">${index + 1}</td>
-                        <td class="py-3 px-4">${supplierSelect}</td>
-                        <td class="py-3 px-4 font-semibold text-slate-800">${o.name} <span class="text-xs font-normal text-slate-500">(${o.qty} ${o.unit})</span></td>
-                        <td class="py-3 px-4">${typeBadge}</td>
-                        <td class="py-3 px-4 text-slate-600 text-xs">
-                            <input type="text" value="${o.contractNo || ''}" onchange="updateContractNo(${o.id}, this.value)" placeholder="Số HĐ..." class="w-28 px-2 py-1 border border-slate-200 rounded-lg text-xs mb-1">
-                            <input type="text" value="${o.contractStt || ''}" onchange="updateContractStt(${o.id}, this.value)" placeholder="STT HĐ..." class="w-28 px-2 py-1 border border-slate-200 rounded-lg text-xs">
+                        <td class="py-3.5 px-4">
+                            <span class="text-xs font-bold text-indigo-700 block">${o.restaurant} (${o.region || 'HCM'})</span>
+                            <span class="font-semibold text-slate-800">${o.name} (${o.qty} ${o.unit})</span>
                         </td>
-                        <td class="py-3 px-4">${stageSelect}</td>
-                        <td class="py-3 px-4 text-xs space-y-1">
-                            <input type="text" value="${o.invoiceNo || ''}" onchange="updateInvoiceNo(${o.id}, this.value)" placeholder="Số HĐơn..." class="w-24 px-2 py-1 border border-slate-200 rounded-lg text-xs">
-                            <input type="date" value="${o.invoiceDate || ''}" onchange="updateInvoiceDate(${o.id}, this.value)" class="w-28 px-2 py-1 border border-slate-200 rounded-lg text-xs">
-                        </td>
-                        <td class="py-3 px-4 text-center">
-                            ${paymentCheck}
-                            ${o.paymentRequestTime ? `<div class="text-[10px] text-slate-400 mt-0.5">${o.paymentRequestTime}</div>` : ''}
+                        <td class="py-3.5 px-4 text-slate-600 font-medium">${o.qty}</td>
+                        <td class="py-3.5 px-4">${typeBadge}</td>
+                        <td class="py-3.5 px-4">${supplierOrQuoteSummary}</td>
+                        <td class="py-3.5 px-4">${contractDetail}</td>
+                        <td class="py-3.5 px-4 text-right">
+                            <button onclick="openCheckModal(${o.id})" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-medium transition">
+                                Cập nhật HĐ / ĐNMH
+                            </button>
                         </td>
                     </tr>
                 `;
@@ -846,197 +900,615 @@
             lucide.createIcons();
         }
 
-        function updateOrderSupplier(id, val) {
+        function openCheckModal(id) {
             const o = orders.find(x => x.id === id);
-            if (o) { o.supplier = val; showToast("Đã cập nhật NCC!"); }
+            if (!o) return;
+            document.getElementById('check-item-id').value = o.id;
+            document.getElementById('check-item-name').value = `${o.restaurant} - ${o.name} (${o.region || 'HCM'})`;
+            document.getElementById('check-type').value = o.type || 'Hợp đồng';
+            populateSupplierSelect('check-supplier', o.supplier);
+            document.getElementById('check-contract-no').value = o.contractNo || '';
+            document.getElementById('check-contract-stt').value = o.contractStt || '';
+            toggleCheckFields();
+            document.getElementById('modal-check').classList.remove('hidden');
         }
-        function updateOrderStage(id, val) {
-            const o = orders.find(x => x.id === id);
-            if (o) { o.stage = val; showToast("Đã cập nhật tiến độ!"); }
+
+        function toggleCheckFields() {
+            const type = document.getElementById('check-type').value;
+            const fields = document.getElementById('contract-fields');
+            const supplierWrapper = document.getElementById('supplier-single-wrapper');
+            if (type === 'Hợp đồng') {
+                fields.classList.remove('hidden');
+                supplierWrapper.classList.remove('hidden');
+            } else {
+                fields.classList.add('hidden');
+            }
         }
-        function updateContractNo(id, val) {
-            const o = orders.find(x => x.id === id);
-            if (o) { o.contractNo = val; o.type = val ? 'Hợp đồng' : 'ĐNMH'; }
-        }
-        function updateContractStt(id, val) {
-            const o = orders.find(x => x.id === id);
-            if (o) { o.contractStt = val; }
-        }
-        function updateInvoiceNo(id, val) {
-            const o = orders.find(x => x.id === id);
-            if (o) { o.invoiceNo = val; }
-        }
-        function updateInvoiceDate(id, val) {
-            const o = orders.find(x => x.id === id);
-            if (o) { o.invoiceDate = val; }
-        }
-        function togglePayment(id, checked) {
+
+        function saveCheckInfo(e) {
+            e.preventDefault();
+            const id = parseInt(document.getElementById('check-item-id').value);
             const o = orders.find(x => x.id === id);
             if (o) {
-                o.paymentRequestDone = checked;
-                o.paymentRequestTime = checked ? new Date().toLocaleString('vi-VN') : null;
-                showToast(checked ? "Đã xác nhận yêu cầu thanh toán!" : "Đã hủy yêu cầu thanh toán");
-                renderCheckTable();
-            }
-        }
-
-        // --- TAB 3: BÁO GIÁ NCC ---
-        function renderQuotes() {
-            const tbody = document.getElementById('quotes-table-body');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-            if (quotes.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">Chưa có báo giá nào.</td></tr>`;
-                return;
-            }
-            quotes.forEach((q, index) => {
-                tbody.innerHTML += `
-                    <tr class="hover:bg-slate-50 transition border-b border-slate-100">
-                        <td class="py-3 px-4 font-semibold text-slate-800">${q.itemName}</td>
-                        <td class="py-3 px-4 text-indigo-600 font-medium">${q.supplier}</td>
-                        <td class="py-3 px-4 font-bold text-emerald-600">${q.price.toLocaleString('vi-VN')} VNĐ</td>
-                        <td class="py-3 px-4 text-slate-600">${q.deliveryTime}</td>
-                        <td class="py-3 px-4 text-slate-500 text-xs">${q.note || '-'}</td>
-                        <td class="py-3 px-4 text-right">
-                            <button onclick="deleteQuote(${q.id})" class="text-rose-600 hover:text-rose-900 text-xs font-medium px-2.5 py-1 bg-rose-50 hover:bg-rose-100 rounded-xl transition">Xóa</button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-
-        function openAddQuoteModal() {
-            const itemName = prompt("Nhập tên mặt hàng báo giá:");
-            if (!itemName) return;
-            const supplier = prompt("Nhập tên Nhà cung cấp:");
-            if (!supplier) return;
-            const price = parseFloat(prompt("Nhập đơn giá (VNĐ):")) || 0;
-            const deliveryTime = prompt("Thời gian giao hàng (VD: 1 ngày):") || "1 ngày";
-            const note = prompt("Ghi chú / Đánh giá:") || "";
-
-            quotes.push({ id: Date.now(), itemName, supplier, price, deliveryTime, note });
-            renderQuotes();
-            showToast("Đã thêm báo giá mới!");
-        }
-
-        function deleteQuote(id) {
-            quotes = quotes.filter(q => q.id !== id);
-            renderQuotes();
-            showToast("Đã xóa báo giá!");
-        }
-
-        // --- TAB 4: TỔNG HỢP ĐM & HĐ ---
-        function renderSummary() {
-            const dnmhCount = orders.filter(o => o.type === 'ĐNMH').length;
-            const contractCount = orders.filter(o => o.type === 'Hợp đồng').length;
-            const paidCount = orders.filter(o => o.paymentRequestDone).length;
-
-            const sumDnmh = document.getElementById('sum-dnmh');
-            if (sumDnmh) sumDnmh.innerText = dnmhCount;
-            const sumContract = document.getElementById('sum-contract');
-            if (sumContract) sumContract.innerText = contractCount;
-            const sumPaid = document.getElementById('sum-paid');
-            if (sumPaid) sumPaid.innerText = paidCount;
-
-            const tbody = document.getElementById('supplier-summary-body');
-            if (!tbody) return;
-            tbody.innerHTML = '';
-            suppliers.forEach(s => {
-                const sOrders = orders.filter(o => o.supplier === s);
-                if (sOrders.length > 0) {
-                    const delivered = sOrders.filter(o => o.stage === 'Đã giao hàng').length;
-                    const pending = sOrders.length - delivered;
-                    tbody.innerHTML += `
-                        <tr class="hover:bg-slate-50 border-b border-slate-100">
-                            <td class="py-3 px-4 font-semibold text-slate-800">${s}</td>
-                            <td class="py-3 px-4 text-slate-600">${sOrders.length}</td>
-                            <td class="py-3 px-4 text-emerald-600 font-medium">${delivered}</td>
-                            <td class="py-3 px-4 text-amber-600 font-medium">${pending}</td>
-                        </tr>
-                    `;
+                o.type = document.getElementById('check-type').value;
+                if (o.type === 'Hợp đồng') {
+                    o.supplier = document.getElementById('check-supplier').value;
+                    o.contractNo = document.getElementById('check-contract-no').value;
+                    o.contractStt = document.getElementById('check-contract-stt').value;
+                } else {
+                    o.contractNo = '';
+                    o.contractStt = '';
                 }
-            });
+            }
+            closeModal('modal-check');
+            renderAll();
+            showToast("Đã lưu thông tin hợp đồng / ĐNMH thành công!");
         }
 
-        // --- TAB 5: NHÀ CUNG CẤP ---
-        function renderSuppliers() {
-            const grid = document.getElementById('suppliers-grid');
-            if (!grid) return;
-            grid.innerHTML = '';
-            suppliers.forEach(s => {
-                const count = orders.filter(o => o.supplier === s).length;
-                grid.innerHTML += `
-                    <div class="bg-slate-50 p-4 rounded-2xl border border-slate-200 flex items-center justify-between">
-                        <div>
-                            <h4 class="font-bold text-slate-900">${s}</h4>
-                            <p class="text-xs text-slate-500 mt-0.5">Đang phụ trách: <strong>${count}</strong> đơn hàng</p>
-                        </div>
-                        <div class="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center font-bold">
-                            <i data-lucide="truck" class="w-5 h-5"></i>
-                        </div>
-                    </div>
-                `;
-            });
-            lucide.createIcons();
-        }
-
+        // --- SUPPLIER MANAGEMENT ---
         function openSupplierModal() {
-            const input = document.getElementById('supplier-name-input');
-            if (input) input.value = '';
-            openModal('modal-supplier');
+            renderSuppliersListTags();
+            document.getElementById('new-supplier-name').value = '';
+            document.getElementById('modal-supplier').classList.remove('hidden');
         }
 
-        function saveSupplier(e) {
-            e.preventDefault();
-            const input = document.getElementById('supplier-name-input');
-            if (!input) return;
+        function addSupplier() {
+            const input = document.getElementById('new-supplier-name');
             const name = input.value.trim();
             if (name && !suppliers.includes(name)) {
                 suppliers.push(name);
-                showToast("Đã thêm nhà cung cấp mới!");
-                closeModal('modal-supplier');
-                renderAll();
+                input.value = '';
+                renderSuppliersListTags();
+                populateDropdowns();
+                showToast(`Đã thêm nhà cung cấp: ${name}`);
             } else {
-                showToast("Tên NCC đã tồn tại hoặc không hợp lệ!");
+                showToast("Tên nhà cung cấp trống hoặc đã tồn tại!");
             }
         }
 
-        // --- TAB 6: BÁO CÁO TUẦN ---
-        function generateWeeklyReport() {
-            const weekInput = document.getElementById('report-week-input');
-            const weekVal = weekInput ? weekInput.value : '';
-            const container = document.getElementById('report-content');
-            if (!container) return;
-            
-            const total = orders.length;
-            const delivered = orders.filter(o => o.stage === 'Đã giao hàng').length;
-            const pending = total - delivered;
-            const hcmCount = orders.filter(o => (o.region || 'HCM') === 'HCM').length;
-            const hnCount = orders.filter(o => o.region === 'HN').length;
+        function renderSuppliersListTags() {
+            const container = document.getElementById('suppliers-list-tags');
+            container.innerHTML = '';
+            suppliers.forEach(s => {
+                container.innerHTML += `
+                    <span class="inline-flex items-center px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700 shadow-xs">
+                        ${s}
+                    </span>
+                `;
+            });
+        }
 
-            container.innerHTML = `
-                <div class="space-y-3">
-                    <h4 class="font-bold text-slate-900 text-base">BẢNG TỔNG KẾT TUẦN ${weekVal ? '(' + weekVal + ')' : ''}</h4>
-                    <p class="text-slate-600">Hệ thống ghi nhận tổng số <strong>${total}</strong> order trong giai đoạn này.</p>
-                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
-                        <div class="bg-white p-4 rounded-xl border border-slate-200">
-                            <span class="text-xs text-slate-500 uppercase font-semibold">Tiến độ giao hàng</span>
-                            <div class="text-sm font-bold text-slate-800 mt-1">Đã giao: ${delivered} | Đang xử lý: ${pending}</div>
+        // --- TAB 3: QUOTES & COMPARISON ---
+        function renderQuotes() {
+            const searchInput = document.getElementById('search-quotes');
+            const search = searchInput ? searchInput.value.toLowerCase() : '';
+
+            // 1. Render Quote Tracking List
+            const trackingContainer = document.getElementById('quote-tracking-list');
+            trackingContainer.innerHTML = '';
+
+            const filteredOrdersForQuotes = orders.filter(o => 
+                o.name.toLowerCase().includes(search) || 
+                o.restaurant.toLowerCase().includes(search) ||
+                (o.supplier && o.supplier.toLowerCase().includes(search))
+            );
+
+            filteredOrdersForQuotes.forEach(o => {
+                const itemQuotes = quotes.filter(q => q.itemId === o.id);
+                const quotedSupplierNames = itemQuotes.map(q => q.supplier);
+                
+                const quotedListHTML = itemQuotes.length > 0 
+                    ? itemQuotes.map(q => `<span class="inline-flex items-center px-2 py-1 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-md text-xs font-medium mr-1.5 mb-1"><i data-lucide="check" class="w-3 h-3 mr-1 text-emerald-600"></i>${q.supplier}: <strong class="ml-1">${q.price.toLocaleString()}đ</strong></span>`).join('')
+                    : `<span class="text-xs text-slate-400 italic">Chưa có NCC nào báo giá</span>`;
+
+                const unquotedSuppliers = suppliers.filter(s => !quotedSupplierNames.includes(s));
+                const unquotedListHTML = unquotedSuppliers.length > 0
+                    ? unquotedSuppliers.map(s => `<span class="inline-flex items-center px-2 py-0.5 bg-slate-100 text-slate-500 border border-slate-200 rounded-md text-xs mr-1 mb-1">${s}</span>`).join('')
+                    : `<span class="text-xs text-indigo-600 font-medium">Tất cả NCC đã báo giá!</span>`;
+
+                trackingContainer.innerHTML += `
+                    <div class="p-3.5 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <span class="text-xs font-bold text-indigo-600 uppercase">${o.restaurant} (${o.region || 'HCM'})</span>
+                                <h4 class="font-bold text-slate-800 text-sm">${o.name} (${o.qty} ${o.unit})</h4>
+                            </div>
+                            <button onclick="openQuoteUploadModalForItem(${o.id})" class="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg transition flex items-center space-x-1 shadow-xs">
+                                <i data-lucide="upload" class="w-3 h-3"></i><span>Tải báo giá</span>
+                            </button>
                         </div>
-                        <div class="bg-white p-4 rounded-xl border border-slate-200">
-                            <span class="text-xs text-slate-500 uppercase font-semibold">Phân bổ khu vực</span>
-                            <div class="text-sm font-bold text-slate-800 mt-1">HCM: ${hcmCount} | HN: ${hnCount}</div>
+                        <div class="space-y-1.5 pt-1 border-t border-slate-200/70">
+                            <div>
+                                <p class="text-xs font-semibold text-slate-700 mb-1">Đã báo giá (${itemQuotes.length}):</p>
+                                <div class="flex flex-wrap">${quotedListHTML}</div>
+                            </div>
+                            <div>
+                                <p class="text-xs font-semibold text-slate-500 mb-1">Chưa báo giá (${unquotedSuppliers.length}):</p>
+                                <div class="flex flex-wrap max-h-20 overflow-y-auto">${unquotedListHTML}</div>
+                            </div>
                         </div>
                     </div>
-                    <div class="pt-3">
-                        <h5 class="font-bold text-slate-800 text-sm mb-2">Danh sách nhà cung cấp tham gia tuần:</h5>
-                        <div class="flex flex-wrap gap-2">
-                            ${suppliers.map(s => `<span class="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-medium text-slate-700">${s}</span>`).join('')}
-                        </div>
-                    </div>
-                </div>
-            `;
-            showToast("Đã tạo báo cáo tuần thành công!");
+                `;
+            });
+
+            // 2. Render Comparison Table
+            const compTbody = document.getElementById('comparison-table-body');
+            compTbody.innerHTML = '';
+
+            filteredOrdersForQuotes.forEach(o => {
+                const itemQuotes = quotes.filter(q => q.itemId === o.id);
+                if (itemQuotes.length === 0) {
+                    compTbody.innerHTML += `
+                        <tr class="border-b border-slate-100">
+                            <td class="py-3 px-3 font-semibold text-slate-800">${o.name}<br><span class="text-xs font-normal text-slate-500">${o.restaurant} (${o.region || 'HCM'})</span></td>
+                            <td colspan="4" class="py-3 px-3 text-slate-400 italic text-xs">Chưa có file báo giá từ NCC nào.</td>
+                        </tr>
+                    `;
+                } else {
+                    let minPrice = Math.min(...itemQuotes.map(q => q.price));
+
+                    itemQuotes.forEach((q, idx) => {
+                        const isSelectedBest = o.supplier === q.supplier;
+                        const isCheapest = q.price === minPrice;
+
+                        let badgeHTML = '';
+                        if (isSelectedBest) {
+                            badgeHTML = `<span class="px-2.5 py-1 bg-emerald-100 text-emerald-800 rounded-full text-xs font-bold inline-flex items-center"><i data-lucide="check-circle" class="w-3 h-3 mr-1"></i> Đang chọn mua</span>`;
+                        } else {
+                            badgeHTML = `<button onclick="selectBestQuote(${o.id}, '${q.supplier}')" class="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-medium transition">Chọn NCC này</button>`;
+                        }
+
+                        const cheapestTag = isCheapest ? `<span class="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[10px] font-bold rounded">Rẻ nhất</span>` : '';
+                        const fileLink = q.fileUrl && q.fileUrl !== '#' 
+                            ? `<a href="${q.fileUrl}" target="_blank" class="hover:underline text-indigo-600 flex items-center font-mono font-medium"><i data-lucide="file-text" class="w-3.5 h-3.5 mr-1 text-indigo-500 shrink-0"></i><span class="truncate max-w-[140px]">${q.filename}</span></a>`
+                            : `<span class="text-slate-700 flex items-center font-mono text-xs"><i data-lucide="file" class="w-3.5 h-3.5 mr-1 text-slate-400 shrink-0"></i><span class="truncate max-w-[140px]">${q.filename}</span></span>`;
+
+                        compTbody.innerHTML += `
+                            <tr class="border-b border-slate-100 hover:bg-slate-50">
+                                <td class="py-3 px-3 font-semibold text-slate-800">${idx === 0 ? `${o.name}<br><span class="text-xs font-normal text-slate-500">${o.restaurant} (${o.region || 'HCM'})</span>` : ''}</td>
+                                <td class="py-3 px-3 font-medium text-slate-700">${q.supplier}</td>
+                                <td class="py-3 px-3 text-indigo-600 font-bold">${q.price.toLocaleString()} VNĐ ${cheapestTag}</td>
+                                <td class="py-3 px-3 text-xs text-slate-600">${fileLink}</td>
+                                <td class="py-3 px-3 text-right space-x-1">
+                                    ${badgeHTML}
+                                    <button onclick="openEditQuoteModal(${q.id})" class="px-2 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-lg text-xs font-medium transition inline-flex items-center" title="Sửa báo giá"><i data-lucide="edit-3" class="w-3 h-3"></i></button>
+                                    <button onclick="deleteQuote(${q.id})" class="p-1 text-rose-500 hover:text-rose-700 rounded transition" title="Xóa báo giá"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i></button>
+                                </td>
+                            </tr>
+                        `;
+                    });
+                }
+            });
+            lucide.createIcons();
+        }
+
+        function autoFormatQuoteFilename() {
+            const supplierSelect = document.getElementById('quote-supplier');
+            const itemSelect = document.getElementById('quote-item-id');
+            const filenameInput = document.getElementById('quote-filename');
+            
+            const supplierName = supplierSelect.value ? supplierSelect.value.replace(/\s+/g, '') : 'NCC';
+            const itemId = parseInt(itemSelect.value);
+            const item = orders.find(x => x.id === itemId);
+            const itemName = item ? item.name.replace(/[^a-zA-Z0-9àáạảãâấầẩẫậăắằẳẵặèéẹẻẽêếềểễệìíịỉĩòóọỏõôốồổỗộơớờởỡợùúụủũưứừửữựỳýỵỷỹđĐ]/g, '') : 'MatHang';
+            
+            const today = new Date();
+            const dd = String(today.getDate()).padStart(2, '0');
+            const mm = String(today.getMonth() + 1).padStart(2, '0');
+            const yyyy = today.getFullYear();
+            const dateStr = `${dd}${mm}${yyyy}`;
+
+            let ext = '.pdf';
+            if (filenameInput.value.includes('.')) {
+                const parts = filenameInput.value.split('.');
+                ext = '.' + parts[parts.length - 1];
+            }
+
+            filenameInput.value = `BG_${supplierName}_${itemName}_${dateStr}${ext}`;
+        }
+
+        function handleFilePicked(event) {
+            const file = event.target.files[0];
+            if (file) {
+                uploadedFileObjectUrl = URL.createObjectURL(file);
+                const filenameInput = document.getElementById('quote-filename');
+                const originalName = file.name;
+                const ext = originalName.substring(originalName.lastIndexOf('.'));
+                
+                const supplierSelect = document.getElementById('quote-supplier');
+                const itemSelect = document.getElementById('quote-item-id');
+                const supplierName = supplierSelect.value ? supplierSelect.value.replace(/\s+/g, '') : 'NCC';
+                const itemId = parseInt(itemSelect.value);
+                const item = orders.find(x => x.id === itemId);
+                const itemName = item ? item.name.replace(/[^a-zA-Z0-9àáạảãâấầẩẫậăắằẳẵặèéẹẻẽêếềểễệìíịỉĩòóọỏõôốồổỗộơớờởỡợùúụủũưứừửữựỳýỵỷỹđĐ]/g, '') : 'MatHang';
+                
+                const today = new Date();
+                const dd = String(today.getDate()).padStart(2, '0');
+                const mm = String(today.getMonth() + 1).padStart(2, '0');
+                const yyyy = today.getFullYear();
+                
+                filenameInput.value = `BG_${supplierName}_${itemName}_${dd}${mm}${yyyy}${ext}`;
+                showToast(`Đã chọn file: ${originalName}`);
+            }
+        }
+
+        function openQuoteUploadModal() {
+            document.getElementById('quote-modal-title').innerText = "Tải Lên Báo Giá Từ NCC";
+            document.getElementById('quote-edit-id').value = "";
+            document.getElementById('quote-file-picker').value = "";
+            uploadedFileObjectUrl = null;
+            populateSupplierSelect('quote-supplier');
+            populateItemSelect('quote-item-id');
+            autoFormatQuoteFilename();
+            document.getElementById('quote-price').value = "";
+            document.getElementById('modal-quote').classList.remove('hidden');
+        }
+
+        function openQuoteUploadModalForItem(itemId) {
+            document.getElementById('quote-modal-title').innerText = "Tải Lên Báo Giá Từ NCC";
+            document.getElementById('quote-edit-id').value = "";
+            document.getElementById('quote-file-picker').value = "";
+            uploadedFileObjectUrl = null;
+            populateSupplierSelect('quote-supplier');
+            populateItemSelect('quote-item-id', itemId);
+            autoFormatQuoteFilename();
+            document.getElementById('quote-price').value = "";
+            document.getElementById('modal-quote').classList.remove('hidden');
+        }
+
+        function openEditQuoteModal(quoteId) {
+            const q = quotes.find(x => x.id === quoteId);
+            if (!q) return;
+
+            document.getElementById('quote-modal-title').innerText = "Cập Nhật Báo Giá";
+            document.getElementById('quote-edit-id').value = q.id;
+            document.getElementById('quote-file-picker').value = "";
+            populateSupplierSelect('quote-supplier', q.supplier);
+            populateItemSelect('quote-item-id', q.itemId);
+            document.getElementById('quote-filename').value = q.filename;
+            document.getElementById('quote-price').value = q.price;
+            document.getElementById('modal-quote').classList.remove('hidden');
+        }
+
+        function saveQuoteFile(e) {
+            e.preventDefault();
+            const editId = document.getElementById('quote-edit-id').value;
+            const supplier = document.getElementById('quote-supplier').value;
+            const filename = document.getElementById('quote-filename').value;
+            const itemId = parseInt(document.getElementById('quote-item-id').value);
+            const price = parseFloat(document.getElementById('quote-price').value);
+            const fileUrl = uploadedFileObjectUrl || '#';
+
+            if (editId) {
+                const q = quotes.find(x => x.id == editId);
+                if (q) {
+                    q.itemId = itemId;
+                    q.supplier = supplier;
+                    q.filename = filename;
+                    q.price = price;
+                    if (uploadedFileObjectUrl) q.fileUrl = fileUrl;
+                }
+                showToast("Đã cập nhật báo giá thành công!");
+            } else {
+                const existingQuote = quotes.find(q => q.itemId === itemId && q.supplier === supplier);
+                if (existingQuote) {
+                    existingQuote.filename = filename;
+                    existingQuote.price = price;
+                    if (uploadedFileObjectUrl) existingQuote.fileUrl = fileUrl;
+                } else {
+                    const newId = quotes.length > 0 ? Math.max(...quotes.map(x => x.id)) + 1 : 1;
+                    quotes.push({ id: newId, itemId, supplier, filename, price, fileUrl });
+                }
+
+                const itemQuotes = quotes.filter(q => q.itemId === itemId);
+                const o = orders.find(x => x.id === itemId);
+                if (o && (!o.supplier || itemQuotes.length === 1)) {
+                    o.supplier = supplier;
+                }
+                showToast(`Đã tải lên báo giá của NCC ${supplier} thành công!`);
+            }
+
+            closeModal('modal-quote');
+            renderAll();
+        }
+
+        function selectBestQuote(itemId, supplier) {
+            const o = orders.find(x => x.id === itemId);
+            if (o) {
+                o.supplier = supplier;
+            }
+            renderAll();
+            showToast(`Đã chọn nhà cung cấp tốt nhất: ${supplier}`);
+        }
+
+        function deleteQuote(id) {
+            if (confirm("Bạn có chắc chắn muốn xóa báo giá này không?")) {
+                quotes = quotes.filter(x => x.id !== id);
+                renderAll();
+                showToast("Đã xóa file báo giá!");
+            }
+        }
+
+        // --- TAB 4: STATUS & INVOICE ---
+        function renderStatusTable() {
+            const tbody = document.getElementById('status-table-body');
+            const searchInput = document.getElementById('search-status');
+            const search = searchInput ? searchInput.value.toLowerCase() : '';
+            tbody.innerHTML = '';
+
+            const filtered = orders.filter(o => 
+                o.name.toLowerCase().includes(search) || 
+                o.restaurant.toLowerCase().includes(search) || 
+                (o.supplier && o.supplier.toLowerCase().includes(search)) ||
+                (o.invoiceNo && o.invoiceNo.toLowerCase().includes(search)) ||
+                o.stage.toLowerCase().includes(search)
+            );
+
+            if (filtered.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">Không tìm thấy trạng thái phù hợp.</td></tr>`;
+                return;
+            }
+
+            const grouped = groupOrdersByFromAndDate(filtered);
+
+            const groupKeys = Object.keys(grouped).sort((a, b) => {
+                const groupA = grouped[a];
+                const groupB = grouped[b];
+                const allACompleted = groupA.every(item => item.stage === 'Phát hành hoá đơn');
+                const allBCompleted = groupB.every(item => item.stage === 'Phát hành hoá đơn');
+                if (allACompleted && !allBCompleted) return 1;
+                if (!allACompleted && allBCompleted) return -1;
+                return 0;
+            });
+
+            const currentDate = new Date('2026-09-15');
+
+            groupKeys.forEach(groupTitle => {
+                const groupItems = grouped[groupTitle];
+                
+                tbody.innerHTML += `
+                    <tr class="bg-indigo-50/80 border-y border-indigo-100">
+                        <td colspan="6" class="py-2.5 px-4 font-bold text-indigo-900 text-sm">
+                            <div class="flex items-center space-x-2">
+                                <i data-lucide="store" class="w-4 h-4 text-indigo-600"></i>
+                                <span>${groupTitle}</span>
+                                <span class="bg-indigo-200 text-indigo-800 text-xs px-2 py-0.5 rounded-full font-semibold ml-2">${groupItems.length} mặt hàng</span>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+
+                groupItems.forEach((o, index) => {
+                    let badgeColor = 'bg-slate-100 text-slate-700';
+                    if (o.stage === 'SSG') badgeColor = 'bg-purple-50 text-purple-700 border border-purple-200';
+                    if (o.stage === 'Đặt hàng') badgeColor = 'bg-amber-50 text-amber-700 border border-amber-200';
+                    if (o.stage === 'Đã giao hàng') badgeColor = 'bg-emerald-50 text-emerald-700 border border-emerald-200';
+                    if (o.stage === 'Phát hành hoá đơn') badgeColor = 'bg-blue-50 text-blue-700 border border-blue-200';
+
+                    let warningBadge = '';
+                    if (o.stage === 'SSG' && o.date) {
+                        const orderDateObj = new Date(o.date);
+                        const diffTime = currentDate - orderDateObj;
+                        const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                        if (diffDays > 5) {
+                            warningBadge = `<span class="mt-1 inline-flex items-center px-2 py-0.5 bg-rose-50 text-rose-700 border border-rose-200 rounded text-[11px] font-bold"><i data-lucide="alert-triangle" class="w-3 h-3 mr-1 text-rose-600"></i> Quá 5 ngày chưa đặt hàng (${Math.floor(diffDays)} ngày)</span>`;
+                        }
+                    }
+
+                    let invoiceInfo = `<span class="text-xs text-slate-400 italic">Chưa phát hành</span>`;
+                    if (o.stage === 'Phát hành hoá đơn') {
+                        const payStatus = o.paymentRequestDone 
+                            ? `<div class="mt-1 text-[11px] text-emerald-700 bg-emerald-50 p-1.5 rounded border border-emerald-200 font-medium"><i data-lucide="check-circle" class="w-3 h-3 inline mr-1 text-emerald-600"></i>Đã làm ĐN thanh toán<br><span class="text-slate-500">${o.paymentRequestTime || ''}</span></div>`
+                            : `<div class="mt-1"><button onclick="markPaymentRequest(${o.id})" class="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white text-[11px] font-semibold rounded shadow-xs transition flex items-center space-x-1"><i data-lucide="check" class="w-3 h-3"></i><span>Hoàn thành ĐN thanh toán</span></button></div>`;
+
+                        invoiceInfo = `
+                            <div class="text-xs space-y-1">
+                                <div><strong class="text-slate-800">Số HĐ:</strong> ${o.invoiceNo || 'N/A'}<br><span class="text-slate-500">Ngày: ${formatDateVN(o.invoiceDate) || 'N/A'}</span></div>
+                                ${payStatus}
+                            </div>
+                        `;
+                    }
+
+                    tbody.innerHTML += `
+                        <tr class="hover:bg-slate-50 transition border-b border-slate-100">
+                            <td class="py-3.5 px-4">
+                                <span class="font-semibold text-slate-800">${index + 1}. ${o.name}</span>
+                                <span class="text-xs text-indigo-600 block">Khu vực: ${o.region || 'HCM'}</span>
+                                ${warningBadge}
+                            </td>
+                            <td class="py-3.5 px-4 text-slate-600">${o.qty} ${o.unit}</td>
+                            <td class="py-3.5 px-4 font-medium text-slate-700">${o.supplier || '<span class="text-amber-600 italic">Chưa chọn NCC</span>'}</td>
+                            <td class="py-3.5 px-4"><span class="px-3 py-1 rounded-full text-xs font-bold ${badgeColor}">${o.stage || 'SSG'}</span></td>
+                            <td class="py-3.5 px-4">${invoiceInfo}</td>
+                            <td class="py-3.5 px-4 text-right">
+                                <button onclick="openStatusModal(${o.id})" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-medium transition">
+                                    Cập nhật
+                                </button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+            lucide.createIcons();
+        }
+
+        function markPaymentRequest(id) {
+            const o = orders.find(x => x.id === id);
+            if (o) {
+                o.paymentRequestDone = true;
+                o.paymentRequestTime = new Date().toLocaleString('vi-VN');
+                renderAll();
+                showToast("Đã ghi nhận hoàn thành đề nghị thanh toán!");
+            }
+        }
+
+        function openStatusModal(id) {
+            const o = orders.find(x => x.id === id);
+            if (!o) return;
+            document.getElementById('status-item-id').value = o.id;
+            document.getElementById('status-item-name').value = `${o.restaurant} - ${o.name} (${o.region || 'HCM'})`;
+            document.getElementById('status-stage').value = o.stage || 'SSG';
+            document.getElementById('invoice-no').value = o.invoiceNo || '';
+            document.getElementById('invoice-date').value = o.invoiceDate || '';
+            
+            const checkbox = document.getElementById('payment-request-checkbox');
+            const timeDisplay = document.getElementById('payment-request-time-display');
+            checkbox.checked = !!o.paymentRequestDone;
+            if (o.paymentRequestDone) {
+                timeDisplay.innerText = `Thời điểm hoàn thành: ${o.paymentRequestTime || ''}`;
+            } else {
+                timeDisplay.innerText = `Chưa làm đề nghị thanh toán`;
+            }
+
+            toggleInvoiceFields();
+            document.getElementById('modal-status').classList.remove('hidden');
+        }
+
+        function toggleInvoiceFields() {
+            const stage = document.getElementById('status-stage').value;
+            const invoiceFields = document.getElementById('invoice-fields');
+            if (stage === 'Phát hành hoá đơn') {
+                invoiceFields.classList.remove('hidden');
+            } else {
+                invoiceFields.classList.add('hidden');
+            }
+        }
+
+        function saveStatusInfo(e) {
+            e.preventDefault();
+            const id = parseInt(document.getElementById('status-item-id').value);
+            const o = orders.find(x => x.id === id);
+            if (o) {
+                o.stage = document.getElementById('status-stage').value;
+                if (o.stage === 'Phát hành hoá đơn') {
+                    o.invoiceNo = document.getElementById('invoice-no').value;
+                    o.invoiceDate = document.getElementById('invoice-date').value;
+                    
+                    const wasDone = o.paymentRequestDone;
+                    const checkbox = document.getElementById('payment-request-checkbox');
+                    o.paymentRequestDone = checkbox.checked;
+                    if (o.paymentRequestDone && !wasDone) {
+                        o.paymentRequestTime = new Date().toLocaleString('vi-VN');
+                    } else if (!o.paymentRequestDone) {
+                        o.paymentRequestTime = null;
+                    }
+                } else {
+                    o.invoiceNo = '';
+                    o.invoiceDate = '';
+                    o.paymentRequestDone = false;
+                    o.paymentRequestTime = null;
+                }
+            }
+            closeModal('modal-status');
+            renderAll();
+            showToast("Đã cập nhật trạng thái thành công!");
+        }
+
+        // --- TAB 5: WEEKLY REPORT ---
+        function renderReport() {
+            document.getElementById('rep-total-orders').innerText = orders.length;
+            document.getElementById('rep-processing').innerText = orders.filter(x => x.stage === 'SSG' || x.stage === 'Đặt hàng').length;
+            document.getElementById('rep-delivered').innerText = orders.filter(x => x.stage === 'Đã giao hàng').length;
+            document.getElementById('rep-invoiced').innerText = orders.filter(x => x.stage === 'Phát hành hoá đơn').length;
+
+            const tbody = document.getElementById('report-table-body');
+            const searchInput = document.getElementById('search-report');
+            const search = searchInput ? searchInput.value.toLowerCase() : '';
+            tbody.innerHTML = '';
+
+            const filteredOrders = orders.filter(o => 
+                o.name.toLowerCase().includes(search) || 
+                o.restaurant.toLowerCase().includes(search) ||
+                (o.supplier && o.supplier.toLowerCase().includes(search)) ||
+                (o.invoiceNo && o.invoiceNo.toLowerCase().includes(search))
+            );
+
+            const grouped = groupOrdersByFromAndDate(filteredOrders);
+
+            if (Object.keys(grouped).length === 0) {
+                tbody.innerHTML = `<tr><td colspan="8" class="py-8 text-center text-slate-400">Không tìm thấy báo cáo phù hợp.</td></tr>`;
+                return;
+            }
+
+            Object.keys(grouped).forEach(groupTitle => {
+                tbody.innerHTML += `
+                    <tr class="bg-slate-100/90 border-y border-slate-200">
+                        <td colspan="8" class="py-2.5 px-3 font-bold text-slate-800 text-xs uppercase tracking-wide">
+                            <i data-lucide="folder" class="w-3.5 h-3.5 inline mr-1 text-indigo-600"></i> ${groupTitle}
+                        </td>
+                    </tr>
+                `;
+
+                grouped[groupTitle].forEach((o, index) => {
+                    const payText = o.paymentRequestDone ? `<br><span class="text-emerald-700 font-medium">Đã làm ĐN thanh toán (${o.paymentRequestTime || ''})</span>` : '';
+                    const invText = o.invoiceNo ? `HĐ: ${o.invoiceNo} (${formatDateVN(o.invoiceDate)})${payText}` : '-';
+                    const noteText = o.note || '-';
+                    const regionBadge = `<span class="px-2 py-0.5 bg-sky-50 text-sky-700 border border-sky-200 rounded text-xs font-semibold">${o.region || 'HCM'}</span>`;
+                    tbody.innerHTML += `
+                        <tr class="border-b border-slate-100 hover:bg-slate-50">
+                            <td class="py-2.5 px-3 font-bold text-slate-700 text-xs">${index + 1}</td>
+                            <td class="py-2.5 px-3 font-semibold text-slate-800">${o.name}</td>
+                            <td class="py-2.5 px-3 text-slate-600">${o.qty} ${o.unit}</td>
+                            <td class="py-2.5 px-3">${regionBadge}</td>
+                            <td class="py-2.5 px-3 text-slate-600 text-xs">${noteText}</td>
+                            <td class="py-2.5 px-3 text-slate-700 font-medium">${o.supplier || 'N/A'}</td>
+                            <td class="py-2.5 px-3"><span class="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-800">${o.stage}</span></td>
+                            <td class="py-2.5 px-3 text-slate-600 text-xs">${invText}</td>
+                        </tr>
+                    `;
+                });
+            });
+            lucide.createIcons();
+        }
+
+        function printReport() {
+            window.print();
+        }
+
+        // --- HELPERS & DROPDOWNS ---
+        function populateDropdowns() {
+            populateSupplierSelect('check-supplier');
+            populateSupplierSelect('quote-supplier');
+            populateItemSelect('quote-item-id');
+        }
+
+        function populateSupplierSelect(elementId, selectedVal) {
+            const select = document.getElementById(elementId);
+            if (!select) return;
+            select.innerHTML = '';
+            suppliers.forEach(s => {
+                const opt = document.createElement('option');
+                opt.value = s;
+                opt.textContent = s;
+                if (s === selectedVal) opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+
+        function populateItemSelect(elementId, selectedId) {
+            const select = document.getElementById(elementId);
+            if (!select) return;
+            select.innerHTML = '';
+            orders.forEach(o => {
+                const opt = document.createElement('option');
+                opt.value = o.id;
+                opt.textContent = `${o.restaurant} (${o.region || 'HCM'}) - ${o.name} (${o.qty} ${o.unit})`;
+                if (selectedId && o.id === selectedId) opt.selected = true;
+                select.appendChild(opt);
+            });
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.add('hidden');
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-msg').innerText = msg;
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
         }
     </script>
 </body>
