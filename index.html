@@ -55,6 +55,7 @@
 
     <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
         
+        <!-- Tab Navigation Bar -->
         <div class="flex border-b border-slate-200 mb-6 overflow-x-auto no-scrollbar no-print">
             <button onclick="switchTab('orders')" id="tab-btn-orders" class="tab-btn active px-5 py-3 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap transition border-indigo-600 text-indigo-600">
                 <i data-lucide="clipboard-list" class="w-4 h-4"></i>
@@ -78,6 +79,7 @@
             </button>
         </div>
 
+        <!-- Tab 1: Orders List -->
         <div id="tab-orders" class="tab-content flex-1 flex flex-col space-y-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
                 <div class="flex items-center space-x-3 w-full sm:w-auto">
@@ -122,6 +124,7 @@
             </div>
         </div>
 
+        <!-- Tab 2: Check Contract & Requisition -->
         <div id="tab-check" class="tab-content hidden flex-1 flex flex-col space-y-4">
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div>
@@ -153,7 +156,6 @@
                             <tr class="text-slate-600 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
                                 <th class="py-3.5 px-4">From & Mặt hàng</th>
                                 <th class="py-3.5 px-4">SL</th>
-                                <th class="py-3.5 px-4">ĐVT</th>
                                 <th class="py-3.5 px-4">Hình thức</th>
                                 <th class="py-3.5 px-4">Nhà cung cấp (NCC) / ĐNMH</th>
                                 <th class="py-3.5 px-4">Số Hợp đồng / STT mặt hàng</th>
@@ -168,6 +170,7 @@
             </div>
         </div>
 
+        <!-- Tab 3: Quotes & Multi-Supplier Comparison -->
         <div id="tab-quotes" class="tab-content hidden flex-1 flex flex-col space-y-4">
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
@@ -230,6 +233,7 @@
             </div>
         </div>
 
+        <!-- Tab 4: Status & Stage Progress -->
         <div id="tab-status" class="tab-content hidden flex-1 flex flex-col space-y-4">
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
@@ -275,6 +279,7 @@
             </div>
         </div>
 
+        <!-- Tab 5: Weekly Summary Report -->
         <div id="tab-report" class="tab-content hidden flex-1 flex flex-col space-y-4">
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
                 <div>
@@ -297,6 +302,7 @@
                 </div>
             </div>
 
+            <!-- Print Header Visible Only When Printing -->
             <div class="hidden print-only mb-6">
                 <h1 class="text-2xl font-bold text-slate-900">BÁO CÁO MUA HÀNG & TIẾN ĐỘ CUỐI TUẦN</h1>
                 <p class="text-sm text-slate-600">ProcureFlow Pro • Ngày xuất báo cáo: <span id="print-date"></span></p>
@@ -579,11 +585,13 @@
     <!-- Toast Notification Container -->
     <div id="toast-container" class="fixed bottom-5 right-5 z-50 flex flex-col space-y-2 pointer-events-none no-print"></div>
 
+    <!-- Firebase & App Logic -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, collection, doc, setDoc, getDocs, onSnapshot, deleteDoc } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
+        // Global State & Firebase Config
         window.suppliers = ['Công ty TNHH Thực Phẩm Việt', 'NCC An Phát', 'Tập đoàn Hòa Phát', 'Công ty Thương Mại Minh Phát', 'NCC Bảo Nam'];
         window.orders = [];
         window.quotes = [];
@@ -705,6 +713,7 @@
             }
         ];
 
+        // Initialize Local Storage & Firestore
         window.loadData = function() {
             try {
                 const savedOrders = localStorage.getItem('procureflow_orders');
@@ -735,12 +744,15 @@
             window.saveDataLocal();
             if (!db || !auth || !auth.currentUser) return;
             try {
+                // Save orders
                 for (const o of window.orders) {
                     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'orders_' + o.id), o);
                 }
+                // Save quotes
                 for (const q of window.quotes) {
                     await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'quotes_' + q.id), q);
                 }
+                // Save metadata/suppliers
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'meta_suppliers'), { list: window.suppliers });
                 
                 const indicator = document.getElementById('sync-text');
@@ -771,6 +783,7 @@
 
                 if (!auth.currentUser) return;
 
+                // Real-time listeners via onSnapshot
                 onSnapshot(collection(db, 'artifacts', appId, 'public', 'data'), (snapshot) => {
                     let cloudOrders = [];
                     let cloudQuotes = [];
@@ -1147,63 +1160,41 @@
                     const json = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
 
                     if (json.length < 2) {
-                        showToast("File Excel rỗng hoặc không có dữ liệu hàng.", "error");
+                        showToast("File Excel rỗng hoặc không đúng định dạng.", "error");
                         return;
                     }
-
-                    // Dynamically map column headers
-                    const headers = json[0].map(h => String(h).trim().toLowerCase());
-                    let fromIdx = headers.findIndex(h => h.includes('from') || h.includes('bộ phận') || h.includes('nhà hàng'));
-                    let orderByIdx = headers.findIndex(h => h.includes('người order') || h.includes('người'));
-                    let dateIdx = headers.findIndex(h => h.includes('ngày') || h.includes('date'));
-                    let itemIdx = headers.findIndex(h => h.includes('tên mặt hàng') || h.includes('mặt hàng') || h.includes('item'));
-                    let unitIdx = headers.findIndex(h => h.includes('đvt') || h.includes('đơn vị'));
-                    let qtyIdx = headers.findIndex(h => h.includes('số lượng') || h.includes('sl') || h.includes('quantity'));
-                    let regionIdx = headers.findIndex(h => h.includes('khu vực') || h.includes('region'));
-                    let notesIdx = headers.findIndex(h => h.includes('ghi chú') || h.includes('note'));
-
-                    if (itemIdx === -1) itemIdx = 3; // Fallback to column index 3
 
                     let addedCount = 0;
                     for (let i = 1; i < json.length; i++) {
                         const row = json[i];
-                        if (!row || row.length === 0) continue;
-
-                        const itemName = (itemIdx !== -1 && row[itemIdx] !== undefined) ? row[itemIdx] : row[3];
-                        if (!itemName) continue;
-
-                        window.orders.unshift({
-                            id: 'ORD-' + (1000 + window.orders.length + 1),
-                            restaurant: (fromIdx !== -1 && row[fromIdx]) ? String(row[fromIdx]) : (row[0] ? String(row[0]) : 'Chưa xác định'),
-                            orderBy: (orderByIdx !== -1 && row[orderByIdx]) ? String(row[orderByIdx]) : (row[1] ? String(row[1]) : 'Import Excel'),
-                            orderDate: (dateIdx !== -1 && row[dateIdx]) ? String(row[dateIdx]) : (row[2] ? String(row[2]) : new Date().toISOString().split('T')[0]),
-                            itemName: String(itemName),
-                            unit: (unitIdx !== -1 && row[unitIdx]) ? String(row[unitIdx]) : (row[4] ? String(row[4]) : 'Cái'),
-                            quantity: parseFloat((qtyIdx !== -1 && row[qtyIdx]) ? row[qtyIdx] : row[5]) || 1,
-                            region: (regionIdx !== -1 && row[regionIdx]) ? String(row[regionIdx]) : (row[6] ? String(row[6]) : 'HCM'),
-                            notes: (notesIdx !== -1 && row[notesIdx]) ? String(row[notesIdx]) : (row[7] ? String(row[7]) : ''),
-                            checkType: 'Hợp đồng',
-                            supplier: '',
-                            contractNo: '',
-                            contractStt: '',
-                            status: 'SSG',
-                            invoiceNo: '',
-                            invoiceDate: ''
-                        });
-                        addedCount++;
-                    }
-
-                    if (addedCount === 0) {
-                        showToast("Không tìm thấy dữ liệu mặt hàng hợp lệ trong file.", "error");
-                        return;
+                        if (row && row[3]) {
+                            window.orders.unshift({
+                                id: 'ORD-' + (1000 + window.orders.length + 1),
+                                restaurant: row[0] || 'Chưa xác định',
+                                orderBy: row[1] || 'Import Excel',
+                                orderDate: row[2] || new Date().toISOString().split('T')[0],
+                                itemName: row[3],
+                                unit: row[4] || 'Cái',
+                                quantity: parseFloat(row[5]) || 1,
+                                region: row[6] || 'HCM',
+                                notes: row[7] || '',
+                                checkType: 'Hợp đồng',
+                                supplier: '',
+                                contractNo: '',
+                                contractStt: '',
+                                status: 'SSG',
+                                invoiceNo: '',
+                                invoiceDate: ''
+                            });
+                            addedCount++;
+                        }
                     }
 
                     showToast(`Đã import thành công ${addedCount} dòng order từ Excel!`);
                     syncToCloud();
                     refreshAllViews();
                 } catch (err) {
-                    console.error("Excel import error:", err);
-                    showToast("Lỗi khi đọc file Excel! Vui lòng kiểm tra định dạng file.", "error");
+                    showToast("Lỗi khi đọc file Excel!", "error");
                 }
             };
             reader.readAsArrayBuffer(file);
@@ -1232,7 +1223,7 @@
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="7" class="py-8 text-center text-slate-400">Không có mặt hàng nào phù hợp bộ lọc.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="6" class="py-8 text-center text-slate-400">Không có mặt hàng nào phù hợp bộ lọc.</td></tr>`;
                 return;
             }
 
@@ -1244,8 +1235,7 @@
                         <div class="font-bold text-slate-900">${item.itemName}</div>
                         <div class="text-xs text-slate-500">${item.restaurant} (${item.region})</div>
                     </td>
-                    <td class="py-3.5 px-4 font-bold text-slate-800">${item.quantity}</td>
-                    <td class="py-3.5 px-4 text-slate-600 text-xs sm:text-sm font-medium">${item.unit}</td>
+                    <td class="py-3.5 px-4 font-semibold">${item.quantity} ${item.unit}</td>
                     <td class="py-3.5 px-4">
                         <span class="px-2.5 py-1 text-xs rounded-full font-medium ${
                             item.checkType === 'Hợp đồng' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'bg-amber-50 text-amber-700 border border-amber-200'
@@ -1700,6 +1690,7 @@
 
             const ws = XLSX.utils.aoa_to_sheet(dataToExport);
             
+            // Auto width columns
             const colWidths = [{wch: 5}, {wch: 12}, {wch: 18}, {wch: 25}, {wch: 8}, {wch: 8}, {wch: 12}, {wch: 22}, {wch: 12}, {wch: 15}, {wch: 18}, {wch: 15}, {wch: 15}];
             ws['!cols'] = colWidths;
 
