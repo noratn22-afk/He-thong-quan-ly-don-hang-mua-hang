@@ -214,7 +214,7 @@
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 class="text-base font-bold text-slate-900">Theo dõi Trạng thái & Phát hành Hóa đơn</h2>
-                    <p class="text-xs text-slate-500">Các giai đoạn: SSG → Đặt hàng → Đã giao hàng → Phát hành hoá đơn & Đề nghị thanh toán.</p>
+                    <p class="text-xs text-slate-500">Các giai đoạn: SSG → Đặt hàng → Phát hành hoá đơn & Đề nghị thanh toán.</p>
                 </div>
                 <div class="relative flex-1 sm:w-72">
                     <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
@@ -504,16 +504,16 @@
                     <select id="status-stage" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                         <option value="SSG">SSG (Tiếp nhận)</option>
                         <option value="Đặt hàng">Đang đặt hàng</option>
-                        <option value="Đã giao hàng">Đã giao hàng</option>
+                        <option value="Phát hành hoá đơn">Phát hành hoá đơn</option>
                     </select>
                 </div>
                 <div>
                     <label class="block text-xs font-medium text-slate-700 mb-1">Số hóa đơn / Đề nghị thanh toán</label>
-                    <input type="text" id="status-invoice" placeholder="VD: INV-2026-9982" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <input type="text" id="status-invoice" placeholder="VD: HD-9901" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                 </div>
                 <div class="flex items-center space-x-2 pt-1">
                     <input type="checkbox" id="status-invoiced-check" class="w-4 h-4 text-indigo-600 border-slate-300 rounded focus:ring-indigo-500">
-                    <label for="status-invoiced-check" class="text-sm font-medium text-slate-700">Đã phát hành hóa đơn tài chính thành công</label>
+                    <label for="status-invoiced-check" class="text-sm font-medium text-slate-700">Đã làm ĐN thanh toán thành công</label>
                 </div>
                 <div class="flex justify-end space-x-3 pt-3 border-t border-slate-100">
                     <button type="button" onclick="closeModal('modal-status')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition">Hủy</button>
@@ -525,16 +525,29 @@
 
     <script>
         // Default Data
-        const defaultSuppliers = ["NCC Alpha", "NCC Beta", "NCC Omega", "Công ty TNHH TM DV Phát Đạt", "Minh Long Food"];
+        const defaultSuppliers = ["NCC Alpha", "NCC Beta", "NCC Omega", "Công ty TNHH TM DV Phát Đạt", "Minh Long Food", "Hữu Duy", "Samtech", "Hoàng Hà"];
         const defaultOrders = [
             {
                 id: 1,
+                restaurant: "MTN",
+                by: "Ngọc",
+                date: "2026-09-15",
+                items: [
+                    { id: "item_m_1", name: "Bộ phát Wifi Unifi", unit: "Bộ", quantity: 4, area: "HCM & HN", note: "-", supplier: "Samtech", type: "Hợp đồng", contractNo: "HD-88", contractStt: "STT 01", stage: "Đặt hàng", invoice: "", invoiced: false, quotes: [] },
+                    { id: "item_m_2", name: "Dây cáp mạng Cat6", unit: "Cuộn", quantity: 2, area: "HCM", note: "Hàng gấp", supplier: "Hoàng Hà", type: "Hợp đồng", contractNo: "HD-89", contractStt: "STT 02", stage: "Phát hành hoá đơn", invoice: "HD-9901", invoiced: true, quotes: [] }
+                ]
+            },
+            {
+                id: 2,
                 restaurant: "BD - I.E KFC ATP",
                 by: "Ngọc",
-                date: "2026-06-05",
+                date: "2026-09-15",
                 items: [
-                    { id: "item_1_1", name: "Khăn giấy ướt cao cấp", unit: "Thùng", quantity: 50, area: "HCM", note: "Giao gấp trước thứ 6", supplier: "NCC Alpha", type: "Hợp đồng", contractNo: "HD-01", contractStt: "STT 01", stage: "Đã giao hàng", invoice: "INV-8821", invoiced: true, quotes: [{supplier: "NCC Alpha", price: 120000, fileName: "NCC Alpha_Khăn giấy_0506.pdf"}] },
-                    { id: "item_1_2", name: "Dầu ăn thực vật 5L", unit: "Can", quantity: 20, area: "Cả hai", note: "Thương hiệu Meizan hoặc tương đương", supplier: "Công ty TNHH TM DV Phát Đạt", type: "ĐNMH", contractNo: "", contractStt: "", stage: "Đặt hàng", invoice: "", invoiced: false, quotes: [{supplier: "NCC Beta", price: 210000, fileName: "NCC Beta_Dầu ăn_0506.pdf"}, {supplier: "Công ty TNHH TM DV Phát Đạt", price: 205000, fileName: "Phát Đạt_Dầu ăn_0506.pdf"}] }
+                    { id: "item_1_1", name: "Đèn led 12w ánh sáng trắng", unit: "Cái", quantity: 40, area: "HCM & HN", note: "Loại nhỏ (14cm)", supplier: "Hữu Duy", type: "Hợp đồng", contractNo: "HD-01", contractStt: "STT 01", stage: "SSG", invoice: "", invoiced: false, quotes: [] },
+                    { id: "item_1_2", name: "Đèn led 12w trung tính", unit: "Cái", quantity: 50, area: "HCM", note: "Loại lớn 17cm", supplier: "Hữu Duy", type: "Hợp đồng", contractNo: "HD-02", contractStt: "STT 02", stage: "SSG", invoice: "", invoiced: false, quotes: [] },
+                    { id: "item_1_3", name: "Băng keo đen", unit: "Cuộn", quantity: 20, area: "HN", note: "-", supplier: "NCC Alpha", type: "ĐNMH", contractNo: "", contractStt: "", stage: "SSG", invoice: "", invoiced: false, quotes: [] },
+                    { id: "item_1_4", name: "Đèn rọi tranh", unit: "Cái", quantity: 15, area: "HCM", note: "-", supplier: "NCC Beta", type: "ĐNMH", contractNo: "", contractStt: "", stage: "SSG", invoice: "", invoiced: false, quotes: [] },
+                    { id: "item_1_5", name: "Dây chống cháy Nano", unit: "Cuộn", quantity: 3, area: "HCM & HN", note: "-", supplier: "NCC Omega", type: "ĐNMH", contractNo: "", contractStt: "", stage: "SSG", invoice: "", invoiced: false, quotes: [] }
                 ]
             }
         ];
@@ -546,6 +559,15 @@
         function saveData() {
             localStorage.setItem('procure_suppliers', JSON.stringify(suppliersData));
             localStorage.setItem('procure_orders', JSON.stringify(ordersData));
+        }
+
+        function formatDateVN(dateStr) {
+            if(!dateStr) return '';
+            const parts = dateStr.split('-');
+            if(parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            return dateStr;
         }
 
         // Initialize Lucide icons and app state on window load
@@ -584,7 +606,7 @@
             lucide.createIcons();
         };
 
-        // --- TAB 1: ORDERS ---
+        // --- TAB 1: ORDERS (Grouped by From & Ngày order) ---
         window.renderOrders = function() {
             const tbody = document.getElementById('orders-table-body');
             if (!tbody) return;
@@ -592,49 +614,60 @@
             tbody.innerHTML = '';
             
             let totalItemsCount = 0;
-            let flatList = [];
+            let visibleOrdersCount = 0;
 
             ordersData.forEach(order => {
-                order.items.forEach(item => {
-                    totalItemsCount++;
-                    if(!searchVal || item.name.toLowerCase().includes(searchVal) || order.restaurant.toLowerCase().includes(searchVal) || item.area.toLowerCase().includes(searchVal)) {
-                        flatList.push({ order, item });
-                    }
+                const filteredItems = order.items.filter(item => {
+                    return !searchVal || item.name.toLowerCase().includes(searchVal) || order.restaurant.toLowerCase().includes(searchVal) || item.area.toLowerCase().includes(searchVal);
                 });
+
+                if (filteredItems.length > 0) {
+                    visibleOrdersCount += filteredItems.length;
+                    
+                    // Group Header Row
+                    const headerTr = document.createElement('tr');
+                    headerTr.className = "bg-indigo-50/70 border-y border-slate-200";
+                    headerTr.innerHTML = `
+                        <td colspan="8" class="py-2.5 px-4">
+                            <div class="flex items-center space-x-2 text-indigo-900 font-semibold text-xs sm:text-sm">
+                                <i data-lucide="store" class="w-4 h-4 text-indigo-600"></i>
+                                <span>From: ${order.restaurant} ngày ${formatDateVN(order.date)}</span>
+                                <span class="px-2.5 py-0.5 bg-indigo-100 text-indigo-700 text-xs rounded-full font-bold">${filteredItems.length} mặt hàng</span>
+                            </div>
+                        </td>
+                    `;
+                    tbody.appendChild(headerTr);
+
+                    filteredItems.forEach((item, idx) => {
+                        const tr = document.createElement('tr');
+                        tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+                        tr.innerHTML = `
+                            <td class="py-3 px-4 font-medium text-slate-500">${idx + 1}</td>
+                            <td class="py-3 px-4 font-semibold text-slate-800">${item.name}</td>
+                            <td class="py-3 px-4 text-slate-600">${item.unit}</td>
+                            <td class="py-3 px-4 font-bold text-indigo-600">${item.quantity}</td>
+                            <td class="py-3 px-4">
+                                <span class="px-2 py-1 bg-slate-100 text-slate-700 text-xs rounded-md font-medium">${item.area}</span>
+                            </td>
+                            <td class="py-3 px-4 text-slate-500 text-xs">${item.note || '-'}</td>
+                            <td class="py-3 px-4 text-slate-600">${order.by}</td>
+                            <td class="py-3 px-4 text-right space-x-2">
+                                <button onclick="editOrder('${order.id}')" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded text-xs font-medium">Sửa</button>
+                                <button onclick="deleteItem('${order.id}', '${item.id}')" class="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-600 rounded text-xs font-medium">Xóa</button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
+                totalItemsCount += order.items.length;
             });
 
             const orderCountEl = document.getElementById('order-count');
             if (orderCountEl) orderCountEl.innerText = totalItemsCount;
 
-            if(flatList.length === 0) {
+            if(visibleOrdersCount === 0) {
                 tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">Không tìm thấy order nào phù hợp.</td></tr>`;
-                return;
             }
-
-            flatList.forEach((row, idx) => {
-                const { order, item } = row;
-                const tr = document.createElement('tr');
-                tr.className = "hover:bg-slate-50 transition";
-                tr.innerHTML = `
-                    <td class="py-3 px-4 font-medium text-slate-500">${idx + 1}</td>
-                    <td class="py-3 px-4 font-semibold text-slate-800">
-                        ${item.name}
-                        <div class="text-xs font-normal text-slate-400">From: ${order.restaurant}</div>
-                    </td>
-                    <td class="py-3 px-4 text-slate-600">${item.unit}</td>
-                    <td class="py-3 px-4 font-bold text-indigo-600">${item.quantity}</td>
-                    <td class="py-3 px-4">
-                        <span class="px-2 py-1 bg-slate-100 text-slate-700 text-xs rounded-md font-medium">${item.area}</span>
-                    </td>
-                    <td class="py-3 px-4 text-slate-500 text-xs">${item.note || '-'}</td>
-                    <td class="py-3 px-4 text-slate-600">${order.by} (${order.date})</td>
-                    <td class="py-3 px-4 text-right space-x-2">
-                        <button onclick="editOrder('${order.id}')" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Sửa</button>
-                        <button onclick="deleteItem('${order.id}', '${item.id}')" class="text-rose-500 hover:text-rose-700 text-xs font-medium">Xóa</button>
-                    </td>
-                `;
-                tbody.appendChild(tr);
-            });
             lucide.createIcons();
         };
 
@@ -661,7 +694,7 @@
                         tr.innerHTML = `
                             <td class="py-3.5 px-4 font-semibold text-slate-800">
                                 ${item.name}
-                                <div class="text-xs text-slate-400 font-normal">From: ${order.restaurant}</div>
+                                <div class="text-xs text-slate-400 font-normal">From: ${order.restaurant} ngày ${formatDateVN(order.date)}</div>
                             </td>
                             <td class="py-3.5 px-4 font-medium text-slate-700">${item.quantity} ${item.unit}</td>
                             <td class="py-3.5 px-4">${typeBadge}</td>
@@ -697,7 +730,6 @@
                     if(searchVal && !item.name.toLowerCase().includes(searchVal) && !order.restaurant.toLowerCase().includes(searchVal)) return;
                     hasItems = true;
 
-                    // 1. Render Tracking card
                     const card = document.createElement('div');
                     card.className = "p-3 border border-slate-200 rounded-xl bg-slate-50 space-y-2";
                     
@@ -709,7 +741,7 @@
                         <div class="flex justify-between items-start">
                             <div>
                                 <h4 class="font-semibold text-xs text-slate-800">${item.name}</h4>
-                                <p class="text-[11px] text-slate-400">From: ${order.restaurant}</p>
+                                <p class="text-[11px] text-slate-400">From: ${order.restaurant} (${formatDateVN(order.date)})</p>
                             </div>
                             <span class="text-xs font-bold text-indigo-600">${quotes.length}/${suppliersData.length} NCC đã báo giá</span>
                         </div>
@@ -720,7 +752,6 @@
                     `;
                     trackingList.appendChild(card);
 
-                    // 2. Render Comparison table rows
                     if(quotes.length === 0) {
                         const tr = document.createElement('tr');
                         tr.innerHTML = `
@@ -732,7 +763,6 @@
                         `;
                         compTbody.appendChild(tr);
                     } else {
-                        // Find lowest price
                         let minPrice = Math.min(...quotes.map(q => q.price));
 
                         quotes.forEach((q, qIdx) => {
@@ -768,48 +798,67 @@
             lucide.createIcons();
         };
 
-        // --- TAB 4: STATUS & INVOICE ---
+        // --- TAB 4: STATUS & INVOICE (Grouped by From & Ngày order) ---
         window.renderStatusTable = function() {
             const tbody = document.getElementById('status-table-body');
             if (!tbody) return;
             const searchVal = (document.getElementById('search-status')?.value || '').toLowerCase();
             tbody.innerHTML = '';
 
-            let hasItems = false;
+            let visibleCount = 0;
             ordersData.forEach(order => {
-                order.items.forEach(item => {
-                    if(searchVal && !item.name.toLowerCase().includes(searchVal) && !(item.invoice && item.invoice.toLowerCase().includes(searchVal))) return;
-                    hasItems = true;
+                const filteredItems = order.items.filter(item => {
+                    return !searchVal || item.name.toLowerCase().includes(searchVal) || (item.invoice && item.invoice.toLowerCase().includes(searchVal)) || order.restaurant.toLowerCase().includes(searchVal);
+                });
 
-                    const tr = document.createElement('tr');
-                    tr.className = "hover:bg-slate-50 transition";
-                    
-                    let stageBadge = '';
-                    if(item.stage === 'SSG') stageBadge = `<span class="px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full">SSG (Tiếp nhận)</span>`;
-                    else if(item.stage === 'Đặt hàng') stageBadge = `<span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-full">Đang đặt hàng</span>`;
-                    else stageBadge = `<span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full">Đã giao hàng</span>`;
+                if (filteredItems.length > 0) {
+                    visibleCount += filteredItems.length;
 
-                    tr.innerHTML = `
-                        <td class="py-3.5 px-4 font-semibold text-slate-800">
-                            ${item.name}
-                            <div class="text-xs text-slate-400 font-normal">From: ${order.restaurant}</div>
-                        </td>
-                        <td class="py-3.5 px-4 text-slate-700 font-medium">${item.quantity} ${item.unit}</td>
-                        <td class="py-3.5 px-4 font-medium text-slate-800">${item.supplier || '<span class="text-amber-500 text-xs">Chưa chọn</span>'}</td>
-                        <td class="py-3.5 px-4">${stageBadge}</td>
-                        <td class="py-3.5 px-4 text-xs text-slate-600">
-                            HĐ/ĐNTT: <strong>${item.invoice || 'Chưa có'}</strong><br>
-                            ${item.invoiced ? `<span class="text-emerald-600 font-semibold">✔ Đã phát hành hóa đơn</span>` : `<span class="text-slate-400">Chưa phát hành HĐ</span>`}
-                        </td>
-                        <td class="py-3.5 px-4 text-right">
-                            <button onclick="openStatusModal('${order.id}', '${item.id}')" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-medium transition">Cập nhật</button>
+                    // Group Header Row
+                    const headerTr = document.createElement('tr');
+                    headerTr.className = "bg-indigo-50/70 border-y border-slate-200";
+                    headerTr.innerHTML = `
+                        <td colspan="6" class="py-2.5 px-4">
+                            <div class="flex items-center space-x-2 text-indigo-900 font-semibold text-xs sm:text-sm">
+                                <i data-lucide="store" class="w-4 h-4 text-indigo-600"></i>
+                                <span>From: ${order.restaurant} ngày ${formatDateVN(order.date)}</span>
+                                <span class="px-2.5 py-0.5 bg-indigo-100 text-indigo-700 text-xs rounded-full font-bold">${filteredItems.length} mặt hàng</span>
+                            </div>
                         </td>
                     `;
-                    tbody.appendChild(tr);
-                });
+                    tbody.appendChild(headerTr);
+
+                    filteredItems.forEach((item, idx) => {
+                        const tr = document.createElement('tr');
+                        tr.className = "hover:bg-slate-50 transition border-b border-slate-100";
+                        
+                        let stageBadge = '';
+                        if(item.stage === 'SSG') stageBadge = `<span class="px-2.5 py-1 bg-amber-50 text-amber-700 text-xs font-semibold rounded-full">SSG</span>`;
+                        else if(item.stage === 'Đặt hàng') stageBadge = `<span class="px-2.5 py-1 bg-indigo-50 text-indigo-700 text-xs font-semibold rounded-full">Đặt hàng</span>`;
+                        else stageBadge = `<span class="px-2.5 py-1 bg-emerald-50 text-emerald-700 text-xs font-semibold rounded-full">Phát hành hoá đơn</span>`;
+
+                        tr.innerHTML = `
+                            <td class="py-3.5 px-4 font-semibold text-slate-800">
+                                ${idx + 1}. ${item.name}
+                                <div class="text-xs text-slate-400 font-normal">Khu vực: ${item.area}</div>
+                            </td>
+                            <td class="py-3.5 px-4 text-slate-700 font-medium">${item.quantity} ${item.unit}</td>
+                            <td class="py-3.5 px-4 font-medium text-slate-800">${item.supplier || '<span class="text-amber-500 text-xs">Chưa chọn</span>'}</td>
+                            <td class="py-3.5 px-4">${stageBadge}</td>
+                            <td class="py-3.5 px-4 text-xs text-slate-600">
+                                ${item.invoice ? `Số HĐ: <strong>${item.invoice}</strong>` : 'Chưa phát hành'}<br>
+                                ${item.invoiced ? `<div class="mt-1 px-2 py-1 bg-emerald-50 text-emerald-700 rounded border border-emerald-200 inline-block font-medium">✔ Đã làm ĐN thanh toán</div>` : ''}
+                            </td>
+                            <td class="py-3.5 px-4 text-right">
+                                <button onclick="openStatusModal('${order.id}', '${item.id}')" class="px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 rounded-lg text-xs font-medium transition">Cập nhật</button>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                }
             });
 
-            if(!hasItems) {
+            if(visibleCount === 0) {
                 tbody.innerHTML = `<tr><td colspan="6" class="text-center py-8 text-slate-400">Không tìm thấy dữ liệu phù hợp.</td></tr>`;
             }
             lucide.createIcons();
@@ -832,7 +881,7 @@
                 order.items.forEach(item => {
                     totalOrders++;
                     if(item.stage === 'SSG' || item.stage === 'Đặt hàng') processingCount++;
-                    if(item.stage === 'Đã giao hàng') deliveredCount++;
+                    if(item.stage === 'Phát hành hoá đơn') deliveredCount++;
                     if(item.invoiced) invoicedCount++;
 
                     if(!searchVal || item.name.toLowerCase().includes(searchVal) || order.restaurant.toLowerCase().includes(searchVal)) {
@@ -859,14 +908,14 @@
                     <td class="py-3 px-3 text-slate-500">${idx + 1}</td>
                     <td class="py-3 px-3 font-semibold text-slate-800">
                         ${item.name}
-                        <div class="text-xs text-slate-400 font-normal">From: ${order.restaurant}</div>
+                        <div class="text-xs text-slate-400 font-normal">From: ${order.restaurant} (${formatDateVN(order.date)})</div>
                     </td>
                     <td class="py-3 px-3 text-slate-700">${item.quantity} ${item.unit}</td>
                     <td class="py-3 px-3"><span class="px-2 py-0.5 bg-slate-100 text-xs rounded">${item.area}</span></td>
                     <td class="py-3 px-3 text-xs text-slate-500">${item.note || '-'}</td>
                     <td class="py-3 px-3 font-medium text-slate-700">${item.supplier || 'Chưa chọn'}</td>
                     <td class="py-3 px-3 text-xs font-semibold text-indigo-600">${item.stage}</td>
-                    <td class="py-3 px-3 text-xs">${item.invoice || '-'}${item.invoiced ? ' (Đã phát hành HĐ)' : ''}</td>
+                    <td class="py-3 px-3 text-xs">${item.invoice || '-'}${item.invoiced ? ' (Đã thanh toán)' : ''}</td>
                 `;
                 tbody.appendChild(tr);
             });
@@ -926,7 +975,7 @@
                     <select class="item-area w-full px-3 py-1.5 border border-slate-300 rounded-lg text-xs bg-white">
                         <option value="HCM" ${area==='HCM'?'selected':''}>HCM</option>
                         <option value="HN" ${area==='HN'?'selected':''}>HN</option>
-                        <option value="Cả hai" ${area==='Cả hai'?'selected':''}>Cả hai</option>
+                        <option value="HCM & HN" ${area==='HCM & HN'?'selected':''}>HCM & HN</option>
                     </select>
                 </div>
                 <div class="sm:col-span-2 flex items-center justify-between">
@@ -946,9 +995,7 @@
             const date = document.getElementById('order-date')?.value;
 
             const itemRows = document.querySelectorAll('#order-items-container > div');
-            if(itemRows.length === 0) {
-                return;
-            }
+            if(itemRows.length === 0) return;
 
             let items = [];
             itemRows.forEach(row => {
@@ -1059,9 +1106,7 @@
             if (!input) return;
             const name = input.value.trim();
             if(!name) return;
-            if(suppliersData.includes(name)) {
-                return;
-            }
+            if(suppliersData.includes(name)) return;
             suppliersData.push(name);
             input.value = '';
             saveData();
@@ -1099,7 +1144,6 @@
             if (contractNoEl) contractNoEl.value = item.contractNo || '';
             if (contractSttEl) contractSttEl.value = item.contractStt || '';
 
-            // Populate supplier select
             const supSelect = document.getElementById('check-supplier');
             if (supSelect) {
                 supSelect.innerHTML = '';
@@ -1160,7 +1204,7 @@
                 order.items.forEach(item => {
                     const opt = document.createElement('option');
                     opt.value = `${order.id}___${item.id}`;
-                    opt.innerText = `${item.name} (From: ${order.restaurant})`;
+                    opt.innerText = `${item.name} (From: ${order.restaurant} - ${formatDateVN(order.date)})`;
                     itemSelect.appendChild(opt);
                 });
             });
@@ -1267,8 +1311,8 @@
         window.downloadExcelTemplate = function() {
             const ws_data = [
                 ["Tên mặt hàng", "ĐVT", "Số lượng", "Khu vực", "Ghi chú", "From", "Người Order", "Ngày Order"],
-                ["Khăn giấy ướt", "Thùng", 50, "HCM", "Giao trước thứ 6", "BD - I.E KFC ATP", "Ngọc", "2026-06-05"],
-                ["Dầu ăn 5L", "Can", 20, "Cả hai", "Thương hiệu Meizan", "BD - I.E KFC ATP", "Ngọc", "2026-06-05"]
+                ["Bộ phát Wifi Unifi", "Bộ", 4, "HCM & HN", "-", "MTN", "Ngọc", "2026-09-15"],
+                ["Đèn led 12w", "Cái", 40, "HCM", "Loại nhỏ", "BD - I.E KFC ATP", "Ngọc", "2026-09-15"]
             ];
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(ws_data);
@@ -1289,9 +1333,7 @@
                     const worksheet = workbook.Sheets[firstSheetName];
                     const json = XLSX.utils.sheet_to_json(worksheet, {header: 1});
 
-                    if(json.length <= 1) {
-                        return;
-                    }
+                    if(json.length <= 1) return;
 
                     let importedItems = [];
                     for(let i = 1; i < json.length; i++) {
@@ -1355,6 +1397,7 @@
                     exportData.push({
                         "STT": stt++,
                         "From": order.restaurant,
+                        "Ngày order": formatDateVN(order.date),
                         "Mặt hàng": item.name,
                         "Số lượng": item.quantity,
                         "ĐVT": item.unit,
@@ -1362,7 +1405,7 @@
                         "NCC được chọn": item.supplier || 'Chưa chọn',
                         "Giai đoạn": item.stage,
                         "Hóa đơn / ĐNTT": item.invoice || '-',
-                        "Đã phát hành HĐ": item.invoiced ? "Có" : "Chưa"
+                        "Đã thanh toán": item.invoiced ? "Có" : "Chưa"
                     });
                 });
             });
