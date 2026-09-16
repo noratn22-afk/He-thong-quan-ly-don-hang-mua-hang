@@ -504,6 +504,67 @@
         </div>
     </div>
 
+
+    <!-- MODAL 5: EXCEL IMPORT PREVIEW (TAB 1 ONLY) -->
+    <div id="modal-excel-import-preview" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center hidden p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-4xl w-full p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base">XÁC NHẬN IMPORT EXCEL</h3>
+                    <p id="excel-import-preview-file" class="text-xs text-slate-500 mt-1"></p>
+                </div>
+                <button type="button" onclick="closeExcelImportPreview()" class="text-slate-400 hover:text-slate-600" aria-label="Đóng">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div id="excel-import-preview-summary" class="grid grid-cols-2 sm:grid-cols-5 gap-3"></div>
+
+            <div id="excel-import-preview-message"></div>
+
+            <div id="excel-import-preview-errors" class="hidden border border-rose-200 bg-rose-50 rounded-xl p-4">
+                <div class="flex items-center gap-2 mb-2">
+                    <i data-lucide="triangle-alert" class="w-4 h-4 text-rose-600"></i>
+                    <h4 class="text-sm font-bold text-rose-800">Chi tiết dòng lỗi</h4>
+                </div>
+                <div id="excel-import-preview-error-list" class="space-y-1.5 max-h-48 overflow-y-auto text-xs text-rose-700"></div>
+            </div>
+
+            <div class="border border-slate-200 rounded-xl overflow-hidden">
+                <div class="bg-slate-50 px-4 py-2.5 border-b border-slate-200 flex items-center justify-between gap-3">
+                    <div>
+                        <p class="text-xs font-semibold text-slate-700">Xem trước dữ liệu hợp lệ sẽ import</p>
+                        <p id="excel-import-preview-mapped" class="text-[11px] text-slate-500 mt-0.5"></p>
+                    </div>
+                    <span class="text-[11px] text-slate-500">Tối đa hiển thị 10 dòng</span>
+                </div>
+                <div class="overflow-x-auto max-h-56 overflow-y-auto">
+                    <table class="w-full text-left text-xs">
+                        <thead class="sticky top-0 bg-white border-b border-slate-200">
+                            <tr>
+                                <th class="py-2 px-3">Dòng</th>
+                                <th class="py-2 px-3">Ngày</th>
+                                <th class="py-2 px-3">From</th>
+                                <th class="py-2 px-3">Tên mặt hàng</th>
+                                <th class="py-2 px-3">ĐVT</th>
+                                <th class="py-2 px-3">SL</th>
+                                <th class="py-2 px-3">Khu vực</th>
+                            </tr>
+                        </thead>
+                        <tbody id="excel-import-preview-table-body" class="divide-y divide-slate-100"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-2 border-t border-slate-100">
+                <button type="button" onclick="closeExcelImportPreview()" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition">Hủy</button>
+                <button type="button" id="excel-import-confirm-btn" onclick="confirmExcelImport()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg shadow-sm transition disabled:opacity-50 disabled:cursor-not-allowed">
+                    Import
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- JavaScript Application Logic -->
     <script>
         // System Data State
@@ -1597,54 +1658,607 @@
             XLSX.writeFile(wb, "ProcureFlow_Template_Order.xlsx");
         }
 
-        function handleExcelImport(event) {
-            const file = event.target.files[0];
-            if (!file) return;
+        // State: pending Excel import preview
+        let pendingExcelImport = null;
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
-                    const workbook = XLSX.read(data, { type: 'array' });
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    const json = XLSX.utils.sheet_to_json(worksheet);
+        const EXCEL_IMPORT_COLUMN_ALIASES = {
+            date: ["ngày order", "date", "order date", "orderdate"],
+            restaurant: ["from", "from bộ phận", "from (bộ phận)", "department", "bộ phận", "người yêu cầu"],
+            item: ["tên mặt hàng", "item", "item name", "itemname", "description", "tên hàng", "mặt hàng"],
+            unit: ["đvt", "unit", "uom", "đơn vị", "đơn vị tính"],
+            qty: ["số lượng", "qty", "quantity", "số lượng yêu cầu"],
+            area: ["khu vực", "area", "location", "region"],
+            note: ["ghi chú", "note", "notes", "remark", "remarks"],
+            by: ["người order", "by", "ordered by", "requester", "người yêu cầu"]
+        };
 
-                    if (json.length === 0) {
-                        alert("File Excel không có dữ liệu!");
+        function normalizeHeader(value) {
+            return String(value ?? '')
+                .replace(/^\uFEFF/, '')
+                .trim()
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/đ/g, 'd')
+                .replace(/[^a-z0-9]+/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function normalizeCellValue(value) {
+            if (value === null || value === undefined) return '';
+            if (value instanceof Date) return value;
+            return String(value).trim();
+        }
+
+        function findHeaderRow(rows) {
+            const aliasMap = {};
+            Object.entries(EXCEL_IMPORT_COLUMN_ALIASES).forEach(([field, aliases]) => {
+                aliases.forEach(alias => {
+                    aliasMap[normalizeHeader(alias)] = field;
+                });
+            });
+
+            let best = null;
+            const maxScan = Math.min(rows.length, 50);
+
+            for (let rowIndex = 0; rowIndex < maxScan; rowIndex++) {
+                const row = Array.isArray(rows[rowIndex]) ? rows[rowIndex] : [];
+                const fieldMap = {};
+                let recognizedCount = 0;
+
+                row.forEach((cell, colIndex) => {
+                    const normalized = normalizeHeader(cell);
+                    if (!normalized) return;
+
+                    // "Người yêu cầu" is explicitly supported for both From
+                    // and Người order; map the same physical column to both.
+                    if (normalized === 'nguoi yeu cau') {
+                        if (fieldMap.restaurant === undefined) fieldMap.restaurant = colIndex;
+                        if (fieldMap.by === undefined) fieldMap.by = colIndex;
+                        recognizedCount++;
                         return;
                     }
 
-                    json.forEach(row => {
-                        orders.push({
-                            id: Date.now() + Math.random(),
-                            restaurant: row['From'] || row['from'] || 'BD - I.E KFC ATP',
-                            item: row['Tên mặt hàng'] || row['Item'] || 'Mặt hàng mới',
-                            unit: row['ĐVT'] || row['Unit'] || 'Cái',
-                            qty: parseFloat(row['Số lượng'] || row['Qty'] || 1),
-                            area: row['Khu vực'] || row['Area'] || 'Bình Dương',
-                            note: row['Ghi chú'] || row['Note'] || '',
-                            by: row['Người order'] || row['By'] || 'Ngọc',
-                            date: row['Ngày order'] || row['Ngày Order'] || new Date().toISOString().slice(0,10),
-                            checkType: 'ĐNMH',
-                            supplier: '',
-                            contractNo: '',
-                            stage: 'SSG',
-                            invoiceNo: '',
-                            invoiceDate: ''
-                        });
-                    });
+                    const field = aliasMap[normalized];
+                    if (field && fieldMap[field] === undefined) {
+                        fieldMap[field] = colIndex;
+                        recognizedCount++;
+                    }
+                });
 
-                    saveToStorage();
-                    renderAll();
-                    alert(`Import thành công ${json.length} dòng order!`);
-                } catch (err) {
-                    console.error(err);
-                    alert("Có lỗi khi đọc file Excel. Vui lòng kiểm tra lại định dạng file mẫu.");
+                const hasItem = fieldMap.item !== undefined;
+                const hasQty = fieldMap.qty !== undefined;
+                const score = recognizedCount + (hasItem ? 10 : 0) + (hasQty ? 10 : 0);
+
+                if (!best || score > best.score) {
+                    best = {
+                        rowIndex,
+                        fieldMap,
+                        recognizedCount,
+                        hasItem,
+                        hasQty,
+                        score
+                    };
+                }
+            }
+
+            return best;
+        }
+
+        function makeValidatedDate(year, month, day) {
+            const dt = new Date(year, month - 1, day);
+            return (
+                dt.getFullYear() === year &&
+                dt.getMonth() === month - 1 &&
+                dt.getDate() === day
+            ) ? dt : null;
+        }
+
+        function toISODate(date) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        }
+
+        function toISODateUTC(date) {
+            return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}-${String(date.getUTCDate()).padStart(2, '0')}`;
+        }
+
+        function parseExcelDate(value) {
+            if (value === null || value === undefined || String(value).trim() === '') {
+                return { valid: false, value: '', reason: 'Ngày trống' };
+            }
+
+            if (value instanceof Date) {
+                return !isNaN(value.getTime())
+                    ? { valid: true, value: toISODate(value) }
+                    : { valid: false, value: '', reason: `Ngày không hợp lệ: "${value}"` };
+            }
+
+            if (typeof value === 'number' && isFinite(value)) {
+                if (value > 0 && value < 100000) {
+                    const serialDate = new Date(Date.UTC(1899, 11, 30) + value * 86400000);
+                    return !isNaN(serialDate.getTime())
+                        ? { valid: true, value: toISODateUTC(serialDate) }
+                        : { valid: false, value: '', reason: `Ngày không hợp lệ: "${value}"` };
+                }
+                return { valid: false, value: '', reason: `Ngày không hợp lệ: "${value}"` };
+            }
+
+            const raw = String(value).replace(/^\uFEFF/, '').trim();
+
+            let match = raw.match(/^(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})(?:[T\s].*)?$/);
+            if (match) {
+                const dt = makeValidatedDate(Number(match[1]), Number(match[2]), Number(match[3]));
+                return dt
+                    ? { valid: true, value: toISODate(dt) }
+                    : { valid: false, value: '', reason: `Ngày không hợp lệ: "${raw}"` };
+            }
+
+            match = raw.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+            if (match) {
+                const first = Number(match[1]);
+                const second = Number(match[2]);
+                const year = Number(match[3]);
+
+                let dt = null;
+                if (first > 12) dt = makeValidatedDate(year, second, first);
+                else if (second > 12) dt = makeValidatedDate(year, first, second);
+                else dt = makeValidatedDate(year, second, first); // DD/MM/YYYY for Vietnam
+
+                return dt
+                    ? { valid: true, value: toISODate(dt) }
+                    : { valid: false, value: '', reason: `Ngày không hợp lệ: "${raw}"` };
+            }
+
+            const parsed = new Date(raw);
+            return !isNaN(parsed.getTime())
+                ? { valid: true, value: toISODate(parsed) }
+                : { valid: false, value: '', reason: `Ngày không hợp lệ: "${raw}"` };
+        }
+
+        function parseQuantity(value) {
+            if (value === null || value === undefined || String(value).trim() === '') {
+                return { valid: false, value: null, reason: 'Số lượng trống' };
+            }
+
+            if (typeof value === 'number') {
+                return isFinite(value) && value > 0
+                    ? { valid: true, value }
+                    : { valid: false, value: null, reason: `Số lượng không hợp lệ: "${value}"` };
+            }
+
+            const raw = String(value).trim();
+            let normalized = raw.replace(/\s/g, '');
+
+            if (/^\d{1,3}(,\d{3})+(\.\d+)?$/.test(normalized)) {
+                normalized = normalized.replace(/,/g, '');
+            } else if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(normalized)) {
+                normalized = normalized.replace(/\./g, '').replace(',', '.');
+            } else if (/^\d+,\d+$/.test(normalized) && !normalized.includes('.')) {
+                normalized = normalized.replace(',', '.');
+            } else if (!/^\d+(\.\d+)?$/.test(normalized)) {
+                return { valid: false, value: null, reason: `Số lượng không hợp lệ: "${raw}"` };
+            }
+
+            const qty = Number(normalized);
+            return isFinite(qty) && qty > 0
+                ? { valid: true, value: qty }
+                : { valid: false, value: null, reason: `Số lượng không hợp lệ: "${raw}"` };
+        }
+
+        function validateImportRow(rawRow, rowNumber, fieldMap) {
+            const getField = field => {
+                const index = fieldMap[field];
+                return index === undefined ? '' : normalizeCellValue(rawRow[index]);
+            };
+
+            const itemRaw = getField('item');
+            if (!String(itemRaw).trim()) {
+                return { valid: false, rowNumber, error: 'Tên mặt hàng trống' };
+            }
+
+            const quantity = parseQuantity(getField('qty'));
+            if (!quantity.valid) {
+                return { valid: false, rowNumber, error: quantity.reason };
+            }
+
+            const rawDate = getField('date');
+            const dateResult = rawDate
+                ? parseExcelDate(rawDate)
+                : { valid: true, value: getTodayISO() };
+
+            if (!dateResult.valid) {
+                return { valid: false, rowNumber, error: dateResult.reason };
+            }
+
+            return {
+                valid: true,
+                rowNumber,
+                data: {
+                    id: null,
+                    date: dateResult.value,
+                    restaurant: String(getField('restaurant') || 'Chưa xác định').trim() || 'Chưa xác định',
+                    item: String(itemRaw).trim(),
+                    unit: String(getField('unit') || 'Cái').trim() || 'Cái',
+                    qty: quantity.value,
+                    area: String(getField('area') || 'Chưa xác định').trim() || 'Chưa xác định',
+                    note: String(getField('note') || '').trim(),
+                    by: String(getField('by') || 'Ngọc').trim() || 'Ngọc'
                 }
             };
-            reader.readAsArrayBuffer(file);
-            event.target.value = '';
+        }
+
+        function createSafeOrderId(usedIds = []) {
+            // Keep numeric IDs for compatibility with the existing Tab 1
+            // inline edit/delete handlers, while avoiding Date.now()+Math.random().
+            const numericIds = usedIds
+                .map(id => Number(id))
+                .filter(id => Number.isSafeInteger(id) && id >= 0);
+
+            let nextId = numericIds.length ? Math.max(...numericIds) + 1 : 1;
+            const used = new Set(usedIds.map(String));
+
+            while (used.has(String(nextId))) nextId++;
+
+            return nextId;
+        }
+
+        function getTodayISO() {
+            return toISODate(new Date());
+        }
+
+        function buildOrderDuplicateKey(orderLike) {
+            return [
+                normalizeHeader(orderLike.date || ''),
+                normalizeHeader(orderLike.restaurant || ''),
+                normalizeHeader(orderLike.item || ''),
+                String(orderLike.qty ?? '')
+            ].join('||');
+        }
+
+        function parseExcelWorkbook(file, arrayBuffer) {
+            const isCSV = /\.csv$/i.test(file.name || '') || String(file.type || '').toLowerCase().includes('csv');
+
+            if (isCSV) {
+                if (typeof TextDecoder === 'undefined') {
+                    return XLSX.read(new Uint8Array(arrayBuffer), {
+                        type: 'array',
+                        raw: true,
+                        cellDates: true
+                    });
+                }
+
+                let csvText = '';
+                try {
+                    csvText = new TextDecoder('utf-8', { fatal: false }).decode(arrayBuffer);
+                } catch (decodeErr) {
+                    console.warn('UTF-8 CSV decode fallback:', decodeErr);
+                    csvText = new TextDecoder('utf-8').decode(arrayBuffer);
+                }
+
+                csvText = csvText.replace(/^\uFEFF/, '');
+
+                return XLSX.read(csvText, {
+                    type: 'string',
+                    raw: true,
+                    cellDates: true
+                });
+            }
+
+            return XLSX.read(new Uint8Array(arrayBuffer), {
+                type: 'array',
+                raw: true,
+                cellDates: true
+            });
+        }
+
+        function escapeHTML(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        function showImportPreview(preview) {
+            pendingExcelImport = preview;
+
+            document.getElementById('excel-import-preview-file').innerText =
+                `File: ${preview.fileName} • Sheet: ${preview.sheetName}`;
+
+            const summary = [
+                ['Tổng dòng', preview.totalRows, 'text-slate-700 bg-slate-50 border-slate-200'],
+                ['Hợp lệ', preview.validRows.length, 'text-emerald-700 bg-emerald-50 border-emerald-200'],
+                ['Dòng trống', preview.blankRows, 'text-slate-600 bg-slate-50 border-slate-200'],
+                ['Dòng lỗi', preview.errors.length, 'text-rose-700 bg-rose-50 border-rose-200'],
+                ['Trùng', preview.duplicates.length, 'text-amber-700 bg-amber-50 border-amber-200']
+            ];
+
+            document.getElementById('excel-import-preview-summary').innerHTML = summary.map(([label, value, cls]) => `
+                <div class="rounded-xl border p-3 ${cls}">
+                    <div class="text-[11px] font-medium opacity-80">${escapeHTML(label)}</div>
+                    <div class="text-xl font-bold mt-1">${value}</div>
+                </div>
+            `).join('');
+
+            const expectedAdd = preview.validRows.filter(row => !row._duplicate).length;
+            document.getElementById('excel-import-preview-message').innerHTML = expectedAdd > 0
+                ? `<div class="rounded-xl border border-indigo-200 bg-indigo-50 p-3.5 text-sm text-indigo-800"><div class="font-semibold">Dự kiến thêm mới: ${expectedAdd} order</div><div class="text-xs mt-1">Các dòng lỗi và dòng trùng sẽ không được ghi vào orders.</div></div>`
+                : `<div class="rounded-xl border border-amber-200 bg-amber-50 p-3.5 text-sm text-amber-800"><div class="font-semibold">Không có dòng mới để import.</div><div class="text-xs mt-1">Hãy kiểm tra dòng lỗi hoặc dữ liệu trùng với orders hiện tại.</div></div>`;
+
+            const errorBox = document.getElementById('excel-import-preview-errors');
+            const errorList = document.getElementById('excel-import-preview-error-list');
+
+            if (preview.errors.length) {
+                errorBox.classList.remove('hidden');
+                errorList.innerHTML = preview.errors.map(err => `
+                    <div class="flex gap-2">
+                        <span class="font-semibold">Dòng ${escapeHTML(err.rowNumber)}:</span>
+                        <span>${escapeHTML(err.error)}</span>
+                    </div>
+                `).join('');
+            } else {
+                errorBox.classList.add('hidden');
+                errorList.innerHTML = '';
+            }
+
+            const displayNames = {
+                date: 'Ngày order',
+                restaurant: 'From',
+                item: 'Tên mặt hàng',
+                unit: 'ĐVT',
+                qty: 'Số lượng',
+                area: 'Khu vực',
+                note: 'Ghi chú',
+                by: 'Người order'
+            };
+
+            document.getElementById('excel-import-preview-mapped').innerText =
+                `Đã nhận diện header tại dòng ${preview.headerRow + 1}. Cột: ${preview.recognizedFields.map(f => displayNames[f] || f).join(', ')}`;
+
+            document.getElementById('excel-import-preview-table-body').innerHTML =
+                preview.validRows.slice(0, 10).map(row => `
+                    <tr class="hover:bg-slate-50">
+                        <td class="py-2 px-3 text-slate-500">${row.rowNumber}</td>
+                        <td class="py-2 px-3">${escapeHTML(row.data.date)}</td>
+                        <td class="py-2 px-3">${escapeHTML(row.data.restaurant)}</td>
+                        <td class="py-2 px-3 font-medium text-slate-800">${escapeHTML(row.data.item)}</td>
+                        <td class="py-2 px-3">${escapeHTML(row.data.unit)}</td>
+                        <td class="py-2 px-3 font-semibold text-indigo-600">${escapeHTML(row.data.qty)}</td>
+                        <td class="py-2 px-3">${escapeHTML(row.data.area)}</td>
+                    </tr>
+                `).join('');
+
+            const confirmBtn = document.getElementById('excel-import-confirm-btn');
+            confirmBtn.innerText = expectedAdd > 0 ? `Import ${expectedAdd} dòng` : 'Import';
+            confirmBtn.disabled = expectedAdd <= 0;
+
+            document.getElementById('modal-excel-import-preview').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeExcelImportPreview() {
+            pendingExcelImport = null;
+            document.getElementById('modal-excel-import-preview').classList.add('hidden');
+        }
+
+        function confirmExcelImport() {
+            if (!pendingExcelImport) return;
+
+            const rowsToImport = pendingExcelImport.validRows.filter(row => !row._duplicate);
+            if (!rowsToImport.length) {
+                closeExcelImportPreview();
+                return;
+            }
+
+            try {
+                const usedIds = orders.map(order => order.id);
+                const baseOrderCount = orders.length;
+
+                const importedOrders = rowsToImport.map((row, index) => {
+                    const id = createSafeOrderId(usedIds);
+                    usedIds.push(id);
+
+                    return {
+                        id,
+                        restaurant: row.data.restaurant,
+                        item: row.data.item,
+                        unit: row.data.unit,
+                        qty: row.data.qty,
+                        area: row.data.area,
+                        note: row.data.note,
+                        by: row.data.by,
+                        date: row.data.date,
+                        checkType: 'ĐNMH',
+                        supplier: '',
+                        contractNo: `DNMH${String(baseOrderCount + index + 1).padStart(3, '0')}`,
+                        stage: 'SSG',
+                        invoiceNo: '',
+                        invoiceDate: ''
+                    };
+                });
+
+                // IMPORTANT: append; never replace existing orders.
+                orders.push(...importedOrders);
+
+                saveToStorage();
+                renderAll();
+
+                const duplicateCount = pendingExcelImport.duplicates.length;
+                const errorCount = pendingExcelImport.errors.length;
+                const addedCount = importedOrders.length;
+
+                closeExcelImportPreview();
+
+                alert(
+                    `Import thành công!\n\n` +
+                    `Đã thêm: ${addedCount} order\n` +
+                    `Bỏ qua trùng: ${duplicateCount}\n` +
+                    `Dòng lỗi: ${errorCount}`
+                );
+            } catch (err) {
+                console.error("Excel import error:", err);
+                alert(`Không thể lưu dữ liệu import vào hệ thống.\n${err?.message || 'Vui lòng thử lại.'}`);
+            }
+        }
+
+        function handleExcelImport(event) {
+            const input = event?.target;
+            const file = input?.files?.[0];
+
+            const resetInput = () => {
+                if (input) input.value = '';
+            };
+
+            if (!file) {
+                resetInput();
+                return;
+            }
+
+            if (typeof XLSX === 'undefined') {
+                alert("Thư viện Excel chưa được tải. Vui lòng kiểm tra kết nối Internet và tải lại trang.");
+                resetInput();
+                return;
+            }
+
+            if (!/\.(xlsx|xls|csv)$/i.test(file.name || '')) {
+                alert("Định dạng file không được hỗ trợ. Vui lòng chọn .xlsx, .xls hoặc .csv.");
+                resetInput();
+                return;
+            }
+
+            const reader = new FileReader();
+
+            reader.onerror = function(err) {
+                console.error("Excel import error:", err);
+                alert("Không thể đọc file Excel. File có thể bị hỏng hoặc không đúng định dạng.");
+                resetInput();
+            };
+
+            reader.onload = function(e) {
+                try {
+                    const workbook = parseExcelWorkbook(file, e.target.result);
+
+                    if (!workbook || !Array.isArray(workbook.SheetNames) || workbook.SheetNames.length === 0) {
+                        throw new Error('File không chứa sheet dữ liệu.');
+                    }
+
+                    const firstSheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[firstSheetName];
+                    if (!worksheet) throw new Error('Không thể đọc sheet đầu tiên của file.');
+
+                    const rows = XLSX.utils.sheet_to_json(worksheet, {
+                        header: 1,
+                        raw: true,
+                        defval: ''
+                    });
+
+                    if (!Array.isArray(rows) || rows.length === 0) {
+                        throw new Error('File không chứa dữ liệu.');
+                    }
+
+                    const hasAnyData = rows.some(row =>
+                        Array.isArray(row) &&
+                        row.some(cell => String(normalizeCellValue(cell)).trim() !== '')
+                    );
+                    if (!hasAnyData) throw new Error('File không chứa dữ liệu.');
+
+                    const headerInfo = findHeaderRow(rows);
+                    if (!headerInfo || !headerInfo.fieldMap) {
+                        throw new Error('Không tìm thấy dòng tiêu đề.');
+                    }
+
+                    if (headerInfo.fieldMap.item === undefined || headerInfo.fieldMap.qty === undefined) {
+                        const missing = [];
+                        if (headerInfo.fieldMap.item === undefined) missing.push('Tên mặt hàng');
+                        if (headerInfo.fieldMap.qty === undefined) missing.push('Số lượng');
+                        throw new Error(`Thiếu cột ${missing.join(' hoặc ')}.`);
+                    }
+
+                    const dataRows = [];
+                    let blankRows = 0;
+
+                    for (let i = headerInfo.rowIndex + 1; i < rows.length; i++) {
+                        const row = Array.isArray(rows[i]) ? rows[i] : [];
+                        const blank = row.every(cell => String(normalizeCellValue(cell)).trim() === '');
+
+                        if (blank) {
+                            blankRows++;
+                        } else {
+                            dataRows.push({ row, rowNumber: i + 1 });
+                        }
+                    }
+
+                    if (rows.length - headerInfo.rowIndex - 1 <= 0) {
+                        throw new Error('File không chứa dữ liệu bên dưới dòng tiêu đề.');
+                    }
+
+                    const validRows = [];
+                    const errors = [];
+
+                    dataRows.forEach(entry => {
+                        const result = validateImportRow(entry.row, entry.rowNumber, headerInfo.fieldMap);
+                        if (result.valid) validRows.push(result);
+                        else errors.push(result);
+                    });
+
+                    const existingKeys = new Set(orders.map(buildOrderDuplicateKey));
+                    const importKeys = new Set();
+                    const duplicates = [];
+
+                    validRows.forEach(row => {
+                        const key = buildOrderDuplicateKey(row.data);
+                        if (existingKeys.has(key) || importKeys.has(key)) {
+                            row._duplicate = true;
+                            duplicates.push({
+                                rowNumber: row.rowNumber,
+                                data: row.data
+                            });
+                        } else {
+                            row._duplicate = false;
+                            importKeys.add(key);
+                        }
+                    });
+
+                    showImportPreview({
+                        fileName: file.name,
+                        sheetName: firstSheetName,
+                        headerRow: headerInfo.rowIndex,
+                        recognizedFields: Object.keys(headerInfo.fieldMap),
+                        totalRows: rows.length - headerInfo.rowIndex - 1,
+                        blankRows,
+                        validRows,
+                        errors,
+                        duplicates
+                    });
+                } catch (err) {
+                    console.error("Excel import error:", err);
+
+                    const msg = err?.message || '';
+                    if (/^Thiếu cột/i.test(msg)) {
+                        alert(msg);
+                    } else if (/Không tìm thấy dòng tiêu đề/i.test(msg)) {
+                        alert("Không tìm thấy dòng tiêu đề.");
+                    } else if (/không chứa dữ liệu/i.test(msg)) {
+                        alert(msg);
+                    } else if (/sheet/i.test(msg)) {
+                        alert("Không thể đọc sheet dữ liệu đầu tiên của file.");
+                    } else {
+                        alert("Không thể đọc file Excel. File có thể bị hỏng hoặc không đúng định dạng.");
+                    }
+                } finally {
+                    resetInput();
+                }
+            };
+
+            try {
+                reader.readAsArrayBuffer(file);
+            } catch (err) {
+                console.error("Excel import error:", err);
+                alert("Không thể đọc file Excel. File có thể bị hỏng hoặc không đúng định dạng.");
+                resetInput();
+            }
         }
 
         // --- UTILITY MODAL CLOSER ---
