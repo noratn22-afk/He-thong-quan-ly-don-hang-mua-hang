@@ -734,14 +734,69 @@
             lucide.createIcons();
         });
 
-        // Helper: Format YYYY-MM-DD -> DD/MM/YYYY
+        // Helper: Format date safely -> DD/MM/YYYY
+        // Supports YYYY-MM-DD strings, ISO datetime strings, Date objects, Excel serial-like numbers.
         function formatDateVN(dateStr) {
-            if (!dateStr) return '-';
-            const parts = dateStr.split('-');
-            if (parts.length === 3) {
-                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            if (dateStr === null || dateStr === undefined || dateStr === '') return '-';
+
+            if (dateStr instanceof Date) {
+                if (isNaN(dateStr.getTime())) return '-';
+                return `${String(dateStr.getDate()).padStart(2, '0')}/${String(dateStr.getMonth() + 1).padStart(2, '0')}/${dateStr.getFullYear()}`;
             }
-            return dateStr;
+
+            if (typeof dateStr === 'number' && isFinite(dateStr)) {
+                const dt = new Date(Date.UTC(1899, 11, 30) + dateStr * 86400000);
+                if (!isNaN(dt.getTime())) {
+                    return `${String(dt.getUTCDate()).padStart(2, '0')}/${String(dt.getUTCMonth() + 1).padStart(2, '0')}/${dt.getUTCFullYear()}`;
+                }
+                return String(dateStr);
+            }
+
+            const value = String(dateStr).trim();
+            if (!value) return '-';
+
+            const iso = value.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(?:[T\s].*)?$/);
+            if (iso) {
+                return `${String(iso[3]).padStart(2, '0')}/${String(iso[2]).padStart(2, '0')}/${iso[1]}`;
+            }
+
+            const dmy = value.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+            if (dmy) {
+                return `${String(dmy[1]).padStart(2, '0')}/${String(dmy[2]).padStart(2, '0')}/${dmy[3]}`;
+            }
+
+            return value;
+        }
+
+        function normalizeOrderRecord(order, fallbackIndex = 0) {
+            const source = order || {};
+            const rawDate = source.date;
+            let normalizedDate = '';
+
+            try {
+                const parsed = rawDate ? parseExcelDate(rawDate) : { valid: true, value: getTodayISO() };
+                normalizedDate = parsed.valid ? parsed.value : getTodayISO();
+            } catch (e) {
+                normalizedDate = getTodayISO();
+            }
+
+            return {
+                id: source.id ?? (fallbackIndex + 1),
+                restaurant: String(source.restaurant ?? 'Chưa xác định').trim() || 'Chưa xác định',
+                item: String(source.item ?? '').trim(),
+                unit: String(source.unit ?? 'Cái').trim() || 'Cái',
+                qty: (typeof source.qty === 'number' && isFinite(source.qty)) ? source.qty : (parseQuantity(source.qty).value || 0),
+                area: String(source.area ?? 'Chưa xác định').trim() || 'Chưa xác định',
+                note: String(source.note ?? '').trim(),
+                by: String(source.by ?? 'Ngọc').trim() || 'Ngọc',
+                date: normalizedDate,
+                checkType: source.checkType || 'ĐNMH',
+                supplier: String(source.supplier ?? ''),
+                contractNo: String(source.contractNo ?? ''),
+                stage: source.stage || 'SSG',
+                invoiceNo: String(source.invoiceNo ?? ''),
+                invoiceDate: source.invoiceDate ? (function(){ try { const r=parseExcelDate(source.invoiceDate); return r.valid ? r.value : ''; } catch(e){ return ''; } })() : ''
+            };
         }
 
         function saveToStorage() {
@@ -758,9 +813,33 @@
             const savedOrders = localStorage.getItem('procure_orders');
             const savedSuppliers = localStorage.getItem('procure_suppliers');
             const savedQuotes = localStorage.getItem('procure_quotes');
-            if (savedOrders) orders = JSON.parse(savedOrders);
-            if (savedSuppliers) suppliers = JSON.parse(savedSuppliers);
-            if (savedQuotes) quotes = JSON.parse(savedQuotes);
+
+            if (savedOrders) {
+                try {
+                    const parsedOrders = JSON.parse(savedOrders);
+                    if (Array.isArray(parsedOrders)) {
+                        orders = parsedOrders.map((order, index) => normalizeOrderRecord(order, index));
+                    }
+                } catch (err) {
+                    console.error('Lỗi đọc procure_orders:', err);
+                }
+            }
+            if (savedSuppliers) {
+                try {
+                    const parsedSuppliers = JSON.parse(savedSuppliers);
+                    if (Array.isArray(parsedSuppliers)) suppliers = parsedSuppliers;
+                } catch (err) {
+                    console.error('Lỗi đọc procure_suppliers:', err);
+                }
+            }
+            if (savedQuotes) {
+                try {
+                    const parsedQuotes = JSON.parse(savedQuotes);
+                    if (Array.isArray(parsedQuotes)) quotes = parsedQuotes;
+                } catch (err) {
+                    console.error('Lỗi đọc procure_quotes:', err);
+                }
+            }
         }
 
         function switchTab(tabId) {
@@ -1577,18 +1656,20 @@
         }
 
         function updateStage(id, val) {
-            const o = orders.find(x => x.id === id);
+            const o = orders.find(x => x.id == id);
             if (o) {
                 o.stage = val;
                 saveToStorage();
+                renderAll();
             }
         }
 
         function updateInvoice(id, field, val) {
-            const o = orders.find(x => x.id === id);
+            const o = orders.find(x => x.id == id);
             if (o) {
-                o[field] = val;
+                o[field] = field === 'invoiceDate' && val ? String(val).slice(0, 10) : val;
                 saveToStorage();
+                renderAll();
             }
         }
 
@@ -2080,7 +2161,7 @@
                 });
 
                 // IMPORTANT: append; never replace existing orders.
-                orders.push(...importedOrders);
+                orders.push(...importedOrders.map((order, index) => normalizeOrderRecord(order, orders.length + index)));
 
                 saveToStorage();
                 renderAll();
