@@ -2,8 +2,8 @@
 <html lang="vi" class="h-full">
 <head>
     <!-- Chosen Palette: Slate & Indigo Minimalist -->
-    <!-- Application Structure Plan: The single-page application is structured into 5 tabbed sections (1. Orders, 2. Contract & Requisition Check, 3. Quotes & Multi-Supplier Comparison, 4. Status & Stage Tracking, 5. Weekly Summary Report). Tab 3 has been enhanced to allow uploading real quote files (PDF, Excel, Word) for specific items from Tab 1 and specific Suppliers. It maintains local storage persistence using Base64 encoding, calculates lowest unit prices before VAT across multiple suppliers per item, and enables file preview/deletion without affecting other operational tabs. -->
-    <!-- Visualization & Content Choices: Data tables present tabular order data, contract check status, and quote comparisons; badges highlight lowest unit prices (⭐ Thấp nhất) and status stages; action buttons open centered Tailwind modals for interactive uploads and updates; Lucide JS icon library and structured HTML/CSS are used for visual indicators. NO inline SVG tags or Mermaid JS diagrams were created. -->
+    <!-- Application Structure Plan: Trang đơn (SPA) quản lý quy trình mua hàng ProcureFlow Pro. Tab 3 ("Báo giá & So sánh NCC") được thiết kế lại độc lập với mỗi mặt hàng là 1 Card Block riêng biệt, nhóm theo From và giữ đúng thứ tự từ Tab 1. Header từng block hiển thị rõ tên mặt hàng, mã ĐNMH, số lượng, ngày order và badge đếm NCC. Dưới header là bảng danh sách các NCC báo giá (đơn giá trước VAT, chip file báo giá có tooltip, gắn nhãn ⭐ Thấp nhất tự động theo Math.min, và nút xóa riêng từng báo giá). Nếu mặt hàng chưa có báo giá, vẫn hiển thị Block dạng dashed empty state kèm nút "+ Tải lên báo giá". -->
+    <!-- Visualization & Content Choices: Giao diện thẻ HTML/CSS Tailwind responsive, bảng phân nhóm theo From & Block mặt hàng, biểu tượng Lucide icons, Canvas cho báo cáo nếu cần, không sử dụng đồ họa SVG trực tiếp hay thư viện Mermaid JS. -->
     <!-- CONFIRMATION: NO SVG graphics used. NO Mermaid JS used. -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -88,10 +88,17 @@
         <!-- TAB 1: ORDERS LIST -->
         <div id="tab-orders" class="tab-content flex-1 flex flex-col space-y-4">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
-                <div class="flex items-center space-x-3 w-full sm:w-auto">
-                    <div class="relative flex-1 sm:w-80">
+                <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto flex-1">
+                    <div class="relative flex-1 sm:w-72">
                         <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
-                        <input type="text" id="search-order" oninput="filterOrders()" placeholder="Tìm kiếm From, mặt hàng, khu vực..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="text" id="search-order" oninput="filterOrders()" placeholder="Tìm From, mặt hàng, ngày order (YYYY-MM-DD)..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <label class="text-xs font-medium text-slate-600 whitespace-nowrap"><i data-lucide="arrow-up-down" class="w-3.5 h-3.5 inline mr-1"></i>Sắp xếp ngày:</label>
+                        <select id="sort-order-date" onchange="filterOrders()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="desc">Mới nhất → Cũ nhất (Mặc định)</option>
+                            <option value="asc">Cũ nhất → Mới nhất</option>
+                        </select>
                     </div>
                 </div>
                 <div class="flex flex-wrap items-center gap-2">
@@ -112,7 +119,8 @@
                     <table class="w-full text-left border-collapse">
                         <thead class="sticky top-0 bg-slate-100 z-10 shadow-xs">
                             <tr class="text-slate-600 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
-                                <th class="py-3.5 px-4 w-14">STT</th>
+                                <th class="py-3.5 px-4 w-12">STT</th>
+                                <th class="py-3.5 px-4">Ngày Order</th>
                                 <th class="py-3.5 px-4">Tên mặt hàng</th>
                                 <th class="py-3.5 px-4">ĐVT</th>
                                 <th class="py-3.5 px-4">Số lượng</th>
@@ -135,12 +143,12 @@
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
                 <div>
                     <h2 class="text-base font-bold text-slate-900">Kiểm tra Hợp đồng & Đề nghị mua hàng (ĐNMH)</h2>
-                    <p class="text-xs text-slate-500">Liên kết các mặt hàng order vào Hợp đồng hiện hữu hoặc ĐNMH với các Nhà cung cấp theo từng nhóm From.</p>
+                    <p class="text-xs text-slate-500">Dữ liệu được nhóm theo đợt order từ mỗi bộ phận: <code class="bg-slate-100 px-1 py-0.5 rounded text-indigo-700 font-semibold text-xs">From: [Tên Bộ phận] — [DD/MM/YYYY] — [X] mặt hàng</code>.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
                     <div class="relative flex-1 sm:w-64">
                         <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
-                        <input type="text" id="search-check" oninput="renderCheckTable()" placeholder="Tìm kiếm mặt hàng, HĐ..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="text" id="search-check" oninput="renderCheckTable()" placeholder="Tìm mặt hàng, HĐ, ngày..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
                     <select id="filter-check-type" onchange="renderCheckTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <option value="Tất cả">Tất cả hình thức</option>
@@ -165,7 +173,7 @@
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 class="text-base font-bold text-slate-900">Báo giá & So sánh Nhà Cung Cấp (Multi-Supplier)</h2>
-                    <p class="text-xs text-slate-500">Quản lý file báo giá thực tế đính kèm từ NCC và so sánh đơn giá trước VAT giữa các đối tác.</p>
+                    <p class="text-xs text-slate-500">Mỗi mặt hàng hiển thị thành 1 Block riêng biệt, nhóm theo From và duy trì đúng thứ tự của Tab 1.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                     <button onclick="openUploadQuoteModal()" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm transition">
@@ -173,45 +181,34 @@
                     </button>
                     <div class="relative flex-1 sm:w-64">
                         <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
-                        <input type="text" id="search-quotes" oninput="renderQuotes()" placeholder="Tìm kiếm mặt hàng, NCC..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="text" id="search-quotes" oninput="renderQuotes()" placeholder="Tìm kiếm mặt hàng, NCC, From..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
                 </div>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <!-- Left Sidebar: Quote Status by Supplier -->
-                <div class="lg:col-span-1 bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col space-y-4">
+                <div class="lg:col-span-1 bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col space-y-4 h-fit sticky top-20">
                     <h3 class="font-semibold text-sm text-slate-800 flex items-center space-x-2">
                         <i data-lucide="users" class="w-4 h-4 text-indigo-600"></i>
                         <span>Theo dõi Báo giá theo Nhà Cung Cấp</span>
                     </h3>
-                    <p class="text-xs text-slate-500">Danh sách các NCC đã nộp báo giá và chi tiết đơn giá từng mặt hàng.</p>
+                    <p class="text-xs text-slate-500">Danh sách các NCC đã nộp báo giá và đơn giá cho từng mặt hàng.</p>
                     <div id="quote-tracking-list" class="space-y-4 overflow-y-auto max-h-[500px] pr-1">
                         <!-- Populated by JS -->
                     </div>
                 </div>
 
-                <!-- Right Table: Multi-Supplier Quote Comparison -->
-                <div class="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col space-y-4">
-                    <h3 class="font-semibold text-sm text-slate-800 flex items-center space-x-2">
-                        <i data-lucide="trending-down" class="w-4 h-4 text-emerald-600"></i>
-                        <span>Bảng So Sánh Giá & Chọn NCC Tối Ưu</span>
-                    </h3>
-                    <div class="overflow-x-auto max-h-[500px] overflow-y-auto">
-                        <table class="w-full text-left border-collapse">
-                            <thead class="sticky top-0 bg-slate-100 z-10">
-                                <tr class="text-slate-600 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
-                                    <th class="py-3 px-3">Tên mặt hàng</th>
-                                    <th class="py-3 px-3">NCC Báo Giá</th>
-                                    <th class="py-3 px-3">Đơn giá trước VAT</th>
-                                    <th class="py-3 px-3">Báo giá thực tế</th>
-                                    <th class="py-3 px-3 text-right">Thao tác</th>
-                                </tr>
-                            </thead>
-                            <tbody id="comparison-table-body" class="divide-y divide-slate-200 text-sm">
-                                <!-- Populated by JS -->
-                            </tbody>
-                        </table>
+                <!-- Right Area: Multi-Supplier Quote Comparison Blocks -->
+                <div class="lg:col-span-2 flex flex-col space-y-4">
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
+                        <h3 class="font-semibold text-sm text-slate-800 flex items-center space-x-2">
+                            <i data-lucide="trending-down" class="w-4 h-4 text-emerald-600"></i>
+                            <span>Bảng So Sánh Giá & Chọn NCC Tối Ưu (Mỗi mặt hàng = 1 Block độc lập)</span>
+                        </h3>
+                    </div>
+                    <div id="comparison-blocks-container" class="space-y-6 overflow-y-auto max-h-[650px] pr-1">
+                        <!-- Populated dynamically by JS -->
                     </div>
                 </div>
             </div>
@@ -222,12 +219,12 @@
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 class="text-base font-bold text-slate-900">Theo dõi Trạng thái & Phát hành Hóa đơn</h2>
-                    <p class="text-xs text-slate-500">Các giai đoạn: SSG → Đặt hàng → Đã giao hàng → Phát hành hoá đơn & Làm ĐNTT.</p>
+                    <p class="text-xs text-slate-500">Theo dõi tiến độ đơn hàng từ Ngày order theo các giai đoạn: SSG → Đặt hàng → Đã giao hàng → Phát hành hoá đơn & Làm ĐNTT.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                     <div class="relative flex-1 sm:w-64">
                         <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
-                        <input type="text" id="search-status" oninput="renderStatusTable()" placeholder="Tìm kiếm mặt hàng..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="text" id="search-status" oninput="renderStatusTable()" placeholder="Tìm kiếm mặt hàng, Ngày order..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
                     <select id="filter-status-stage" onchange="renderStatusTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <option value="Tất cả">Tất cả giai đoạn</option>
@@ -245,7 +242,8 @@
                     <table class="w-full text-left border-collapse">
                         <thead class="sticky top-0 bg-slate-100 z-10">
                             <tr class="text-slate-600 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
-                                <th class="py-3.5 px-4 w-14">STT</th>
+                                <th class="py-3.5 px-4 w-12">STT</th>
+                                <th class="py-3.5 px-4">Ngày Order</th>
                                 <th class="py-3.5 px-4">Tên mặt hàng</th>
                                 <th class="py-3.5 px-4">ĐVT</th>
                                 <th class="py-3.5 px-4">Số lượng</th>
@@ -268,7 +266,7 @@
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 no-print">
                 <div>
                     <h2 class="text-base font-bold text-slate-900">Báo cáo Tổng hợp Cuối tuần</h2>
-                    <p class="text-xs text-slate-500">Tổng kết toàn bộ hoạt động mua hàng, tiến độ giao hàng và phát hành hóa đơn trong tuần.</p>
+                    <p class="text-xs text-slate-500">Tổng kết toàn bộ hoạt động mua hàng, mốc thời gian order, tiến độ giao hàng và phát hành hóa đơn trong tuần.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                     <button onclick="exportReportExcel()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg shadow-sm transition flex items-center space-x-2 whitespace-nowrap">
@@ -322,18 +320,19 @@
             <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex-1 flex flex-col space-y-4">
                 <h3 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
                     <i data-lucide="file-spreadsheet" class="w-4 h-4 text-indigo-600"></i>
-                    <span>Chi tiết Báo cáo Tiến độ Mua Hàng Nhóm Theo From</span>
+                    <span>Chi tiết Báo cáo Tiến độ Mua Hàng Nhóm Theo From & Ngày order (Mới nhất đến cũ nhất)</span>
                 </h3>
                 <div class="overflow-x-auto flex-1 max-h-[500px] overflow-y-auto">
                     <table class="w-full text-left border-collapse">
                         <thead class="sticky top-0 bg-slate-100 z-10 shadow-xs">
                             <tr class="text-slate-600 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
-                                <th class="py-3 px-3 w-16">STT</th>
+                                <th class="py-3 px-3 w-12">STT</th>
+                                <th class="py-3 px-3">Ngày Order</th>
                                 <th class="py-3 px-3">From (Bộ phận)</th>
                                 <th class="py-3 px-3">Tên mặt hàng</th>
                                 <th class="py-3 px-3">SL & ĐVT</th>
                                 <th class="py-3 px-3">Khu vực</th>
-                                <th class="py-3 px-3">NCC được chọn</th>
+                                <th class="py-3 px-3">Nhà Cung Cấp</th>
                                 <th class="py-3 px-3">Giai đoạn</th>
                                 <th class="py-3 px-3">Hóa đơn</th>
                             </tr>
@@ -367,7 +366,7 @@
                         <input type="text" id="order-by" required value="Ngọc" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     </div>
                     <div>
-                        <label class="block text-xs font-medium text-slate-700 mb-1">Ngày order</label>
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Ngày order <span class="text-rose-500">*</span></label>
                         <input type="date" id="order-date" required class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                     </div>
                 </div>
@@ -432,6 +431,10 @@
                     <input type="text" id="check-item-name-disp" disabled class="w-full px-3 py-2 border border-slate-200 bg-slate-100 rounded-lg text-sm text-slate-600">
                 </div>
                 <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Ngày order</label>
+                    <input type="text" id="check-item-date-disp" disabled class="w-full px-3 py-2 border border-slate-200 bg-slate-100 rounded-lg text-sm text-slate-600 font-medium">
+                </div>
+                <div>
                     <label class="block text-xs font-medium text-slate-700 mb-1">Hình thức mua hàng</label>
                     <select id="check-type" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                         <option value="Hợp đồng">Hợp đồng</option>
@@ -456,7 +459,7 @@
         </div>
     </div>
 
-    <!-- MODAL 4: UPLOAD QUOTE (TAB 3 ENHANCED) -->
+    <!-- MODAL 4: UPLOAD QUOTE (TAB 3) -->
     <div id="modal-upload-quote" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4 no-print">
         <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4">
             <div class="flex justify-between items-center border-b border-slate-100 pb-3">
@@ -525,7 +528,7 @@
                 area: "Bình Dương",
                 note: "Giao gấp đầu tuần",
                 by: "Ngọc",
-                date: "2026-03-01",
+                date: "2026-09-11",
                 checkType: "ĐNMH",
                 supplier: "HOS",
                 contractNo: "DNMH001",
@@ -542,7 +545,7 @@
                 area: "Bình Dương",
                 note: "Thay thế máy hỏng",
                 by: "Ngọc",
-                date: "2026-03-02",
+                date: "2026-09-11",
                 checkType: "ĐNMH",
                 supplier: "Thiên Ân",
                 contractNo: "DNMH002",
@@ -559,13 +562,30 @@
                 area: "Bình Dương",
                 note: "Dự phòng bảo trì",
                 by: "Ngọc",
-                date: "2026-03-03",
+                date: "2026-09-11",
                 checkType: "ĐNMH",
                 supplier: "",
                 contractNo: "DNMH003",
                 stage: "SSG",
                 invoiceNo: "",
                 invoiceDate: ""
+            },
+            {
+                id: 4,
+                restaurant: "BD - I.E KFC ATP",
+                item: "Đèn LED Âm Trần 12W",
+                unit: "Cái",
+                qty: 20,
+                area: "Bình Dương",
+                note: "Thay thế sảnh ăn",
+                by: "Ngọc",
+                date: "2026-09-05",
+                checkType: "ĐNMH",
+                supplier: "Cổ Phần Thiết Bị Bếp Việt",
+                contractNo: "DNMH004",
+                stage: "Đã giao hàng",
+                invoiceNo: "INV-8891",
+                invoiceDate: "2026-09-08"
             }
         ];
 
@@ -577,13 +597,13 @@
                 itemId: 1,
                 itemName: "Ống gió bạc cách nhiệt phi 300",
                 itemCode: "DNMH001",
-                supplierName: "HOS",
-                quotedPrice: 150000,
-                fileName: "DNMH001_HOS_15092026.pdf",
+                supplierName: "Thiên Ân",
+                quotedPrice: 155000,
+                fileName: "DNMH001_ThienAn.pdf",
                 fileType: "application/pdf",
                 fileSize: 102400,
                 fileData: "",
-                uploadDate: "2026-03-01",
+                uploadDate: "2026-09-11",
                 uploadedBy: "Ngọc",
                 status: "Uploaded"
             },
@@ -594,13 +614,47 @@
                 itemId: 1,
                 itemName: "Ống gió bạc cách nhiệt phi 300",
                 itemCode: "DNMH001",
-                supplierName: "Thiên Ân",
-                quotedPrice: 155000,
-                fileName: "DNMH001_ThienAn_15092026.pdf",
+                supplierName: "NCC ABC",
+                quotedPrice: 150000,
+                fileName: "DNMH001_NCCABC.pdf",
                 fileType: "application/pdf",
                 fileSize: 98000,
                 fileData: "",
-                uploadDate: "2026-03-01",
+                uploadDate: "2026-09-11",
+                uploadedBy: "Ngọc",
+                status: "Uploaded"
+            },
+            {
+                quoteId: 103,
+                orderId: 3,
+                from: "BD - I.E KFC ATP",
+                itemId: 3,
+                itemName: "Relay 110",
+                itemCode: "DNMH003",
+                supplierName: "Cổ Phần Thiết Bị Bếp Việt",
+                quotedPrice: 111000,
+                fileName: "BG_Order_setup_Vn_Bếp_Việt.pdf",
+                fileType: "application/pdf",
+                fileSize: 85000,
+                fileData: "",
+                uploadDate: "2026-09-11",
+                uploadedBy: "Ngọc",
+                status: "Uploaded"
+            },
+            {
+                quoteId: 104,
+                orderId: 3,
+                from: "BD - I.E KFC ATP",
+                itemId: 3,
+                itemName: "Relay 110",
+                itemCode: "DNMH003",
+                supplierName: "Công ty Điện Lạnh & Gia Dụng ABC",
+                quotedPrice: 100000,
+                fileName: "BG_Order_setup_Dien_Lanh_ABC.pdf",
+                fileType: "application/pdf",
+                fileSize: 90000,
+                fileData: "",
+                uploadDate: "2026-09-11",
                 uploadedBy: "Ngọc",
                 status: "Uploaded"
             }
@@ -614,10 +668,20 @@
         document.addEventListener('DOMContentLoaded', () => {
             loadFromStorage();
             document.getElementById('order-date').valueAsDate = new Date();
-            document.getElementById('print-date').innerText = new Date().toLocaleDateString('vi-VN');
+            document.getElementById('print-date').innerText = formatDateVN(new Date().toISOString().slice(0, 10));
             renderAll();
             lucide.createIcons();
         });
+
+        // Helper: Format YYYY-MM-DD -> DD/MM/YYYY
+        function formatDateVN(dateStr) {
+            if (!dateStr) return '-';
+            const parts = dateStr.split('-');
+            if (parts.length === 3) {
+                return `${parts[2]}/${parts[1]}/${parts[0]}`;
+            }
+            return dateStr;
+        }
 
         function saveToStorage() {
             try {
@@ -662,42 +726,71 @@
             lucide.createIcons();
         }
 
+        // --- COMMON SORTING LOGIC ---
+        function getSortedOrders(sortOrder = 'desc') {
+            return [...orders].sort((a, b) => {
+                const dateA = new Date(a.date || '1970-01-01');
+                const dateB = new Date(b.date || '1970-01-01');
+                if (sortOrder === 'asc') {
+                    return dateA - dateB;
+                } else {
+                    return dateB - dateA; // Mới nhất lên đầu (default)
+                }
+            });
+        }
+
         // --- TAB 1: ORDERS LOGIC ---
         function renderOrders() {
             const search = document.getElementById('search-order').value.toLowerCase();
+            const sortDir = document.getElementById('sort-order-date').value;
             const tbody = document.getElementById('orders-table-body');
             tbody.innerHTML = '';
 
-            const filtered = orders.filter(o => 
+            const sortedList = getSortedOrders(sortDir);
+
+            const filtered = sortedList.filter(o => 
                 o.item.toLowerCase().includes(search) || 
                 o.restaurant.toLowerCase().includes(search) || 
-                o.area.toLowerCase().includes(search)
+                o.area.toLowerCase().includes(search) ||
+                (o.date && o.date.includes(search)) ||
+                formatDateVN(o.date).includes(search)
             );
 
             document.getElementById('order-count').innerText = filtered.length;
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">Không tìm thấy order nào phù hợp.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-400">Không tìm thấy order nào phù hợp.</td></tr>`;
                 return;
             }
 
             filtered.forEach((o, index) => {
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/80 transition">
-                        <td class="py-3 px-4 font-medium text-slate-500">${index + 1}</td>
-                        <td class="py-3 px-4 font-semibold text-slate-800">${o.item}</td>
+                        <td class="py-3 px-4 font-medium text-slate-500 text-xs">${index + 1}</td>
+                        <td class="py-3 px-4 text-xs font-semibold text-indigo-700 whitespace-nowrap">
+                            <span class="inline-flex items-center space-x-1 bg-indigo-50 px-2 py-1 rounded border border-indigo-100">
+                                <i data-lucide="calendar" class="w-3 h-3 text-indigo-500"></i>
+                                <span>${formatDateVN(o.date)}</span>
+                            </span>
+                        </td>
+                        <td class="py-3 px-4 font-semibold text-slate-800">
+                            ${o.item}
+                            <div class="text-[11px] text-slate-400 font-normal">From: ${o.restaurant}</div>
+                        </td>
                         <td class="py-3 px-4 text-slate-600">${o.unit}</td>
-                        <td class="py-3 px-4 font-medium text-indigo-600">${o.qty}</td>
+                        <td class="py-3 px-4 font-bold text-indigo-600">${o.qty}</td>
                         <td class="py-3 px-4 text-slate-600">${o.area}</td>
                         <td class="py-3 px-4 text-slate-500 text-xs">${o.note || '-'}</td>
                         <td class="py-3 px-4 text-slate-600">${o.by}</td>
-                        <td class="py-3 px-4 text-right space-x-2">
+                        <td class="py-3 px-4 text-right space-x-2 whitespace-nowrap">
                             <button onclick="editOrder(${o.id})" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Sửa</button>
                             <button onclick="deleteOrder(${o.id})" class="text-rose-600 hover:text-rose-800 text-xs font-medium">Xóa</button>
                         </td>
                     </tr>
                 `;
             });
+
+            lucide.createIcons();
         }
 
         function filterOrders() { renderOrders(); }
@@ -705,6 +798,7 @@
         function openNewOrderModal() {
             document.getElementById('order-modal-title').innerText = "Thêm Order Nhiều Mặt Hàng";
             document.getElementById('order-edit-id').value = '';
+            document.getElementById('order-date').valueAsDate = new Date();
             document.getElementById('order-items-container').innerHTML = '';
             addItemRow();
             document.getElementById('modal-order').classList.remove('hidden');
@@ -730,7 +824,7 @@
             event.preventDefault();
             const restaurant = document.getElementById('order-restaurant').value;
             const by = document.getElementById('order-by').value;
-            const date = document.getElementById('order-date').value;
+            const date = document.getElementById('order-date').value || new Date().toISOString().slice(0, 10);
             const editId = document.getElementById('order-edit-id').value;
 
             const rows = document.querySelectorAll('#order-items-container > div');
@@ -786,7 +880,7 @@
             document.getElementById('order-edit-id').value = o.id;
             document.getElementById('order-restaurant').value = o.restaurant;
             document.getElementById('order-by').value = o.by;
-            document.getElementById('order-date').value = o.date;
+            document.getElementById('order-date').value = o.date || new Date().toISOString().slice(0, 10);
 
             document.getElementById('order-items-container').innerHTML = '';
             addItemRow(o);
@@ -796,6 +890,7 @@
         function deleteOrder(id) {
             if (confirm('Bạn có chắc chắn muốn xóa order này?')) {
                 orders = orders.filter(x => x.id !== id);
+                quotes = quotes.filter(q => q.itemId !== id && q.orderId !== id);
                 saveToStorage();
                 renderAll();
             }
@@ -808,41 +903,68 @@
             const filterType = document.getElementById('filter-check-type').value;
             container.innerHTML = '';
 
+            const sortedList = getSortedOrders('desc');
             const groups = {};
-            orders.forEach(o => {
-                if (!groups[o.restaurant]) groups[o.restaurant] = [];
-                groups[o.restaurant].push(o);
+            const groupKeys = [];
+
+            sortedList.forEach(o => {
+                const rest = o.restaurant || 'Khác';
+                const dateVal = o.date || '1970-01-01';
+                const key = `${rest}||${dateVal}`;
+                
+                if (!groups[key]) {
+                    groups[key] = {
+                        restaurant: rest,
+                        date: dateVal,
+                        items: []
+                    };
+                    groupKeys.push(key);
+                }
+                groups[key].items.push(o);
             });
 
             let hasResult = false;
 
-            for (const [restaurant, items] of Object.entries(groups)) {
+            groupKeys.forEach(key => {
+                const group = groups[key];
+                const items = group.items;
+
                 const filteredItems = items.filter(o => {
-                    const matchSearch = o.item.toLowerCase().includes(search) || (o.contractNo && o.contractNo.toLowerCase().includes(search));
+                    const matchSearch = o.item.toLowerCase().includes(search) || 
+                                        (o.contractNo && o.contractNo.toLowerCase().includes(search)) ||
+                                        (o.date && o.date.includes(search)) ||
+                                        formatDateVN(o.date).includes(search);
                     if (filterType === 'Hợp đồng') return matchSearch && o.checkType === 'Hợp đồng';
                     if (filterType === 'ĐNMH') return matchSearch && o.checkType === 'ĐNMH';
                     if (filterType === 'Chưa kiểm tra') return matchSearch && !o.supplier;
                     return matchSearch;
                 });
 
-                if (filteredItems.length === 0) continue;
+                if (filteredItems.length === 0) return;
                 hasResult = true;
+
+                const formattedDate = formatDateVN(group.date);
 
                 let html = `
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-4">
-                        <div class="bg-slate-100 px-4 py-3 border-b border-slate-200 flex justify-between items-center">
+                        <div class="bg-slate-100 px-4 py-3 border-b border-slate-200 flex justify-between items-center flex-wrap gap-2">
                             <h3 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
                                 <i data-lucide="building-2" class="w-4 h-4 text-indigo-600"></i>
-                                <span>From: ${restaurant}</span>
+                                <span>From: ${group.restaurant} — ${formattedDate} — ${filteredItems.length} mặt hàng</span>
                             </h3>
-                            <span class="text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full">${filteredItems.length} mặt hàng</span>
+                            <span class="text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100 flex items-center space-x-1">
+                                <i data-lucide="calendar" class="w-3 h-3 text-indigo-500"></i>
+                                <span>Order ngày: ${formattedDate}</span>
+                            </span>
                         </div>
                         <div class="overflow-x-auto">
                             <table class="w-full text-left border-collapse">
                                 <thead>
                                     <tr class="text-slate-500 text-xs font-semibold uppercase tracking-wider border-b border-slate-200 bg-slate-50">
+                                        <th class="py-3 px-4 w-12">STT</th>
                                         <th class="py-3 px-4">Tên mặt hàng</th>
-                                        <th class="py-3 px-4">ĐVT & SL</th>
+                                        <th class="py-3 px-4">ĐVT</th>
+                                        <th class="py-3 px-4">Số lượng</th>
                                         <th class="py-3 px-4">Hình thức</th>
                                         <th class="py-3 px-4">Nhà Cung Cấp (NCC)</th>
                                         <th class="py-3 px-4">Số HĐ / ĐNMH</th>
@@ -852,18 +974,24 @@
                                 <tbody class="divide-y divide-slate-200 text-sm">
                 `;
 
-                filteredItems.forEach(o => {
+                filteredItems.forEach((o, idx) => {
                     html += `
-                        <tr class="hover:bg-slate-50/80">
-                            <td class="py-3 px-4 font-medium text-slate-800">${o.item}</td>
-                            <td class="py-3 px-4 text-slate-600">${o.qty} ${o.unit}</td>
+                        <tr class="hover:bg-slate-50/80 transition">
+                            <td class="py-3 px-4 font-medium text-slate-500 text-xs">${idx + 1}</td>
+                            <td class="py-3 px-4 font-semibold text-slate-800">${o.item}</td>
+                            <td class="py-3 px-4 text-slate-600">${o.unit}</td>
+                            <td class="py-3 px-4 font-bold text-indigo-600">${o.qty}</td>
                             <td class="py-3 px-4">
-                                <span class="px-2 py-0.5 rounded text-xs font-medium ${o.checkType === 'Hợp đồng' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${o.checkType}</span>
+                                <span class="px-2 py-0.5 rounded text-xs font-medium ${o.checkType === 'Hợp đồng' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${o.checkType || 'ĐNMH'}</span>
                             </td>
                             <td class="py-3 px-4 text-slate-700">${o.supplier || '<span class="text-rose-500 italic text-xs">Chưa chọn NCC</span>'}</td>
                             <td class="py-3 px-4 text-indigo-600 font-medium">${o.contractNo || '-'}</td>
-                            <td class="py-3 px-4 text-right">
-                                <button onclick="openCheckModal(${o.id})" class="px-3 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition">Kiểm tra / Sửa</button>
+                            <td class="py-3 px-4 text-right space-x-2 whitespace-nowrap">
+                                <button onclick="openCheckModal(${o.id})" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition">Kiểm tra / Sửa</button>
+                                <button onclick="deleteCheckItem(${o.id})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg transition" title="Xóa mặt hàng này">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                    <span>Xóa</span>
+                                </button>
                             </td>
                         </tr>
                     `;
@@ -871,7 +999,7 @@
 
                 html += `</tbody></table></div></div>`;
                 container.innerHTML += html;
-            }
+            });
 
             if (!hasResult) {
                 container.innerHTML = `<div class="bg-white p-8 rounded-xl border border-slate-200 text-center text-slate-400">Không tìm thấy dữ liệu kiểm tra phù hợp.</div>`;
@@ -879,11 +1007,24 @@
             lucide.createIcons();
         }
 
+        function deleteCheckItem(id) {
+            const targetItem = orders.find(x => x.id === id);
+            if (!targetItem) return;
+
+            if (confirm(`Bạn có chắc chắn muốn xóa mặt hàng "${targetItem.item}" khỏi hệ thống?`)) {
+                orders = orders.filter(x => x.id !== id);
+                quotes = quotes.filter(q => q.itemId !== id && q.orderId !== id);
+                saveToStorage();
+                renderAll();
+            }
+        }
+
         function openCheckModal(id) {
             const o = orders.find(x => x.id === id);
             if (!o) return;
             document.getElementById('check-item-id').value = o.id;
             document.getElementById('check-item-name-disp').value = o.item;
+            document.getElementById('check-item-date-disp').value = formatDateVN(o.date);
             document.getElementById('check-type').value = o.checkType || 'Hợp đồng';
             document.getElementById('check-contract-no').value = o.contractNo || '';
 
@@ -948,22 +1089,24 @@
             renderSuppliersList();
         }
 
-        // --- TAB 3: QUOTE UPLOAD & MULTI-SUPPLIER COMPARISON (ENHANCED) ---
-        function openUploadQuoteModal() {
+        // --- TAB 3: QUOTE UPLOAD & MULTI-SUPPLIER COMPARISON ---
+        function openUploadQuoteModal(preselectedItemId = null) {
             const itemSelect = document.getElementById('modal-quote-item');
             const supSelect = document.getElementById('modal-quote-supplier');
 
-            // Populate items dropdown directly from Tab 1 Orders
             itemSelect.innerHTML = '<option value="">-- Chọn mặt hàng --</option>';
             if (orders.length === 0) {
                 itemSelect.innerHTML += '<option value="" disabled>Chưa có mặt hàng nào trong Tab 1</option>';
             } else {
-                orders.forEach(o => {
-                    itemSelect.innerHTML += `<option value="${o.id}">${o.item} (${o.restaurant})</option>`;
+                getSortedOrders('desc').forEach(o => {
+                    itemSelect.innerHTML += `<option value="${o.id}">${o.item} (${o.restaurant}) - [Ngày: ${formatDateVN(o.date)}]</option>`;
                 });
             }
 
-            // Populate supplier dropdown from existing system suppliers
+            if (preselectedItemId) {
+                itemSelect.value = preselectedItemId;
+            }
+
             supSelect.innerHTML = '<option value="">-- Chọn Nhà cung cấp --</option>';
             suppliers.forEach(s => {
                 supSelect.innerHTML += `<option value="${s}">${s}</option>`;
@@ -978,6 +1121,7 @@
             currentQuoteFileMeta = {};
 
             document.getElementById('modal-upload-quote').classList.remove('hidden');
+            lucide.createIcons();
         }
 
         function closeUploadQuoteModal() {
@@ -1070,7 +1214,6 @@
 
             const rawPrice = parseFloat(priceVal);
 
-            // Create unique Quote Record bound specifically to Item + Supplier + Price + File
             const newQuote = {
                 quoteId: Date.now() + Math.random(),
                 orderId: order.id,
@@ -1089,7 +1232,6 @@
                 status: 'Uploaded'
             };
 
-            // Allow multiple suppliers per item. Replace if same item + same supplier exists, else append
             const existingIdx = quotes.findIndex(q => q.itemId == order.id && q.supplierName === supplierName);
             if (existingIdx >= 0) {
                 quotes[existingIdx] = newQuote;
@@ -1106,17 +1248,12 @@
         function renderQuotes() {
             const search = document.getElementById('search-quotes').value.toLowerCase();
             const trackingContainer = document.getElementById('quote-tracking-list');
-            const compTbody = document.getElementById('comparison-table-body');
+            const blocksContainer = document.getElementById('comparison-blocks-container');
+            
             trackingContainer.innerHTML = '';
-            compTbody.innerHTML = '';
+            blocksContainer.innerHTML = '';
 
-            if (quotes.length === 0) {
-                trackingContainer.innerHTML = `<div class="text-xs text-slate-400 text-center py-6">Chưa có báo giá nào được tải lên.</div>`;
-                compTbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400">Chưa có dữ liệu báo giá. Nhấn nút <strong>"+ Tải lên Báo Giá"</strong> để bắt đầu.</td></tr>`;
-                return;
-            }
-
-            // Render tracking sidebar grouped by Supplier
+            // 1. Render Left Sidebar Tracking
             suppliers.forEach(sup => {
                 const supQuotes = quotes.filter(q => q.supplierName === sup);
                 if (supQuotes.length > 0) {
@@ -1143,62 +1280,150 @@
                 trackingContainer.innerHTML = `<div class="text-xs text-slate-400 text-center py-6">Chưa có báo giá từ các NCC hiện tại.</div>`;
             }
 
-            // Group quotes by itemId (or itemName) for multi-supplier price comparison
-            const itemGroups = {};
-            quotes.forEach(q => {
-                const key = q.itemId || q.itemName;
-                if (!itemGroups[key]) itemGroups[key] = [];
-                itemGroups[key].push(q);
+            // 2. Render Main Comparison Blocks (Grouped by From, strictly maintaining Tab 1 order)
+            const sortedOrders = getSortedOrders('desc');
+            const fromGroups = {};
+            const fromKeys = [];
+
+            sortedOrders.forEach(o => {
+                const fromName = o.restaurant || 'Khác';
+                if (!fromGroups[fromName]) {
+                    fromGroups[fromName] = [];
+                    fromKeys.push(fromName);
+                }
+                fromGroups[fromName].push(o);
             });
 
-            let hasCompRow = false;
+            let hasAnyBlock = false;
 
-            for (const [key, groupQuotes] of Object.entries(itemGroups)) {
-                // Calculate minimum price before VAT for this specific item across all suppliers
-                const minPrice = Math.min(...groupQuotes.map(q => q.quotedPrice));
+            fromKeys.forEach(fromName => {
+                const groupOrders = fromGroups[fromName];
+                const filteredGroupOrders = groupOrders.filter(o => {
+                    if (!search) return true;
+                    const matchItem = o.item.toLowerCase().includes(search);
+                    const matchFrom = o.restaurant.toLowerCase().includes(search);
+                    const itemQuotes = quotes.filter(q => q.itemId == o.id);
+                    const matchSup = itemQuotes.some(q => q.supplierName.toLowerCase().includes(search));
+                    return matchItem || matchFrom || matchSup;
+                });
 
-                groupQuotes.forEach(q => {
-                    const matchSearch = q.itemName.toLowerCase().includes(search) || 
-                                        q.supplierName.toLowerCase().includes(search) || 
-                                        q.from.toLowerCase().includes(search);
-                    if (search && !matchSearch) return;
+                if (filteredGroupOrders.length === 0) return;
+                hasAnyBlock = true;
 
-                    hasCompRow = true;
-                    const isLowest = (q.quotedPrice === minPrice);
+                // Render From Section Wrapper
+                let sectionHtml = `
+                    <div class="mb-6 space-y-4">
+                        <div class="bg-indigo-50 border border-indigo-200 text-indigo-900 px-4 py-2.5 rounded-xl font-bold text-sm flex items-center justify-between shadow-xs">
+                            <span class="flex items-center space-x-2">
+                                <i data-lucide="building-2" class="w-4 h-4 text-indigo-600"></i>
+                                <span>FROM: ${fromName}</span>
+                            </span>
+                            <span class="text-xs font-semibold text-indigo-700 bg-white px-2.5 py-1 rounded-full border border-indigo-100">${filteredGroupOrders.length} mặt hàng</span>
+                        </div>
+                `;
 
-                    compTbody.innerHTML += `
-                        <tr class="hover:bg-slate-50/80 transition">
-                            <td class="py-3 px-3 font-medium text-slate-800">
-                                <div>${q.itemName}</div>
-                                <div class="text-[11px] text-slate-400">From: ${q.from} | Mã: ${q.itemCode}</div>
-                            </td>
-                            <td class="py-3 px-3 font-semibold text-slate-700">${q.supplierName}</td>
-                            <td class="py-3 px-3 font-medium text-slate-900">
-                                ${q.quotedPrice.toLocaleString('vi-VN')} VNĐ
-                            </td>
-                            <td class="py-3 px-3">
-                                <button onclick="viewQuoteFile('${q.quoteId}')" class="inline-flex items-center space-x-1.5 text-xs text-indigo-600 hover:text-indigo-800 font-medium bg-indigo-50 hover:bg-indigo-100 px-2.5 py-1.5 rounded-md transition" title="Mở / Xem file báo giá">
-                                    <i data-lucide="file-text" class="w-3.5 h-3.5"></i>
-                                    <span class="truncate max-w-[130px]">${q.fileName}</span>
+                filteredGroupOrders.forEach(o => {
+                    const itemQuotes = quotes.filter(q => q.itemId == o.id);
+                    
+                    // Calculate minimum price among quotes strictly for THIS specific item block
+                    let minPrice = null;
+                    if (itemQuotes.length > 0) {
+                        minPrice = Math.min(...itemQuotes.map(q => q.quotedPrice));
+                    }
+
+                    sectionHtml += `
+                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3 transition hover:shadow-md mb-4">
+                            <!-- HEADER MỖI MẶT HÀNG (BLOCK HEADER) -->
+                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-3">
+                                <div>
+                                    <h4 class="font-bold text-slate-900 text-base flex items-center space-x-2 flex-wrap gap-2">
+                                        <span>📦 ${o.item}</span>
+                                        <span class="text-xs px-2.5 py-0.5 ${itemQuotes.length > 0 ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-slate-100 text-slate-500 border-slate-200'} border rounded-full font-medium">
+                                            ${itemQuotes.length > 0 ? `${itemQuotes.length} NCC báo giá` : 'Chưa có báo giá'}
+                                        </span>
+                                    </h4>
+                                    <div class="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-2">
+                                        <span><strong>From:</strong> ${o.restaurant}</span>
+                                        <span>•</span>
+                                        <span><strong>KFC ATP</strong> | Mã ĐNMH: <code class="bg-slate-100 px-1.5 py-0.5 rounded text-indigo-700 font-semibold">${o.contractNo || 'DNMH' + String(o.id).padStart(3, '0')}</code></span>
+                                        <span>•</span>
+                                        <span>SL: <strong class="text-slate-700">${o.qty} ${o.unit}</strong></span>
+                                        <span>•</span>
+                                        <span>Ngày order: <strong class="text-slate-600">${formatDateVN(o.date)}</strong></span>
+                                    </div>
+                                </div>
+                                <button onclick="openUploadQuoteModalForItem(${o.id})" class="inline-flex items-center px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition whitespace-nowrap">
+                                    <i data-lucide="plus" class="w-3.5 h-3.5 mr-1"></i> Tải lên báo giá
                                 </button>
-                            </td>
-                            <td class="py-3 px-3 text-right whitespace-nowrap">
-                                ${isLowest ? '<span class="px-2 py-0.5 bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-full mr-2">⭐ Thấp nhất</span>' : ''}
-                                <button onclick="deleteQuote('${q.quoteId}')" class="text-rose-600 hover:text-rose-800 text-xs font-medium inline-flex items-center space-x-1 px-2 py-1 rounded hover:bg-rose-50 transition" title="Xóa file báo giá">
-                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                                    <span>Xóa</span>
-                                </button>
-                            </td>
-                        </tr>
+                            </div>
+
+                            <!-- DANH SÁCH NCC BÁO GIÁ (BẢNG TRONG BLOCK) HOẶC EMPTY STATE -->
+                            ${itemQuotes.length > 0 ? `
+                                <div class="overflow-x-auto">
+                                    <table class="w-full text-left border-collapse text-sm">
+                                        <thead>
+                                            <tr class="text-slate-500 text-xs font-semibold uppercase tracking-wider border-b border-slate-200 bg-slate-50">
+                                                <th class="py-2.5 px-3">NCC báo giá</th>
+                                                <th class="py-2.5 px-3 text-right">Đơn giá trước VAT</th>
+                                                <th class="py-2.5 px-3">Báo giá thực tế</th>
+                                                <th class="py-2.5 px-3 text-right">Thao tác</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-slate-100">
+                                            ${itemQuotes.map(q => {
+                                                const isLowest = (q.quotedPrice === minPrice);
+                                                const fileName = q.fileName || 'bao_gia.pdf';
+                                                const shortName = fileName.length > 22 ? fileName.substring(0, 19) + '...' : fileName;
+                                                return `
+                                                    <tr class="hover:bg-slate-50/60 transition">
+                                                        <td class="py-3 px-3 font-semibold text-slate-800">${q.supplierName}</td>
+                                                        <td class="py-3 px-3 text-right font-bold ${isLowest ? 'text-emerald-700 font-extrabold' : 'text-slate-900'}">
+                                                            ${q.quotedPrice.toLocaleString('vi-VN')} VNĐ
+                                                        </td>
+                                                        <td class="py-3 px-3">
+                                                            <button onclick="viewQuoteFile('${q.quoteId}')" class="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md transition font-medium max-w-[220px]" title="${fileName}">
+                                                                <i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-600 shrink-0"></i>
+                                                                <span class="truncate">📄 ${shortName}</span>
+                                                            </button>
+                                                        </td>
+                                                        <td class="py-3 px-3 text-right whitespace-nowrap space-x-2">
+                                                            ${isLowest ? '<span class="inline-flex items-center px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-full mr-1">⭐ Thấp nhất</span>' : ''}
+                                                            <button onclick="deleteQuote('${q.quoteId}')" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg transition" title="Xóa báo giá này">
+                                                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                                                <span>Xóa</span>
+                                                            </button>
+                                                        </td>
+                                                    </tr>
+                                                `;
+                                            }).join('')}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            ` : `
+                                <div class="py-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 space-y-2">
+                                    <div class="text-slate-400 text-xs font-medium">Chưa có NCC báo giá</div>
+                                    <button onclick="openUploadQuoteModalForItem(${o.id})" class="inline-flex items-center px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg shadow-sm transition">
+                                        <i data-lucide="upload" class="w-3.5 h-3.5 mr-1.5"></i> [+ Tải lên báo giá]
+                                    </button>
+                                </div>
+                            `}
+                        </div>
                     `;
                 });
-            }
 
-            if (!hasCompRow) {
-                compTbody.innerHTML = `<tr><td colspan="5" class="text-center py-8 text-slate-400">Không tìm thấy báo giá nào phù hợp với từ khóa tìm kiếm.</td></tr>`;
+                sectionHtml += `</div>`;
+                blocksContainer.innerHTML += sectionHtml;
+            });
+
+            if (!hasAnyBlock) {
+                blocksContainer.innerHTML = `<div class="bg-white p-8 rounded-xl border border-slate-200 text-center text-slate-400">Không tìm thấy mặt hàng hoặc báo giá phù hợp.</div>`;
             }
 
             lucide.createIcons();
+        }
+
+        function openUploadQuoteModalForItem(orderId) {
+            openUploadQuoteModal(orderId);
         }
 
         function viewQuoteFile(quoteId) {
@@ -1209,7 +1434,7 @@
             }
 
             if (!q.fileData) {
-                alert(`File báo giá: ${q.fileName}\n(Lưu ý: File được tải lên trong bản mẫu mặc định chưa có dữ liệu nhị phân thực tế. Hãy sử dụng chức năng "+ Tải lên Báo Giá" để upload file từ máy tính).`);
+                alert(`File báo giá: ${q.fileName}\n(Lưu ý: File mẫu cần sử dụng chức năng "+ Tải lên Báo Giá" để có dữ liệu mở đính kèm thực tế).`);
                 return;
             }
 
@@ -1228,7 +1453,7 @@
         }
 
         function deleteQuote(quoteId) {
-            if (confirm('Bạn có chắc chắn muốn xóa file báo giá này?')) {
+            if (confirm('Bạn có chắc chắn muốn xóa file báo giá này của NCC?')) {
                 quotes = quotes.filter(x => x.quoteId != quoteId);
                 saveToStorage();
                 renderQuotes();
@@ -1242,24 +1467,32 @@
             const tbody = document.getElementById('status-table-body');
             tbody.innerHTML = '';
 
-            const filtered = orders.filter(o => {
-                const matchSearch = o.item.toLowerCase().includes(search) || (o.invoiceNo && o.invoiceNo.toLowerCase().includes(search));
+            const sortedList = getSortedOrders('desc');
+
+            const filtered = sortedList.filter(o => {
+                const matchSearch = o.item.toLowerCase().includes(search) || 
+                                    (o.invoiceNo && o.invoiceNo.toLowerCase().includes(search)) ||
+                                    (o.date && o.date.includes(search)) ||
+                                    formatDateVN(o.date).includes(search);
                 if (filterStage !== 'Tất cả' && o.stage !== filterStage) return false;
                 return matchSearch;
             });
 
             if (filtered.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">Không tìm thấy tiến độ phù hợp.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-400">Không tìm thấy tiến độ phù hợp.</td></tr>`;
                 return;
             }
 
             filtered.forEach((o, index) => {
                 tbody.innerHTML += `
                     <tr class="hover:bg-slate-50/80">
-                        <td class="py-3.5 px-4 font-medium text-slate-500">${index + 1}</td>
+                        <td class="py-3.5 px-4 font-medium text-slate-500 text-xs">${index + 1}</td>
+                        <td class="py-3.5 px-4 text-xs font-semibold text-indigo-700 whitespace-nowrap">
+                            <span class="bg-indigo-50 px-2 py-0.5 rounded border border-indigo-100">${formatDateVN(o.date)}</span>
+                        </td>
                         <td class="py-3.5 px-4 font-semibold text-slate-800">${o.item}<br><span class="text-xs text-slate-400">${o.restaurant}</span></td>
                         <td class="py-3.5 px-4 text-slate-600">${o.unit}</td>
-                        <td class="py-3.5 px-4 font-medium text-indigo-600">${o.qty}</td>
+                        <td class="py-3.5 px-4 font-bold text-indigo-600">${o.qty}</td>
                         <td class="py-3.5 px-4 text-slate-700">${o.supplier || '-'}</td>
                         <td class="py-3.5 px-4">
                             <select onchange="updateStage(${o.id}, this.value)" class="px-2.5 py-1 border border-slate-300 rounded-lg text-xs font-medium bg-white focus:ring-1 focus:ring-indigo-500">
@@ -1308,38 +1541,42 @@
             const tbody = document.getElementById('report-table-body');
             tbody.innerHTML = '';
 
-            if (orders.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-8 text-slate-400">Chưa có dữ liệu báo cáo.</td></tr>`;
+            const sortedList = getSortedOrders('desc');
+
+            if (sortedList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-400">Chưa có dữ liệu báo cáo.</td></tr>`;
                 return;
             }
 
-            orders.forEach((o, index) => {
+            sortedList.forEach((o, index) => {
                 tbody.innerHTML += `
                     <tr>
-                        <td class="py-3 px-3 font-medium text-slate-500">${index + 1}</td>
+                        <td class="py-3 px-3 font-medium text-slate-500 text-xs">${index + 1}</td>
+                        <td class="py-3 px-3 text-xs font-semibold text-indigo-700 whitespace-nowrap">${formatDateVN(o.date)}</td>
                         <td class="py-3 px-3 font-medium text-slate-800">${o.restaurant}</td>
                         <td class="py-3 px-3 font-semibold text-slate-900">${o.item}</td>
                         <td class="py-3 px-3 text-slate-600">${o.qty} ${o.unit}</td>
                         <td class="py-3 px-3 text-slate-600">${o.area}</td>
                         <td class="py-3 px-3 text-slate-700">${o.supplier || 'Chưa chọn'}</td>
                         <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700">${o.stage}</span></td>
-                        <td class="py-3 px-3 text-xs text-slate-600">${o.invoiceNo ? `${o.invoiceNo} (${o.invoiceDate || ''})` : 'Chưa có'}</td>
+                        <td class="py-3 px-3 text-xs text-slate-600">${o.invoiceNo ? `${o.invoiceNo} (${formatDateVN(o.invoiceDate)})` : 'Chưa có'}</td>
                     </tr>
                 `;
             });
         }
 
         function exportReportExcel() {
+            const sortedList = getSortedOrders('desc');
             const wsData = [
-                ["STT", "From (Bộ phận)", "Tên mặt hàng", "Số lượng", "ĐVT", "Khu vực", "Nhà Cung Cấp", "Giai đoạn", "Số Hóa Đơn", "Ngày Hóa Đơn"]
+                ["STT", "Ngày Order", "From (Bộ phận)", "Tên mặt hàng", "Số lượng", "ĐVT", "Khu vực", "Nhà Cung Cấp", "Giai đoạn", "Số Hóa Đơn", "Ngày Hóa Đơn"]
             ];
-            orders.forEach((o, i) => {
-                wsData.push([i + 1, o.restaurant, o.item, o.qty, o.unit, o.area, o.supplier || '', o.stage, o.invoiceNo || '', o.invoiceDate || '']);
+            sortedList.forEach((o, i) => {
+                wsData.push([i + 1, formatDateVN(o.date), o.restaurant, o.item, o.qty, o.unit, o.area, o.supplier || '', o.stage, o.invoiceNo || '', formatDateVN(o.invoiceDate)]);
             });
 
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, "BaoCaoCuoiTuần");
+            XLSX.utils.book_append_sheet(wb, ws, "BaoCaoCuoiTuan");
             XLSX.writeFile(wb, `Bao_Cao_Mua_Hang_Cuoi_Tuan_${new Date().toISOString().slice(0,10)}.xlsx`);
         }
 
@@ -1350,9 +1587,9 @@
         // --- EXCEL IMPORT / TEMPLATE ---
         function downloadExcelTemplate() {
             const wsData = [
-                ["From", "Tên mặt hàng", "ĐVT", "Số lượng", "Khu vực", "Ghi chú", "Người order"],
-                ["BD - I.E KFC ATP", "Ống gió bạc cách nhiệt phi 300", "Cái", 10, "Bình Dương", "Nhanh", "Ngọc"],
-                ["BD - I.E KFC ATP", "Máy bơm tăng áp JLM 1100", "Bộ", 2, "Bình Dương", "", "Ngọc"]
+                ["Ngày order", "From", "Tên mặt hàng", "ĐVT", "Số lượng", "Khu vực", "Ghi chú", "Người order"],
+                ["2026-09-11", "BD - I.E KFC ATP", "Ống gió bạc cách nhiệt phi 300", "Cái", 10, "Bình Dương", "Nhanh", "Ngọc"],
+                ["2026-09-11", "BD - I.E KFC ATP", "Máy bơm tăng áp JLM 1100", "Bộ", 2, "Bình Dương", "", "Ngọc"]
             ];
             const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(wsData);
@@ -1388,7 +1625,7 @@
                             area: row['Khu vực'] || row['Area'] || 'Bình Dương',
                             note: row['Ghi chú'] || row['Note'] || '',
                             by: row['Người order'] || row['By'] || 'Ngọc',
-                            date: new Date().toISOString().slice(0,10),
+                            date: row['Ngày order'] || row['Ngày Order'] || new Date().toISOString().slice(0,10),
                             checkType: 'ĐNMH',
                             supplier: '',
                             contractNo: '',
