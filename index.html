@@ -83,6 +83,10 @@
                 <i data-lucide="bar-chart-3" class="w-4 h-4"></i>
                 <span>5. Báo cáo cuối tuần</span>
             </button>
+            <button onclick="switchTab('history')" id="tab-btn-history" class="tab-btn px-5 py-3 border-b-2 font-medium text-sm flex items-center space-x-2 whitespace-nowrap transition border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300">
+                <i data-lucide="history" class="w-4 h-4"></i>
+                <span>6. Lịch sử theo dõi</span>
+            </button>
         </div>
 
         <!-- TAB 1: ORDERS LIST -->
@@ -255,6 +259,71 @@
                         </thead>
                         <tbody id="status-table-body" class="divide-y divide-slate-200 text-sm">
                             <!-- Populated by JS -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <!-- TAB 6: TRACKING HISTORY -->
+        <div id="tab-history" class="tab-content hidden flex-1 flex flex-col space-y-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+                <div>
+                    <h2 class="text-base font-bold text-slate-900">Lịch sử theo dõi Order</h2>
+                    <p class="text-xs text-slate-500">Theo dõi thời gian chuyển trạng thái, cập nhật giao hàng và các vấn đề phát sinh với NCC.</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
+                    <div class="relative flex-1 sm:w-64">
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
+                        <input type="text" id="search-history" oninput="renderHistory()" placeholder="Tìm mặt hàng, NCC, nội dung..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <select id="filter-history-type" onchange="renderHistory()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="Tất cả">Tất cả hoạt động</option>
+                        <option value="stage_change">Chuyển trạng thái</option>
+                        <option value="delivery_issue">Giao hàng / NCC</option>
+                        <option value="delivery_update">Cập nhật giao hàng</option>
+                        <option value="order_update">Cập nhật Order</option>
+                        <option value="order_created">Tạo Order</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-xs text-slate-500">Tổng hoạt động</p>
+                    <p id="history-total" class="text-xl font-bold text-slate-800 mt-1">0</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-xs text-slate-500">Chuyển trạng thái</p>
+                    <p id="history-stage-count" class="text-xl font-bold text-indigo-600 mt-1">0</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-xs text-slate-500">Sự cố giao hàng</p>
+                    <p id="history-issue-count" class="text-xl font-bold text-rose-600 mt-1">0</p>
+                </div>
+                <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+                    <p class="text-xs text-slate-500">Cập nhật hôm nay</p>
+                    <p id="history-today-count" class="text-xl font-bold text-emerald-600 mt-1">0</p>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden flex-1">
+                <div class="overflow-x-auto max-h-[650px] overflow-y-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead class="sticky top-0 bg-slate-100 z-10 shadow-xs">
+                            <tr class="text-slate-600 text-xs font-semibold uppercase tracking-wider border-b border-slate-200">
+                                <th class="py-3.5 px-4 w-12">STT</th>
+                                <th class="py-3.5 px-4">Thời gian</th>
+                                <th class="py-3.5 px-4">Mặt hàng</th>
+                                <th class="py-3.5 px-4">From</th>
+                                <th class="py-3.5 px-4">NCC</th>
+                                <th class="py-3.5 px-4">Hoạt động</th>
+                                <th class="py-3.5 px-4">Chi tiết</th>
+                                <th class="py-3.5 px-4">Người cập nhật</th>
+                            </tr>
+                        </thead>
+                        <tbody id="history-table-body" class="divide-y divide-slate-200 text-sm">
+                            <tr><td colspan="8" class="text-center py-10 text-slate-400">Chưa có lịch sử theo dõi.</td></tr>
                         </tbody>
                     </table>
                 </div>
@@ -450,6 +519,32 @@
                 <div>
                     <label class="block text-xs font-medium text-slate-700 mb-1">Số Hợp Đồng / ĐNMH</label>
                     <input type="text" id="check-contract-no" placeholder="VD: HĐ-2026/KFC-01..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div class="border-t border-slate-100 pt-4 mt-2">
+                    <div class="flex items-center gap-2 mb-2">
+                        <i data-lucide="truck" class="w-4 h-4 text-indigo-600"></i>
+                        <span class="text-xs font-bold text-slate-800 uppercase tracking-wider">Theo dõi giao hàng NCC</span>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Tình trạng giao hàng</label>
+                            <select id="check-delivery-status" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                                <option value="Chưa giao">Chưa giao</option>
+                                <option value="Giao đúng">Giao đúng</option>
+                                <option value="Giao sai hàng">Giao sai hàng</option>
+                                <option value="Thiếu hàng">Thiếu hàng</option>
+                                <option value="Hàng lỗi / hư hỏng">Hàng lỗi / hư hỏng</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-slate-700 mb-1">Thời gian cập nhật</label>
+                            <input type="datetime-local" id="check-delivery-updated-at" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="block text-xs font-medium text-slate-700 mb-1">Nội dung / hướng xử lý</label>
+                        <textarea id="check-delivery-note" rows="3" placeholder="VD: NCC giao sai model; yêu cầu đổi hàng trước ngày..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"></textarea>
+                    </div>
                 </div>
                 <div class="flex justify-end space-x-3 pt-3 border-t border-slate-100">
                     <button type="button" onclick="closeModal('modal-check')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition">Hủy</button>
@@ -725,6 +820,9 @@
         let currentQuoteFileBase64 = null;
         let currentQuoteFileMeta = {};
 
+        // Tracking History (backward compatible with existing localStorage)
+        let trackingHistory = [];
+
         // App Initialization
         document.addEventListener('DOMContentLoaded', () => {
             loadFromStorage();
@@ -795,7 +893,15 @@
                 contractNo: String(source.contractNo ?? ''),
                 stage: source.stage || 'SSG',
                 invoiceNo: String(source.invoiceNo ?? ''),
-                invoiceDate: source.invoiceDate ? (function(){ try { const r=parseExcelDate(source.invoiceDate); return r.valid ? r.value : ''; } catch(e){ return ''; } })() : ''
+                invoiceDate: source.invoiceDate ? (function(){ try { const r=parseExcelDate(source.invoiceDate); return r.valid ? r.value : ''; } catch(e){ return ''; } })() : '',
+                stageTimes: (source.stageTimes && typeof source.stageTimes === 'object' && !Array.isArray(source.stageTimes)) ? source.stageTimes : {},
+                stageChangedAt: String(source.stageChangedAt ?? ''),
+                orderPlacedAt: String(source.orderPlacedAt ?? ''),
+                deliveryStatus: String(source.deliveryStatus ?? 'Chưa giao'),
+                deliveryUpdatedAt: String(source.deliveryUpdatedAt ?? ''),
+                deliveryIssue: String(source.deliveryIssue ?? ''),
+                deliveryAction: String(source.deliveryAction ?? ''),
+                deliveryHistory: Array.isArray(source.deliveryHistory) ? source.deliveryHistory : []
             };
         }
 
@@ -804,6 +910,7 @@
                 localStorage.setItem('procure_orders', JSON.stringify(orders));
                 localStorage.setItem('procure_suppliers', JSON.stringify(suppliers));
                 localStorage.setItem('procure_quotes', JSON.stringify(quotes));
+                localStorage.setItem('procure_tracking_history', JSON.stringify(trackingHistory));
             } catch (err) {
                 console.warn('Lưu trữ localStorage đầy hoặc không hỗ trợ:', err);
             }
@@ -813,6 +920,7 @@
             const savedOrders = localStorage.getItem('procure_orders');
             const savedSuppliers = localStorage.getItem('procure_suppliers');
             const savedQuotes = localStorage.getItem('procure_quotes');
+            const savedHistory = localStorage.getItem('procure_tracking_history');
 
             if (savedOrders) {
                 try {
@@ -840,6 +948,19 @@
                     console.error('Lỗi đọc procure_quotes:', err);
                 }
             }
+            if (savedHistory) {
+                try {
+                    const parsedHistory = JSON.parse(savedHistory);
+                    if (Array.isArray(parsedHistory)) trackingHistory = parsedHistory;
+                } catch (err) {
+                    console.error('Lỗi đọc procure_tracking_history:', err);
+                    trackingHistory = [];
+                }
+            } else {
+                trackingHistory = [];
+            }
+
+            orders.forEach(ensureOrderTrackingFields);
         }
 
         function switchTab(tabId) {
@@ -863,6 +984,7 @@
             renderQuotes();
             renderStatusTable();
             renderReport();
+            renderHistory();
             lucide.createIcons();
         }
 
@@ -1003,8 +1125,22 @@
                         contractNo: 'DNMH' + String(orders.length + 1).padStart(3, '0'),
                         stage: 'SSG',
                         invoiceNo: '',
-                        invoiceDate: ''
+                        invoiceDate: '',
+                        stageTimes: {},
+                        orderPlacedAt: '',
+                        stageChangedAt: '',
+                        deliveryStatus: 'Chưa giao',
+                        deliveryUpdatedAt: '',
+                        deliveryIssue: '',
+                        deliveryAction: '',
+                        deliveryHistory: []
                     });
+                });
+
+                // Record creation only for manually created orders. Imported orders remain silent to avoid false history.
+                rows.forEach(r => {
+                    const created = orders[orders.length - rows.length + Array.from(rows).indexOf(r)];
+                    if (created) pushTrackingHistory(created, 'order_created', {message: 'Tạo Order mới'}, by, getNowISO());
                 });
             }
 
@@ -1031,9 +1167,53 @@
             if (confirm('Bạn có chắc chắn muốn xóa order này?')) {
                 orders = orders.filter(x => x.id !== id);
                 quotes = quotes.filter(q => q.itemId !== id && q.orderId !== id);
+                trackingHistory = trackingHistory.filter(h => h.orderId !== id);
                 saveToStorage();
                 renderAll();
             }
+        }
+
+        // --- TRACKING HISTORY HELPERS ---
+        function getNowISO() {
+            return new Date().toISOString();
+        }
+
+        function formatDateTimeVN(value) {
+            if (!value) return '-';
+            const d = value instanceof Date ? value : new Date(value);
+            if (Number.isNaN(d.getTime())) return String(value);
+            const pad = n => String(n).padStart(2, '0');
+            return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        function toDateTimeLocalValue(value) {
+            if (!value) return '';
+            const d = new Date(value);
+            if (Number.isNaN(d.getTime())) return '';
+            const pad = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        function pushTrackingHistory(order, type, details = {}, actor = null, eventAt = null) {
+            if (!order) return;
+            const now = eventAt || getNowISO();
+            trackingHistory.unshift({
+                id: (window.crypto && typeof window.crypto.randomUUID === 'function') ? window.crypto.randomUUID() : `hist_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+                orderId: order.id,
+                item: order.item || '',
+                restaurant: order.restaurant || '',
+                supplier: order.supplier || '',
+                type,
+                timestamp: now,
+                actor: actor || order.by || 'Ngọc',
+                details: details || {}
+            });
+        }
+
+        function ensureOrderTrackingFields(order) {
+            if (!order) return;
+            if (!order.stageTimes || typeof order.stageTimes !== 'object' || Array.isArray(order.stageTimes)) order.stageTimes = {};
+            if (!Array.isArray(order.deliveryHistory)) order.deliveryHistory = [];
         }
 
         // --- TAB 2: CHECK CONTRACTS & REQUISITIONS ---
@@ -1107,6 +1287,7 @@
                                         <th class="py-3 px-4">Số lượng</th>
                                         <th class="py-3 px-4">Hình thức</th>
                                         <th class="py-3 px-4">Nhà Cung Cấp (NCC)</th>
+                                        <th class="py-3 px-4">Tình trạng giao hàng</th>
                                         <th class="py-3 px-4">Số HĐ / ĐNMH</th>
                                         <th class="py-3 px-4 text-right">Thao tác</th>
                                     </tr>
@@ -1125,6 +1306,7 @@
                                 <span class="px-2 py-0.5 rounded text-xs font-medium ${o.checkType === 'Hợp đồng' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${o.checkType || 'ĐNMH'}</span>
                             </td>
                             <td class="py-3 px-4 text-slate-700">${o.supplier || '<span class="text-rose-500 italic text-xs">Chưa chọn NCC</span>'}</td>
+                            <td class="py-3 px-4">${getDeliveryStatusBadge(o.deliveryStatus || 'Chưa giao')}</td>
                             <td class="py-3 px-4 text-indigo-600 font-medium">${o.contractNo || '-'}</td>
                             <td class="py-3 px-4 text-right space-x-2 whitespace-nowrap">
                                 <button onclick="openCheckModal(${o.id})" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition">Kiểm tra / Sửa</button>
@@ -1154,6 +1336,7 @@
             if (confirm(`Bạn có chắc chắn muốn xóa mặt hàng "${targetItem.item}" khỏi hệ thống?`)) {
                 orders = orders.filter(x => x.id !== id);
                 quotes = quotes.filter(q => q.itemId !== id && q.orderId !== id);
+                trackingHistory = trackingHistory.filter(h => h.orderId !== id);
                 saveToStorage();
                 renderAll();
             }
@@ -1165,8 +1348,12 @@
             document.getElementById('check-item-id').value = o.id;
             document.getElementById('check-item-name-disp').value = o.item;
             document.getElementById('check-item-date-disp').value = formatDateVN(o.date);
+            ensureOrderTrackingFields(o);
             document.getElementById('check-type').value = o.checkType || 'Hợp đồng';
             document.getElementById('check-contract-no').value = o.contractNo || '';
+            document.getElementById('check-delivery-status').value = o.deliveryStatus || 'Chưa giao';
+            document.getElementById('check-delivery-updated-at').value = toDateTimeLocalValue(o.deliveryUpdatedAt || getNowISO());
+            document.getElementById('check-delivery-note').value = o.deliveryIssue || o.deliveryAction || '';
 
             const supSelect = document.getElementById('check-supplier');
             supSelect.innerHTML = '<option value="">-- Chọn NCC --</option>';
@@ -1181,12 +1368,57 @@
             event.preventDefault();
             const id = document.getElementById('check-item-id').value;
             const o = orders.find(x => x.id == id);
-            if (o) {
-                o.checkType = document.getElementById('check-type').value;
-                o.supplier = document.getElementById('check-supplier').value;
-                o.contractNo = document.getElementById('check-contract-no').value;
-                if(o.supplier && o.stage === 'SSG') o.stage = 'Đặt hàng';
+            if (!o) return;
+
+            ensureOrderTrackingFields(o);
+            const oldSupplier = o.supplier || '';
+            const oldCheckType = o.checkType || '';
+            const oldContractNo = o.contractNo || '';
+            const oldDeliveryStatus = o.deliveryStatus || 'Chưa giao';
+            const oldDeliveryNote = o.deliveryIssue || o.deliveryAction || '';
+
+            o.checkType = document.getElementById('check-type').value;
+            o.supplier = document.getElementById('check-supplier').value;
+            o.contractNo = document.getElementById('check-contract-no').value.trim();
+
+            const deliveryStatus = document.getElementById('check-delivery-status').value;
+            const deliveryUpdatedInput = document.getElementById('check-delivery-updated-at').value;
+            const deliveryUpdatedAt = deliveryUpdatedInput ? new Date(deliveryUpdatedInput).toISOString() : getNowISO();
+            const deliveryNote = document.getElementById('check-delivery-note').value.trim();
+
+            o.deliveryStatus = deliveryStatus;
+            o.deliveryUpdatedAt = deliveryUpdatedAt;
+            o.deliveryIssue = deliveryStatus === 'Giao sai hàng' || deliveryStatus === 'Thiếu hàng' || deliveryStatus === 'Hàng lỗi / hư hỏng' ? deliveryNote : '';
+            o.deliveryAction = deliveryNote;
+
+            if (o.supplier && o.stage === 'SSG') {
+                updateStageRecord(o, 'Đặt hàng', 'Cập nhật NCC / HĐ / ĐNMH tại Tab 2');
             }
+
+            if (oldSupplier !== o.supplier || oldCheckType !== o.checkType || oldContractNo !== o.contractNo) {
+                pushTrackingHistory(o, 'order_update', {
+                    message: 'Cập nhật thông tin mua hàng',
+                    oldSupplier, newSupplier: o.supplier,
+                    oldCheckType, newCheckType: o.checkType,
+                    oldContractNo, newContractNo: o.contractNo
+                });
+            }
+
+            if (oldDeliveryStatus !== o.deliveryStatus || oldDeliveryNote !== o.deliveryAction) {
+                const issueType = ['Giao sai hàng', 'Thiếu hàng', 'Hàng lỗi / hư hỏng'].includes(o.deliveryStatus) ? 'delivery_issue' : 'delivery_update';
+                o.deliveryHistory.unshift({
+                    status: o.deliveryStatus,
+                    note: o.deliveryAction,
+                    updatedAt: o.deliveryUpdatedAt,
+                    updatedBy: o.by || 'Ngọc'
+                });
+                pushTrackingHistory(o, issueType, {
+                    message: `Cập nhật giao hàng: ${o.deliveryStatus}`,
+                    status: o.deliveryStatus,
+                    note: o.deliveryAction
+                }, o.by || 'Ngọc', o.deliveryUpdatedAt);
+            }
+
             saveToStorage();
             closeModal('modal-check');
             renderAll();
@@ -1642,6 +1874,8 @@
                                 <option value="Phát hành Hóa đơn" ${o.stage === 'Phát hành Hóa đơn' ? 'selected' : ''}>Phát hành Hóa đơn</option>
                                 <option value="Làm ĐNTT" ${o.stage === 'Làm ĐNTT' ? 'selected' : ''}>Làm ĐNTT</option>
                             </select>
+                            ${o.stageTimes && o.stageTimes[o.stage] ? `<div class="mt-1 text-[10px] text-slate-500">Cập nhật: ${formatDateTimeVN(o.stageTimes[o.stage])}</div>` : ''}
+                            ${o.stage === 'Đặt hàng' ? `<div class="text-[10px] text-indigo-600 font-medium">Đặt hàng lúc: ${o.orderPlacedAt ? formatDateTimeVN(o.orderPlacedAt) : 'Chưa ghi nhận'}</div>` : ''}
                         </td>
                         <td class="py-3.5 px-4 text-xs text-slate-600">
                             <div>Số HĐ: <input type="text" value="${o.invoiceNo || ''}" onchange="updateInvoice(${o.id}, 'invoiceNo', this.value)" placeholder="Số hóa đơn..." class="w-28 px-1.5 py-0.5 border border-slate-200 rounded mt-0.5"></div>
@@ -1655,13 +1889,37 @@
             });
         }
 
+        function updateStageRecord(order, val, reason = 'Cập nhật trạng thái tại Tab 4') {
+            if (!order) return false;
+            ensureOrderTrackingFields(order);
+            const oldStage = order.stage || 'SSG';
+            if (oldStage === val) {
+                return false;
+            }
+
+            const timestamp = getNowISO();
+            order.stage = val;
+            order.stageChangedAt = timestamp;
+            order.stageTimes[val] = timestamp;
+
+            if (val === 'Đặt hàng') {
+                order.orderPlacedAt = timestamp;
+            }
+
+            pushTrackingHistory(order, 'stage_change', {
+                fromStage: oldStage,
+                toStage: val,
+                message: reason
+            }, order.by || 'Ngọc', timestamp);
+            return true;
+        }
+
         function updateStage(id, val) {
             const o = orders.find(x => x.id == id);
-            if (o) {
-                o.stage = val;
-                saveToStorage();
-                renderAll();
-            }
+            if (!o) return;
+            updateStageRecord(o, val);
+            saveToStorage();
+            renderAll();
         }
 
         function updateInvoice(id, field, val) {
@@ -1671,6 +1929,78 @@
                 saveToStorage();
                 renderAll();
             }
+        }
+
+        function getDeliveryStatusBadge(status) {
+            const classes = {
+                'Chưa giao': 'bg-slate-100 text-slate-600 border-slate-200',
+                'Giao đúng': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                'Giao sai hàng': 'bg-rose-50 text-rose-700 border-rose-200',
+                'Thiếu hàng': 'bg-amber-50 text-amber-700 border-amber-200',
+                'Hàng lỗi / hư hỏng': 'bg-orange-50 text-orange-700 border-orange-200'
+            };
+            const cls = classes[status] || classes['Chưa giao'];
+            return `<span class="inline-flex items-center px-2 py-1 rounded border text-[11px] font-semibold ${cls}">${escapeHTML(status || 'Chưa giao')}</span>`;
+        }
+
+        function renderHistory() {
+            const tbody = document.getElementById('history-table-body');
+            if (!tbody) return;
+
+            const searchEl = document.getElementById('search-history');
+            const filterEl = document.getElementById('filter-history-type');
+            const search = (searchEl?.value || '').trim().toLowerCase();
+            const filterType = filterEl?.value || 'Tất cả';
+
+            const rows = [...trackingHistory]
+                .filter(h => filterType === 'Tất cả' || h.type === filterType)
+                .filter(h => {
+                    if (!search) return true;
+                    const text = [
+                        h.item, h.restaurant, h.supplier, h.actor, h.type,
+                        h.details?.message, h.details?.note,
+                        h.details?.fromStage, h.details?.toStage, h.details?.status
+                    ].filter(Boolean).join(' ').toLowerCase();
+                    return text.includes(search);
+                })
+                .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+
+            const todayKey = new Date().toISOString().slice(0, 10);
+            document.getElementById('history-total').innerText = rows.length;
+            document.getElementById('history-stage-count').innerText = rows.filter(h => h.type === 'stage_change').length;
+            document.getElementById('history-issue-count').innerText = rows.filter(h => h.type === 'delivery_issue').length;
+            document.getElementById('history-today-count').innerText = rows.filter(h => String(h.timestamp || '').slice(0, 10) === todayKey).length;
+
+            if (!rows.length) {
+                tbody.innerHTML = `<tr><td colspan="8" class="text-center py-10 text-slate-400">Không tìm thấy lịch sử phù hợp.</td></tr>`;
+                return;
+            }
+
+            const activity = {
+                stage_change: {label: 'Chuyển trạng thái', cls: 'bg-indigo-50 text-indigo-700 border-indigo-100'},
+                delivery_issue: {label: 'Sự cố giao hàng', cls: 'bg-rose-50 text-rose-700 border-rose-100'},
+                delivery_update: {label: 'Cập nhật giao hàng', cls: 'bg-amber-50 text-amber-700 border-amber-100'},
+                order_update: {label: 'Cập nhật Order', cls: 'bg-blue-50 text-blue-700 border-blue-100'},
+                order_created: {label: 'Tạo Order', cls: 'bg-emerald-50 text-emerald-700 border-emerald-100'}
+            };
+
+            tbody.innerHTML = rows.map((h, index) => {
+                const meta = activity[h.type] || {label: h.type || 'Hoạt động', cls: 'bg-slate-100 text-slate-700 border-slate-200'};
+                let detail = h.details?.message || '';
+                if (h.type === 'stage_change') detail = `${h.details?.fromStage || '-'} → ${h.details?.toStage || '-'}` + (h.details?.message ? ` • ${h.details.message}` : '');
+                if (h.type === 'delivery_issue' || h.type === 'delivery_update') detail = `${h.details?.status || '-'}${h.details?.note ? ` • ${h.details.note}` : ''}`;
+                return `
+                    <tr class="hover:bg-slate-50/80 align-top">
+                        <td class="py-3 px-4 text-xs text-slate-500">${index + 1}</td>
+                        <td class="py-3 px-4 whitespace-nowrap text-xs font-semibold text-indigo-700">${formatDateTimeVN(h.timestamp)}</td>
+                        <td class="py-3 px-4 font-semibold text-slate-800">${escapeHTML(h.item || '-')}</td>
+                        <td class="py-3 px-4 text-xs text-slate-600">${escapeHTML(h.restaurant || '-')}</td>
+                        <td class="py-3 px-4 text-xs text-slate-700">${escapeHTML(h.supplier || '-')}</td>
+                        <td class="py-3 px-4"><span class="inline-flex items-center px-2 py-1 rounded border text-[11px] font-semibold ${meta.cls}">${meta.label}</span></td>
+                        <td class="py-3 px-4 text-xs text-slate-600 max-w-md">${escapeHTML(detail || '-')}</td>
+                        <td class="py-3 px-4 text-xs text-slate-600 whitespace-nowrap">${escapeHTML(h.actor || '-')}</td>
+                    </tr>`;
+            }).join('');
         }
 
         // --- TAB 5: WEEKLY REPORT ---
@@ -2156,7 +2486,15 @@
                         contractNo: `DNMH${String(baseOrderCount + index + 1).padStart(3, '0')}`,
                         stage: 'SSG',
                         invoiceNo: '',
-                        invoiceDate: ''
+                        invoiceDate: '',
+                        stageTimes: {},
+                        orderPlacedAt: '',
+                        stageChangedAt: '',
+                        deliveryStatus: 'Chưa giao',
+                        deliveryUpdatedAt: '',
+                        deliveryIssue: '',
+                        deliveryAction: '',
+                        deliveryHistory: []
                     };
                 });
 
