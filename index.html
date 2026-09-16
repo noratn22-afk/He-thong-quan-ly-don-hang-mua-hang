@@ -504,6 +504,10 @@
                     <input type="text" id="check-item-date-disp" disabled class="w-full px-3 py-2 border border-slate-200 bg-slate-100 rounded-lg text-sm text-slate-600 font-medium">
                 </div>
                 <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Khu vực đặt hàng</label>
+                    <input type="text" id="check-item-area-disp" disabled class="w-full px-3 py-2 border border-slate-200 bg-slate-100 rounded-lg text-sm text-slate-600 font-medium">
+                </div>
+                <div>
                     <label class="block text-xs font-medium text-slate-700 mb-1">Hình thức mua hàng</label>
                     <select id="check-type" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
                         <option value="Hợp đồng">Hợp đồng</option>
@@ -1282,6 +1286,7 @@
                                 <thead>
                                     <tr class="text-slate-500 text-xs font-semibold uppercase tracking-wider border-b border-slate-200 bg-slate-50">
                                         <th class="py-3 px-4 w-12">STT</th>
+                                        <th class="py-3 px-4">Khu vực đặt hàng</th>
                                         <th class="py-3 px-4">Tên mặt hàng</th>
                                         <th class="py-3 px-4">ĐVT</th>
                                         <th class="py-3 px-4">Số lượng</th>
@@ -1299,6 +1304,12 @@
                     html += `
                         <tr class="hover:bg-slate-50/80 transition">
                             <td class="py-3 px-4 font-medium text-slate-500 text-xs">${idx + 1}</td>
+                            <td class="py-3 px-4 text-slate-700">
+                                <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-semibold whitespace-nowrap">
+                                    <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
+                                    ${o.area || 'Chưa xác định'}
+                                </span>
+                            </td>
                             <td class="py-3 px-4 font-semibold text-slate-800">${o.item}</td>
                             <td class="py-3 px-4 text-slate-600">${o.unit}</td>
                             <td class="py-3 px-4 font-bold text-indigo-600">${o.qty}</td>
@@ -1348,6 +1359,7 @@
             document.getElementById('check-item-id').value = o.id;
             document.getElementById('check-item-name-disp').value = o.item;
             document.getElementById('check-item-date-disp').value = formatDateVN(o.date);
+            document.getElementById('check-item-area-disp').value = o.area || 'Chưa xác định';
             ensureOrderTrackingFields(o);
             document.getElementById('check-type').value = o.checkType || 'Hợp đồng';
             document.getElementById('check-contract-no').value = o.contractNo || '';
