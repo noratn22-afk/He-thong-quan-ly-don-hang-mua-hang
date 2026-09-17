@@ -164,6 +164,19 @@
                         <option value="ĐNMH">ĐNMH</option>
                         <option value="Chưa kiểm tra">Chưa kiểm tra (Chưa chọn NCC)</option>
                     </select>
+                    <select id="filter-order-status" onchange="renderCheckTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="Tất cả">Tất cả trạng thái đặt</option>
+                        <option value="Chưa đặt">Chưa đặt</option>
+                        <option value="Đã đặt">Đã đặt</option>
+                        <option value="Đã đặt – Chưa giao">Đã đặt – Chưa giao</option>
+                        <option value="Đã giao">Đã giao</option>
+                    </select>
+                    <select id="sort-order-placement" onchange="renderCheckTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="default">Mặc định: From + Ngày Order</option>
+                        <option value="newest">Mới đặt nhất</option>
+                        <option value="oldest">Đặt lâu nhất</option>
+                        <option value="unplacedFirst">Chưa đặt trước</option>
+                    </select>
                     <button type="button" onclick="openExportOrderModal()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition flex items-center space-x-1 whitespace-nowrap shadow-sm" title="Chọn From, hình thức, NCC và ngày để xuất Excel">
                         <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
                         <span>Xuất Excel</span>
@@ -997,6 +1010,74 @@
     </div>
 
     <!-- JavaScript Application Logic -->
+    <!-- MODAL: ORDER PLACEMENT ACTIONS -->
+    <div id="modal-order-placement-actions" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[80] flex items-center justify-center hidden p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base">Trạng thái đặt hàng</h3>
+                    <p id="order-placement-action-item" class="text-xs text-slate-500 mt-1"></p>
+                </div>
+                <button type="button" onclick="closeModal('modal-order-placement-actions')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div class="space-y-2">
+                <button type="button" onclick="openEditOrderPlacedTime()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-slate-200 hover:bg-slate-50 text-left">
+                    <i data-lucide="calendar-clock" class="w-5 h-5 text-indigo-600"></i>
+                    <span><span class="block text-sm font-semibold text-slate-800">Chỉnh thời gian đặt</span><span class="block text-[11px] text-slate-500">Sửa ngày và giờ đã đặt hàng</span></span>
+                </button>
+                <button type="button" onclick="openUnplaceOrderConfirmation()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-rose-200 hover:bg-rose-50 text-left">
+                    <i data-lucide="undo-2" class="w-5 h-5 text-rose-600"></i>
+                    <span><span class="block text-sm font-semibold text-slate-800">Bỏ trạng thái Đã đặt</span><span class="block text-[11px] text-slate-500">Xóa mốc thời gian và dừng timer</span></span>
+                </button>
+            </div>
+            <div class="flex justify-end pt-2 border-t border-slate-100">
+                <button type="button" onclick="closeModal('modal-order-placement-actions')" class="px-4 py-2 bg-slate-100 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-200">Đóng</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: ORDER PLACEMENT CONFIRM -->
+    <div id="modal-order-placement-confirm" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[85] flex items-center justify-center hidden p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <div class="flex items-center gap-3 border-b border-slate-100 pb-3">
+                <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-600"></i></div>
+                <div>
+                    <h3 id="order-placement-confirm-title" class="font-bold text-slate-900 text-base">Xác nhận</h3>
+                    <p id="order-placement-confirm-message" class="text-xs text-slate-500 mt-1"></p>
+                </div>
+            </div>
+            <div id="order-placement-confirm-item" class="p-3 bg-slate-50 rounded-lg text-sm font-semibold text-slate-800"></div>
+            <div class="flex justify-end gap-3 pt-2">
+                <button type="button" onclick="closeModal('modal-order-placement-confirm')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50">Hủy</button>
+                <button type="button" id="order-placement-confirm-btn" onclick="confirmOrderPlacementAction()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg">Xác nhận</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: EDIT ORDERED TIME -->
+    <div id="modal-order-placed-time" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[90] flex items-center justify-center hidden p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base">Chỉnh thời gian đặt hàng</h3>
+                    <p id="order-placed-time-item" class="text-xs text-slate-500 mt-1"></p>
+                </div>
+                <button type="button" onclick="closeModal('modal-order-placed-time')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <input type="hidden" id="order-placed-time-id">
+            <div>
+                <label class="block text-xs font-medium text-slate-700 mb-1">Ngày & giờ đặt hàng</label>
+                <input type="datetime-local" id="order-placed-time-input" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            </div>
+            <div class="p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-800">Sau khi lưu, timer sẽ tính lại từ thời điểm mới. Dữ liệu Order gốc chỉ được cập nhật đúng hai trường đặt hàng.</div>
+            <div class="flex justify-end gap-3 pt-2 border-t border-slate-100">
+                <button type="button" onclick="closeModal('modal-order-placed-time')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50">Hủy</button>
+                <button type="button" onclick="saveOrderPlacedTime()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg">Lưu thời gian</button>
+            </div>
+        </div>
+    </div>
+
+
     <script>
         // System Data State
         let suppliers = [
@@ -1215,6 +1296,7 @@
             document.getElementById('order-date').valueAsDate = new Date();
             document.getElementById('print-date').innerText = formatDateVN(new Date().toISOString().slice(0, 10));
             renderAll();
+            ensureOrderPlacementTimer();
             lucide.createIcons();
         });
 
@@ -1283,7 +1365,10 @@
                 invoiceDate: source.invoiceDate ? (function(){ try { const r=parseExcelDate(source.invoiceDate); return r.valid ? r.value : ''; } catch(e){ return ''; } })() : '',
                 stageTimes: (source.stageTimes && typeof source.stageTimes === 'object' && !Array.isArray(source.stageTimes)) ? source.stageTimes : {},
                 stageChangedAt: String(source.stageChangedAt ?? ''),
-                orderPlacedAt: String(source.orderPlacedAt ?? ''),
+                orderPlaced: source.orderPlaced === true || Boolean(source.orderedAt || source.orderPlacedAt),
+                orderedAt: String(source.orderedAt ?? source.orderPlacedAt ?? ''),
+                orderPlacedAt: String(source.orderPlacedAt ?? source.orderedAt ?? ''),
+                deliveredAt: String(source.deliveredAt ?? ''),
                 deliveryStatus: String(source.deliveryStatus ?? 'Chưa giao'),
                 deliveryUpdatedAt: String(source.deliveryUpdatedAt ?? ''),
                 deliveryIssue: String(source.deliveryIssue ?? ''),
@@ -1574,7 +1659,10 @@
                         invoiceNo: '',
                         invoiceDate: '',
                         stageTimes: {},
+                        orderPlaced: false,
+                        orderedAt: '',
                         orderPlacedAt: '',
+                        deliveredAt: '',
                         stageChangedAt: '',
                         deliveryStatus: 'Chưa giao',
                         deliveryUpdatedAt: '',
@@ -1662,30 +1750,260 @@
             if (!order.stageTimes || typeof order.stageTimes !== 'object' || Array.isArray(order.stageTimes)) order.stageTimes = {};
             if (order.contractItemNo === null || order.contractItemNo === undefined) order.contractItemNo = '';
             if (!Array.isArray(order.deliveryHistory)) order.deliveryHistory = [];
+
+            // Backward-compatible placement fields. Never infer placement from supplier/stage.
+            if (order.orderedAt === null || order.orderedAt === undefined) order.orderedAt = '';
+            if (order.orderPlacedAt === null || order.orderPlacedAt === undefined) order.orderPlacedAt = '';
+            if (!order.orderedAt && order.orderPlacedAt) order.orderedAt = String(order.orderPlacedAt);
+            if (!order.orderPlacedAt && order.orderedAt) order.orderPlacedAt = String(order.orderedAt);
+            if (order.orderPlaced === undefined || order.orderPlaced === null) {
+                order.orderPlaced = Boolean(order.orderedAt);
+            } else {
+                order.orderPlaced = order.orderPlaced === true;
+            }
+            if (!order.deliveredAt) order.deliveredAt = '';
+        }
+
+        function formatElapsedTime(startTime, endTime = new Date()) {
+            if (!startTime) return '-';
+            const start = startTime instanceof Date ? startTime : new Date(startTime);
+            const end = endTime instanceof Date ? endTime : new Date(endTime);
+            if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return '-';
+            const diffMs = Math.max(0, end.getTime() - start.getTime());
+            const totalMinutes = Math.floor(diffMs / 60000);
+            const days = Math.floor(totalMinutes / 1440);
+            const hours = Math.floor((totalMinutes % 1440) / 60);
+            const minutes = totalMinutes % 60;
+            const parts = [];
+            if (days > 0) parts.push(`${String(days).padStart(2, '0')} ngày`);
+            if (hours > 0 || days > 0) parts.push(`${String(hours).padStart(2, '0')} giờ`);
+            if (minutes > 0 || parts.length === 0) parts.push(`${String(minutes).padStart(2, '0')} phút`);
+            return parts.join(' ');
+        }
+
+        function getOrderElapsedStatus(startTime, endTime = new Date()) {
+            if (!startTime) return { key: 'none', label: 'Chưa đặt', cls: 'bg-slate-100 text-slate-600 border-slate-200' };
+            const start = new Date(startTime);
+            const end = endTime instanceof Date ? endTime : new Date(endTime);
+            if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+                return { key: 'none', label: 'Chưa đặt', cls: 'bg-slate-100 text-slate-600 border-slate-200' };
+            }
+            const diffMs = Math.max(0, end.getTime() - start.getTime());
+            const oneDay = 24 * 60 * 60 * 1000;
+            const threeDays = 3 * oneDay;
+            if (diffMs < oneDay) {
+                return { key: 'normal', label: 'Bình thường', cls: 'bg-emerald-50 text-emerald-700 border-emerald-200' };
+            }
+            if (diffMs <= threeDays) {
+                return { key: 'waiting', label: 'Đang chờ', cls: 'bg-amber-50 text-amber-700 border-amber-200' };
+            }
+            return { key: 'long', label: 'Chờ lâu', cls: 'bg-rose-50 text-rose-700 border-rose-200' };
+        }
+
+        function getOrderPlacementFilterMatch(order, filter) {
+            const placed = order?.orderPlaced === true && !!order?.orderedAt;
+            const delivered = order?.stage === 'Đã giao hàng';
+            if (filter === 'Chưa đặt') return !placed;
+            if (filter === 'Đã đặt') return placed;
+            if (filter === 'Đã đặt – Chưa giao') return placed && !delivered;
+            if (filter === 'Đã giao') return delivered;
+            return true;
+        }
+
+        let orderPlacementTimerInterval = null;
+        let currentPlacementActionOrderId = null;
+
+        function updateVisibleOrderTimers() {
+            const timerNodes = document.querySelectorAll('[data-order-timer-id]');
+            timerNodes.forEach(node => {
+                const id = node.getAttribute('data-order-timer-id');
+                const order = orders.find(x => String(x.id) === String(id));
+                if (!order) return;
+                ensureOrderTrackingFields(order);
+                const start = order.orderedAt;
+                if (!order.orderPlaced || !start) {
+                    node.textContent = '';
+                    return;
+                }
+                if (order.stage === 'Đã giao hàng') {
+                    node.textContent = order.deliveredAt && new Date(order.deliveredAt).getTime() >= new Date(start).getTime()
+                        ? `⏱ Thời gian từ đặt → giao: ${formatElapsedTime(start, order.deliveredAt)}`
+                        : `⏱ Đã chờ: ${formatElapsedTime(start)}`;
+                    return;
+                }
+                node.textContent = `⏱ Đã chờ: ${formatElapsedTime(start)}`;
+                const status = getOrderElapsedStatus(start);
+                node.className = `order-placement-timer text-[11px] font-semibold mt-1 ${status.key === 'normal' ? 'text-emerald-600' : status.key === 'waiting' ? 'text-amber-600' : 'text-rose-600'}`;
+            });
+        }
+
+        function ensureOrderPlacementTimer() {
+            if (orderPlacementTimerInterval) return;
+            orderPlacementTimerInterval = setInterval(updateVisibleOrderTimers, 60000);
+            updateVisibleOrderTimers();
+        }
+
+        function openOrderPlacementConfirmation(id) {
+            const order = orders.find(x => String(x.id) === String(id));
+            if (!order) return;
+            ensureOrderTrackingFields(order);
+            currentPlacementActionOrderId = order.id;
+            document.getElementById('order-placement-confirm-title').innerText = 'Xác nhận đã đặt hàng';
+            document.getElementById('order-placement-confirm-message').innerText = 'Xác nhận đã đặt hàng cho mặt hàng này?';
+            document.getElementById('order-placement-confirm-item').innerText = order.item || '-';
+            const btn = document.getElementById('order-placement-confirm-btn');
+            btn.className = 'px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg';
+            btn.innerText = 'Xác nhận';
+            btn.dataset.action = 'place';
+            document.getElementById('modal-order-placement-confirm').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function openOrderPlacementActions(id) {
+            const order = orders.find(x => String(x.id) === String(id));
+            if (!order) return;
+            ensureOrderTrackingFields(order);
+            currentPlacementActionOrderId = order.id;
+            document.getElementById('order-placement-action-item').innerText = order.item || '-';
+            closeModal('modal-order-placement-confirm');
+            document.getElementById('modal-order-placement-actions').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function confirmOrderPlacementAction() {
+            const order = orders.find(x => String(x.id) === String(currentPlacementActionOrderId));
+            const btn = document.getElementById('order-placement-confirm-btn');
+            const action = btn?.dataset.action || 'place';
+            if (!order) {
+                closeModal('modal-order-placement-confirm');
+                return;
+            }
+            ensureOrderTrackingFields(order);
+
+            if (action === 'place') {
+                const timestamp = getNowISO();
+                order.orderPlaced = true;
+                order.orderedAt = timestamp;
+                order.orderPlacedAt = timestamp;
+                pushTrackingHistory(order, 'order_placed', {
+                    message: 'Xác nhận đã đặt hàng',
+                    orderedAt: timestamp
+                }, order.by || 'Ngọc', timestamp);
+                saveToStorage();
+                closeModal('modal-order-placement-confirm');
+                closeModal('modal-order-placement-actions');
+                renderAll();
+                return;
+            }
+
+            if (action === 'unplace') {
+                const timestamp = getNowISO();
+                order.orderPlaced = false;
+                order.orderedAt = '';
+                order.orderPlacedAt = '';
+                pushTrackingHistory(order, 'order_unplaced', {
+                    message: 'Bỏ trạng thái Đã đặt'
+                }, order.by || 'Ngọc', timestamp);
+                saveToStorage();
+                closeModal('modal-order-placement-confirm');
+                closeModal('modal-order-placement-actions');
+                renderAll();
+            }
+        }
+
+        function openUnplaceOrderConfirmation() {
+            const order = orders.find(x => String(x.id) === String(currentPlacementActionOrderId));
+            if (!order) return;
+            document.getElementById('order-placement-confirm-title').innerText = 'Bỏ trạng thái Đã đặt';
+            document.getElementById('order-placement-confirm-message').innerText = 'Bạn có chắc muốn bỏ trạng thái Đã đặt?';
+            document.getElementById('order-placement-confirm-item').innerText = order.item || '-';
+            const btn = document.getElementById('order-placement-confirm-btn');
+            btn.className = 'px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-lg';
+            btn.innerText = 'Bỏ Đã đặt';
+            btn.dataset.action = 'unplace';
+            closeModal('modal-order-placement-actions');
+            document.getElementById('modal-order-placement-confirm').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function openEditOrderPlacedTime() {
+            const order = orders.find(x => String(x.id) === String(currentPlacementActionOrderId));
+            if (!order) return;
+            ensureOrderTrackingFields(order);
+            const input = document.getElementById('order-placed-time-input');
+            input.value = toDateTimeLocalValue(order.orderedAt || order.orderPlacedAt || getNowISO());
+            document.getElementById('order-placed-time-id').value = order.id;
+            document.getElementById('order-placed-time-item').innerText = order.item || '-';
+            closeModal('modal-order-placement-actions');
+            document.getElementById('modal-order-placed-time').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function saveOrderPlacedTime() {
+            const id = document.getElementById('order-placed-time-id').value;
+            const value = document.getElementById('order-placed-time-input').value;
+            const order = orders.find(x => String(x.id) === String(id));
+            if (!order || !value) {
+                alert('Vui lòng chọn ngày và giờ đặt hàng.');
+                return;
+            }
+            const parsed = new Date(value);
+            if (Number.isNaN(parsed.getTime())) {
+                alert('Thời gian đặt hàng không hợp lệ.');
+                return;
+            }
+            ensureOrderTrackingFields(order);
+            const previous = order.orderedAt || order.orderPlacedAt || '';
+            const iso = parsed.toISOString();
+            order.orderPlaced = true;
+            order.orderedAt = iso;
+            order.orderPlacedAt = iso;
+            pushTrackingHistory(order, 'order_placed_time_update', {
+                message: 'Cập nhật thời gian đặt hàng',
+                oldOrderedAt: previous,
+                newOrderedAt: iso
+            }, order.by || 'Ngọc', getNowISO());
+            saveToStorage();
+            closeModal('modal-order-placed-time');
+            renderAll();
         }
 
         // --- TAB 2: CHECK CONTRACTS & REQUISITIONS ---
         function renderCheckTable() {
             const container = document.getElementById('check-table-container');
-            const search = document.getElementById('search-check').value.toLowerCase();
-            const filterType = document.getElementById('filter-check-type').value;
+            const search = String(document.getElementById('search-check')?.value || '').trim().toLowerCase();
+            const filterType = document.getElementById('filter-check-type')?.value || 'Tất cả';
+            const placementFilter = document.getElementById('filter-order-status')?.value || 'Tất cả';
+            const placementSort = document.getElementById('sort-order-placement')?.value || 'default';
             container.innerHTML = '';
 
-            const sortedList = getSortedOrders('desc');
+            let sortedList = getSortedOrders('desc');
+            sortedList.forEach(ensureOrderTrackingFields);
+
+            if (placementSort === 'newest') {
+                sortedList.sort((a, b) => {
+                    const ta = a.orderedAt ? new Date(a.orderedAt).getTime() : -Infinity;
+                    const tb = b.orderedAt ? new Date(b.orderedAt).getTime() : -Infinity;
+                    return tb - ta;
+                });
+            } else if (placementSort === 'oldest') {
+                sortedList.sort((a, b) => {
+                    const ta = a.orderedAt ? new Date(a.orderedAt).getTime() : Infinity;
+                    const tb = b.orderedAt ? new Date(b.orderedAt).getTime() : Infinity;
+                    return ta - tb;
+                });
+            } else if (placementSort === 'unplacedFirst') {
+                sortedList.sort((a, b) => Number(a.orderPlaced === true) - Number(b.orderPlaced === true));
+            }
+
             const groups = {};
             const groupKeys = [];
-
             sortedList.forEach(o => {
                 const rest = o.restaurant || 'Khác';
                 const dateVal = o.date || '1970-01-01';
                 const key = `${rest}||${dateVal}`;
-                
                 if (!groups[key]) {
-                    groups[key] = {
-                        restaurant: rest,
-                        date: dateVal,
-                        items: []
-                    };
+                    groups[key] = { restaurant: rest, date: dateVal, items: [] };
                     groupKeys.push(key);
                 }
                 groups[key].items.push(o);
@@ -1695,31 +2013,49 @@
 
             groupKeys.forEach(key => {
                 const group = groups[key];
-                const items = group.items;
-
-                const filteredItems = items.filter(o => {
-                    const matchSearch = o.item.toLowerCase().includes(search) || 
-                                        (o.contractNo && o.contractNo.toLowerCase().includes(search)) ||
-                                        (o.date && o.date.includes(search)) ||
-                                        formatDateVN(o.date).includes(search);
-                    if (filterType === 'Hợp đồng') return matchSearch && o.checkType === 'Hợp đồng';
-                    if (filterType === 'ĐNMH') return matchSearch && o.checkType === 'ĐNMH';
-                    if (filterType === 'Chưa kiểm tra') return matchSearch && !o.supplier;
-                    return matchSearch;
+                const filteredItems = group.items.filter(o => {
+                    const haystack = [
+                        o.item,
+                        o.contractNo,
+                        o.contractItemNo,
+                        o.date,
+                        formatDateVN(o.date),
+                        o.supplier,
+                        o.area,
+                        o.checkType,
+                        o.orderPlaced ? 'đã đặt' : 'chưa đặt',
+                        o.stage || ''
+                    ].filter(Boolean).join(' ').toLowerCase();
+                    const matchSearch = !search || haystack.includes(search);
+                    if (!matchSearch) return false;
+                    if (filterType === 'Hợp đồng') return o.checkType === 'Hợp đồng';
+                    if (filterType === 'ĐNMH') return (o.checkType || 'ĐNMH') === 'ĐNMH';
+                    if (filterType === 'Chưa kiểm tra') return !o.supplier;
+                    if (!getOrderPlacementFilterMatch(o, placementFilter)) return false;
+                    return true;
                 });
 
                 if (filteredItems.length === 0) return;
                 hasResult = true;
 
                 const formattedDate = formatDateVN(group.date);
+                const placedCount = filteredItems.filter(o => o.orderPlaced === true && !!o.orderedAt).length;
+                const unplacedCount = filteredItems.length - placedCount;
 
                 let html = `
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-4">
                         <div class="bg-slate-100 px-4 py-3 border-b border-slate-200 flex justify-between items-center flex-wrap gap-2">
-                            <h3 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
-                                <i data-lucide="building-2" class="w-4 h-4 text-indigo-600"></i>
-                                <span>From: ${group.restaurant} — ${formattedDate} — ${filteredItems.length} mặt hàng</span>
-                            </h3>
+                            <div>
+                                <h3 class="font-bold text-slate-800 text-sm flex items-center space-x-2">
+                                    <i data-lucide="building-2" class="w-4 h-4 text-indigo-600"></i>
+                                    <span>From: ${escapeHTML(group.restaurant)} — ${formattedDate} — ${filteredItems.length} mặt hàng</span>
+                                </h3>
+                                <div class="flex flex-wrap gap-2 mt-2">
+                                    <span class="text-[11px] font-semibold px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100">${filteredItems.length} mặt hàng</span>
+                                    <span class="text-[11px] font-semibold px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-100">${placedCount} Đã đặt</span>
+                                    <span class="text-[11px] font-semibold px-2 py-1 bg-slate-50 text-slate-600 rounded-full border border-slate-200">${unplacedCount} Chưa đặt</span>
+                                </div>
+                            </div>
                             <div class="flex items-center gap-2">
                                 <span class="text-xs font-semibold px-2.5 py-1 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100 flex items-center space-x-1">
                                     <i data-lucide="calendar" class="w-3 h-3 text-indigo-500"></i>
@@ -1738,6 +2074,8 @@
                                         <th class="py-3 px-4">Số lượng</th>
                                         <th class="py-3 px-4">Hình thức</th>
                                         <th class="py-3 px-4">Nhà Cung Cấp (NCC)</th>
+                                        <th class="py-3 px-4">Trạng thái đặt</th>
+                                        <th class="py-3 px-4">Thời gian</th>
                                         <th class="py-3 px-4">Tình trạng giao hàng</th>
                                         <th class="py-3 px-4">Số HĐ / ĐNMH</th>
                                         <th class="py-3 px-4">STT / Mã hàng HĐ</th>
@@ -1748,28 +2086,47 @@
                 `;
 
                 filteredItems.forEach((o, idx) => {
+                    ensureOrderTrackingFields(o);
+                    const placed = o.orderPlaced === true && !!o.orderedAt;
+                    const delivered = o.stage === 'Đã giao hàng';
+                    const elapsedStatus = placed ? getOrderElapsedStatus(o.orderedAt) : null;
+                    const statusBadge = delivered
+                        ? '<span class="inline-flex items-center px-2 py-1 rounded border text-[11px] font-semibold bg-indigo-50 text-indigo-700 border-indigo-200">✓ Đã giao</span>'
+                        : placed
+                            ? `<span class="inline-flex items-center px-2 py-1 rounded border text-[11px] font-semibold ${elapsedStatus.cls}">🟢 Đã đặt</span>`
+                            : '<span class="inline-flex items-center px-2 py-1 rounded border text-[11px] font-semibold bg-slate-100 text-slate-600 border-slate-200">⚪ Chưa đặt</span>';
+                    const timeHtml = placed
+                        ? `<div class="text-[11px] text-slate-500">${formatDateTimeVN(o.orderedAt)}</div><div data-order-timer-id="${String(o.id).replace(/[^\w-]/g, '')}" class="order-placement-timer text-[11px] font-semibold mt-1"></div>`
+                        : '<span class="text-xs text-slate-400">-</span>';
+                    const actionHtml = placed
+                        ? `<button type="button" onclick="openOrderPlacementActions(${JSON.stringify(o.id)})" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-100 text-xs font-semibold rounded-lg transition"><i data-lucide="check" class="w-3.5 h-3.5"></i><span>✓ Đã đặt</span></button>`
+                        : `<button type="button" onclick="openOrderPlacementConfirmation(${JSON.stringify(o.id)})" class="inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition"><i data-lucide="check-circle-2" class="w-3.5 h-3.5"></i><span>Đã đặt</span></button>`;
+
                     html += `
                         <tr class="hover:bg-slate-50/80 transition">
                             <td class="py-3 px-4 font-medium text-slate-500 text-xs">${idx + 1}</td>
                             <td class="py-3 px-4 text-slate-700">
                                 <span class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100 text-xs font-semibold whitespace-nowrap">
                                     <i data-lucide="map-pin" class="w-3.5 h-3.5"></i>
-                                    ${o.area || 'Chưa xác định'}
+                                    ${escapeHTML(o.area || 'Chưa xác định')}
                                 </span>
                             </td>
-                            <td class="py-3 px-4 font-semibold text-slate-800">${o.item}</td>
-                            <td class="py-3 px-4 text-slate-600">${o.unit}</td>
+                            <td class="py-3 px-4 font-semibold text-slate-800">${escapeHTML(o.item)}</td>
+                            <td class="py-3 px-4 text-slate-600">${escapeHTML(o.unit)}</td>
                             <td class="py-3 px-4 font-bold text-indigo-600">${o.qty}</td>
                             <td class="py-3 px-4">
-                                <span class="px-2 py-0.5 rounded text-xs font-medium ${o.checkType === 'Hợp đồng' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${o.checkType || 'ĐNMH'}</span>
+                                <span class="px-2 py-0.5 rounded text-xs font-medium ${o.checkType === 'Hợp đồng' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${escapeHTML(o.checkType || 'ĐNMH')}</span>
                             </td>
-                            <td class="py-3 px-4 text-slate-700">${o.supplier || '<span class="text-rose-500 italic text-xs">Chưa chọn NCC</span>'}</td>
+                            <td class="py-3 px-4 text-slate-700">${o.supplier ? escapeHTML(o.supplier) : '<span class="text-rose-500 italic text-xs">Chưa chọn NCC</span>'}</td>
+                            <td class="py-3 px-4">${statusBadge}</td>
+                            <td class="py-3 px-4">${timeHtml}</td>
                             <td class="py-3 px-4">${getDeliveryStatusBadge(o.deliveryStatus || 'Chưa giao')}</td>
-                            <td class="py-3 px-4 text-indigo-600 font-medium">${o.contractNo || '-'}</td>
-                            <td class="py-3 px-4 text-slate-700 font-medium">${o.checkType === 'Hợp đồng' ? (o.contractItemNo || '-') : '-'}</td>
-                            <td class="py-3 px-4 text-right space-x-2 whitespace-nowrap">
-                                <button onclick="openCheckModal(${o.id})" class="px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition">Kiểm tra / Sửa</button>
-                                <button onclick="deleteCheckItem(${o.id})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg transition" title="Xóa mặt hàng này">
+                            <td class="py-3 px-4 text-indigo-600 font-medium">${escapeHTML(o.contractNo || '-')}</td>
+                            <td class="py-3 px-4 text-slate-700 font-medium">${o.checkType === 'Hợp đồng' ? escapeHTML(o.contractItemNo || '-') : '-'}</td>
+                            <td class="py-3 px-4 text-right space-y-1 whitespace-nowrap">
+                                ${actionHtml}
+                                <button type="button" onclick="openCheckModal(${JSON.stringify(o.id)})" class="block ml-auto px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition">Kiểm tra / Sửa</button>
+                                <button type="button" onclick="deleteCheckItem(${JSON.stringify(o.id)})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg transition" title="Xóa mặt hàng này">
                                     <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
                                     <span>Xóa</span>
                                 </button>
@@ -1786,6 +2143,8 @@
                 container.innerHTML = `<div class="bg-white p-8 rounded-xl border border-slate-200 text-center text-slate-400">Không tìm thấy dữ liệu kiểm tra phù hợp.</div>`;
             }
             lucide.createIcons();
+            ensureOrderPlacementTimer();
+            updateVisibleOrderTimers();
         }
 
         function deleteCheckItem(id) {
@@ -4154,7 +4513,8 @@
                                 <option value="Làm ĐNTT" ${o.stage === 'Làm ĐNTT' ? 'selected' : ''}>Làm ĐNTT</option>
                             </select>
                             ${o.stageTimes && o.stageTimes[o.stage] ? `<div class="mt-1 text-[10px] text-slate-500">Cập nhật: ${formatDateTimeVN(o.stageTimes[o.stage])}</div>` : ''}
-                            ${o.stage === 'Đặt hàng' ? `<div class="text-[10px] text-indigo-600 font-medium">Đặt hàng lúc: ${o.orderPlacedAt ? formatDateTimeVN(o.orderPlacedAt) : 'Chưa ghi nhận'}</div>` : ''}
+                            ${o.orderPlaced ? `<div class="text-[10px] text-indigo-600 font-medium">Đặt hàng lúc: ${o.orderedAt ? formatDateTimeVN(o.orderedAt) : 'Chưa ghi nhận'}</div>` : ''}
+                            ${o.stage === 'Đã giao hàng' && o.deliveredAt ? `<div class="text-[10px] text-emerald-600 font-medium">Giao hàng lúc: ${formatDateTimeVN(o.deliveredAt)}</div>` : ''}
                         </td>
                         <td class="py-3.5 px-4 text-xs text-slate-600">
                             <div>Số HĐ: <input type="text" value="${o.invoiceNo || ''}" onchange="updateInvoice(${o.id}, 'invoiceNo', this.value)" placeholder="Số hóa đơn..." class="w-28 px-1.5 py-0.5 border border-slate-200 rounded mt-0.5"></div>
@@ -4181,8 +4541,8 @@
             order.stageChangedAt = timestamp;
             order.stageTimes[val] = timestamp;
 
-            if (val === 'Đặt hàng') {
-                order.orderPlacedAt = timestamp;
+            if (val === 'Đã giao hàng' && oldStage !== 'Đã giao hàng') {
+                order.deliveredAt = timestamp;
             }
 
             pushTrackingHistory(order, 'stage_change', {
@@ -4773,7 +5133,10 @@
                         invoiceNo: '',
                         invoiceDate: '',
                         stageTimes: {},
+                        orderPlaced: false,
+                        orderedAt: '',
                         orderPlacedAt: '',
+                        deliveredAt: '',
                         stageChangedAt: '',
                         deliveryStatus: 'Chưa giao',
                         deliveryUpdatedAt: '',
