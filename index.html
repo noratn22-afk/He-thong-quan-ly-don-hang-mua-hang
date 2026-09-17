@@ -1010,6 +1010,51 @@
     </div>
 
     <!-- JavaScript Application Logic -->
+    <!-- MODAL: DELIVERY STATUS -->
+    <div id="modal-delivery-status" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[82] flex items-center justify-center hidden p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+            <div class="flex justify-between items-center border-b border-slate-100 pb-3">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base">Tình trạng giao hàng</h3>
+                    <p id="delivery-status-item" class="text-xs text-slate-500 mt-1"></p>
+                </div>
+                <button type="button" onclick="closeModal('modal-delivery-status')" class="text-slate-400 hover:text-slate-600">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <input type="hidden" id="delivery-status-id">
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Trạng thái giao hàng</label>
+                    <select id="delivery-status-value" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                        <option value="Chưa giao">Chưa giao</option>
+                        <option value="Giao đúng">Giao đúng</option>
+                        <option value="Giao sai hàng">Giao sai hàng</option>
+                        <option value="Thiếu hàng">Thiếu hàng</option>
+                        <option value="Hàng lỗi / hư hỏng">Hàng lỗi / hư hỏng</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Thời gian cập nhật</label>
+                    <input type="datetime-local" id="delivery-status-updated-at" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Nội dung / hướng xử lý</label>
+                    <textarea id="delivery-status-note" rows="3" placeholder="VD: NCC giao sai model; yêu cầu đổi hàng trước ngày..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none resize-none"></textarea>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button type="button" onclick="closeModal('modal-delivery-status')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50">Hủy</button>
+                <button type="button" onclick="saveDeliveryStatusDirect()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg">Cập nhật</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL: ORDER PLACEMENT ACTIONS -->
     <div id="modal-order-placement-actions" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[80] flex items-center justify-center hidden p-4 no-print">
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4">
@@ -2074,11 +2119,11 @@
                                         <th class="py-3 px-4">Số lượng</th>
                                         <th class="py-3 px-4">Hình thức</th>
                                         <th class="py-3 px-4">Nhà Cung Cấp (NCC)</th>
-                                        <th class="py-3 px-4">Tình trạng giao hàng</th>
                                         <th class="py-3 px-4">Số HĐ / ĐNMH</th>
                                         <th class="py-3 px-4">STT / Mã hàng HĐ</th>
+                                        <th class="py-3 px-4 text-center min-w-[190px]">Trạng thái đặt / Thời gian</th>
+                                        <th class="py-3 px-4 text-center min-w-[190px]">Tình trạng giao hàng</th>
                                         <th class="py-3 px-4 text-right">Thao tác</th>
-                                        <th class="py-3 px-4 text-center min-w-[180px]">Trạng thái đặt / Thời gian</th>
                                     </tr>
                                 </thead>
                                 <tbody class="divide-y divide-slate-200 text-sm">
@@ -2113,21 +2158,26 @@
                                 <span class="px-2 py-0.5 rounded text-xs font-medium ${o.checkType === 'Hợp đồng' ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'}">${escapeHTML(o.checkType || 'ĐNMH')}</span>
                             </td>
                             <td class="py-3 px-4 text-slate-700">${o.supplier ? escapeHTML(o.supplier) : '<span class="text-rose-500 italic text-xs">Chưa chọn NCC</span>'}</td>
-                            <td class="py-3 px-4">${getDeliveryStatusBadge(o.deliveryStatus || 'Chưa giao')}</td>
                             <td class="py-3 px-4 text-indigo-600 font-medium">${escapeHTML(o.contractNo || '-')}</td>
                             <td class="py-3 px-4 text-slate-700 font-medium">${o.checkType === 'Hợp đồng' ? escapeHTML(o.contractItemNo || '-') : '-'}</td>
-                            <td class="py-3 px-4 text-right space-y-1 whitespace-nowrap">
-                                <button type="button" onclick="openCheckModal(${JSON.stringify(o.id)})" class="block ml-auto px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition">Kiểm tra / Sửa</button>
-                                <button type="button" onclick="deleteCheckItem(${JSON.stringify(o.id)})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg transition" title="Xóa mặt hàng này">
-                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                                    <span>Xóa</span>
-                                </button>
-                            </td>
                             <td class="py-3 px-4 text-center align-middle">
-                                <button type="button" onclick="${placed ? `openOrderPlacementActions(${JSON.stringify(o.id)})` : `openOrderPlacementConfirmation(${JSON.stringify(o.id)})`}" class="w-full text-center rounded-lg border px-2.5 py-2 transition cursor-pointer hover:shadow-sm ${placed ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200' : 'bg-slate-50 hover:bg-emerald-50 border-slate-200 hover:border-emerald-200'}" title="${placed ? 'Bấm để cập nhật / bỏ trạng thái Đã đặt' : 'Bấm để xác nhận Đã đặt'}">
+                                <button type="button" onclick="${placed ? `openOrderPlacementActions(${JSON.stringify(o.id)})` : `openOrderPlacementConfirmation(${JSON.stringify(o.id)})`}" class="w-full min-w-[175px] text-center rounded-lg border px-2.5 py-2 transition cursor-pointer hover:shadow-sm ${placed ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200' : 'bg-slate-50 hover:bg-emerald-50 border-slate-200 hover:border-emerald-200'}" title="${placed ? 'Bấm để cập nhật / bỏ trạng thái Đã đặt' : 'Bấm để xác nhận Đã đặt'}">
                                     <div>${statusBadge}</div>
                                     <div class="mt-1">${timeHtml}</div>
                                     ${placed ? '<div class="text-[10px] text-slate-400 mt-1">Bấm để thao tác</div>' : '<div class="text-[10px] text-slate-400 mt-1">Bấm để xác nhận đã đặt</div>'}
+                                </button>
+                            </td>
+                            <td class="py-3 px-4 text-center align-middle">
+                                <button type="button" onclick="openDeliveryStatusModal(${JSON.stringify(o.id)})" class="w-full min-w-[175px] text-center rounded-lg border px-2.5 py-2 transition cursor-pointer hover:shadow-sm ${getDeliveryStatusCellClass(o.deliveryStatus || 'Chưa giao')}" title="Bấm để cập nhật tình trạng giao hàng">
+                                    <div>${getDeliveryStatusBadge(o.deliveryStatus || 'Chưa giao')}</div>
+                                    <div class="mt-1 text-[11px] text-slate-500">${o.deliveryUpdatedAt ? formatDateTimeVN(o.deliveryUpdatedAt) : 'Chưa cập nhật'}</div>
+                                    ${o.deliveryAction ? `<div class="text-[10px] text-slate-400 mt-1 truncate" title="${escapeHTMLAttribute(o.deliveryAction)}">${escapeHTML(o.deliveryAction)}</div>` : '<div class="text-[10px] text-slate-400 mt-1">Bấm để cập nhật</div>'}
+                                </button>
+                            </td>
+                            <td class="py-3 px-4 text-right whitespace-nowrap">
+                                <button type="button" onclick="deleteCheckItem(${JSON.stringify(o.id)})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg transition" title="Xóa mặt hàng này">
+                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                    <span>Xóa</span>
                                 </button>
                             </td>
                         </tr>
@@ -4567,6 +4617,72 @@
                 saveToStorage();
                 renderAll();
             }
+        }
+
+        function getDeliveryStatusCellClass(status) {
+            const classes = {
+                'Chưa giao': 'bg-slate-50 hover:bg-slate-100 border-slate-200',
+                'Giao đúng': 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200',
+                'Giao sai hàng': 'bg-rose-50 hover:bg-rose-100 border-rose-200',
+                'Thiếu hàng': 'bg-amber-50 hover:bg-amber-100 border-amber-200',
+                'Hàng lỗi / hư hỏng': 'bg-orange-50 hover:bg-orange-100 border-orange-200'
+            };
+            return classes[status] || classes['Chưa giao'];
+        }
+
+        function openDeliveryStatusModal(id) {
+            const order = orders.find(x => String(x.id) === String(id));
+            if (!order) return;
+            ensureOrderTrackingFields(order);
+            document.getElementById('delivery-status-id').value = order.id;
+            document.getElementById('delivery-status-item').innerText = order.item || '-';
+            document.getElementById('delivery-status-value').value = order.deliveryStatus || 'Chưa giao';
+            document.getElementById('delivery-status-updated-at').value = toDateTimeLocalValue(order.deliveryUpdatedAt || getNowISO());
+            document.getElementById('delivery-status-note').value = order.deliveryIssue || order.deliveryAction || '';
+            document.getElementById('modal-delivery-status').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function saveDeliveryStatusDirect() {
+            const id = document.getElementById('delivery-status-id').value;
+            const order = orders.find(x => String(x.id) === String(id));
+            if (!order) {
+                closeModal('modal-delivery-status');
+                return;
+            }
+
+            ensureOrderTrackingFields(order);
+            const oldStatus = order.deliveryStatus || 'Chưa giao';
+            const oldNote = order.deliveryIssue || order.deliveryAction || '';
+            const status = document.getElementById('delivery-status-value').value || 'Chưa giao';
+            const updatedInput = document.getElementById('delivery-status-updated-at').value;
+            const note = String(document.getElementById('delivery-status-note').value || '').trim();
+            const updatedAtDate = updatedInput ? new Date(updatedInput) : new Date();
+            const updatedAt = Number.isNaN(updatedAtDate.getTime()) ? getNowISO() : updatedAtDate.toISOString();
+
+            order.deliveryStatus = status;
+            order.deliveryUpdatedAt = updatedAt;
+            order.deliveryIssue = ['Giao sai hàng', 'Thiếu hàng', 'Hàng lỗi / hư hỏng'].includes(status) ? note : '';
+            order.deliveryAction = note;
+
+            if (oldStatus !== status || oldNote !== note) {
+                const issueType = ['Giao sai hàng', 'Thiếu hàng', 'Hàng lỗi / hư hỏng'].includes(status) ? 'delivery_issue' : 'delivery_update';
+                order.deliveryHistory.unshift({
+                    status,
+                    note,
+                    updatedAt,
+                    updatedBy: order.by || 'Ngọc'
+                });
+                pushTrackingHistory(order, issueType, {
+                    message: `Cập nhật giao hàng: ${status}`,
+                    status,
+                    note
+                }, order.by || 'Ngọc', updatedAt);
+            }
+
+            saveToStorage();
+            closeModal('modal-delivery-status');
+            renderAll();
         }
 
         function getDeliveryStatusBadge(status) {
