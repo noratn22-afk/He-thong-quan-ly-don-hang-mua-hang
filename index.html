@@ -845,7 +845,27 @@
             </div>
             <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
                 <button type="button" onclick="closeQuoteRejectModal()" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition">Hủy</button>
-                <button type="button" onclick="confirmQuoteReject(event)" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-lg shadow-sm transition">Từ chối báo giá</button>
+                <button type="button" onclick="confirmQuoteReject()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-lg shadow-sm transition">Từ chối báo giá</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CONFIRM QUOTE TRACKING ACTIONS -->
+    <div id="modal-quote-action-confirm" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[72] flex items-center justify-center hidden p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-5">
+            <div class="flex justify-between items-start border-b border-slate-100 pb-3">
+                <div>
+                    <h3 id="quote-action-confirm-title" class="font-bold text-slate-900 text-base">Xác nhận thao tác</h3>
+                    <p class="text-xs text-slate-500 mt-1">Vui lòng xác nhận trước khi thay đổi dữ liệu theo dõi báo giá.</p>
+                </div>
+                <button type="button" onclick="closeQuoteActionConfirm()" class="text-slate-400 hover:text-slate-600" title="Đóng">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="quote-action-confirm-message" class="rounded-xl bg-slate-50 border border-slate-200 p-4 text-sm text-slate-700 whitespace-pre-line"></div>
+            <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button type="button" onclick="closeQuoteActionConfirm()" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition">Hủy</button>
+                <button type="button" onclick="confirmPendingQuoteAction()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition">Xác nhận</button>
             </div>
         </div>
     </div>
@@ -1146,7 +1166,48 @@
         let quoteRequests = [];
         let currentQuoteRequestOrderId = null;
         let currentQuoteRejectContext = null;
+        let pendingQuoteAction = null;
         let quoteStatusFilter = 'all';
+
+        // Robust event delegation for Tab 3 quote actions.
+        // Using data attributes avoids fragile inline onclick strings when supplier names contain quotes
+        // and guarantees dynamically-rendered cards keep working after every render.
+        document.addEventListener('click', function (event) {
+            const button = event.target.closest('[data-quote-action]');
+            if (!button) return;
+
+            event.preventDefault();
+            event.stopPropagation();
+
+            const action = button.getAttribute('data-quote-action');
+            const orderId = button.getAttribute('data-order-id');
+            const supplier = button.getAttribute('data-supplier') || '';
+
+            try {
+                switch (action) {
+                    case 'remove-request':
+                        removeQuoteRequestForSupplier(orderId, supplier);
+                        break;
+                    case 'reject':
+                        openQuoteRejectModal(orderId, supplier);
+                        break;
+                    case 'restore':
+                        restoreQuoteRequest(orderId, supplier);
+                        break;
+                    case 'confirm-reject':
+                        confirmQuoteReject(event);
+                        break;
+                    case 'confirm-action':
+                        confirmPendingQuoteAction();
+                        break;
+                    default:
+                        break;
+                }
+            } catch (err) {
+                console.error('Quote action error:', err);
+                alert('Không thể thực hiện thao tác này. Vui lòng thử lại.');
+            }
+        });
 
         // App Initialization
         document.addEventListener('DOMContentLoaded', () => {
@@ -2956,7 +3017,7 @@
                         ? tracking.askedSuppliers.map(sup => `
                             <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded-full text-[11px] font-semibold">
                                 ${escapeHTML(sup)}
-                                <button type="button" onclick="removeQuoteRequestForSupplier(${JSON.stringify(o.id)}, ${JSON.stringify(sup)})" class="text-sky-500 hover:text-rose-600 font-bold" title="Xóa NCC khỏi danh sách đã hỏi">×</button>
+                                <button type="button" data-quote-action="remove-request" data-order-id="${escapeHTMLAttribute(o.id)}" data-supplier="${escapeHTMLAttribute(sup)}" class="text-sky-500 hover:text-rose-600 font-bold" title="Xóa NCC khỏi danh sách đã hỏi">×</button>
                             </span>
                         `).join('')
                         : '<span class="text-xs text-slate-400">Chưa hỏi giá NCC nào.</span>';
@@ -3003,11 +3064,11 @@
                                                     </td>
                                                     <td class="py-3 px-3 text-right whitespace-nowrap">
                                                         <div class="flex flex-wrap gap-1.5 justify-end">
-                                                            ${status.label === 'Chưa phản hồi' ? `<button type="button" onclick="openQuoteRejectModal(${JSON.stringify(o.id)}, ${JSON.stringify(sup)})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg transition" title="Từ chối báo giá"><span>Từ chối</span></button>` : ''}
-                                                            ${status.label === 'Đã báo giá' ? `<button type="button" onclick="openQuoteRejectModal(${JSON.stringify(o.id)}, ${JSON.stringify(sup)})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg transition" title="Đổi trạng thái sang Từ chối báo giá"><span>Từ chối</span></button>` : ''}
-                                                            ${status.label === 'Từ chối báo giá' ? `<button type="button" onclick="restoreQuoteRequest(${JSON.stringify(o.id)}, ${JSON.stringify(sup)})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition" title="Khôi phục về Chưa phản hồi"><span>Khôi phục</span></button>` : ''}
+                                                            ${status.label === 'Chưa phản hồi' ? `<button type="button" onclick="openQuoteRejectModal(this.dataset.orderId, this.dataset.supplier)" data-order-id="${escapeHTMLAttribute(o.id)}" data-supplier="${escapeHTMLAttribute(sup)}" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg transition" title="Từ chối báo giá"><span>Từ chối</span></button>` : ''}
+                                                            ${status.label === 'Đã báo giá' ? `<button type="button" onclick="openQuoteRejectModal(this.dataset.orderId, this.dataset.supplier)" data-order-id="${escapeHTMLAttribute(o.id)}" data-supplier="${escapeHTMLAttribute(sup)}" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg transition" title="Đổi trạng thái sang Từ chối báo giá"><span>Từ chối</span></button>` : ''}
+                                                            ${status.label === 'Từ chối báo giá' ? `<button type="button" onclick="restoreQuoteRequest(this.dataset.orderId, this.dataset.supplier)" data-order-id="${escapeHTMLAttribute(o.id)}" data-supplier="${escapeHTMLAttribute(sup)}" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition" title="Khôi phục về Chưa phản hồi"><span>Khôi phục</span></button>` : ''}
                                                             ${quote ? `<button type="button" onclick="deleteQuote('${escapeHTMLAttribute(quote.quoteId)}')" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg transition" title="Xóa báo giá này"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>Xóa báo giá</span></button>` : ''}
-                                                            ${!quote && status.requestExists ? `<button type="button" onclick="removeQuoteRequestForSupplier(${JSON.stringify(o.id)}, ${JSON.stringify(sup)})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg transition" title="Xóa NCC khỏi danh sách đã hỏi"><span>Xóa</span></button>` : ''}
+                                                            ${!quote && status.requestExists ? `<button type="button" onclick="removeQuoteRequestForSupplier(this.dataset.orderId, this.dataset.supplier)" data-order-id="${escapeHTMLAttribute(o.id)}" data-supplier="${escapeHTMLAttribute(sup)}" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg transition" title="Xóa NCC khỏi danh sách đã hỏi"><span>Xóa</span></button>` : ''}
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -3311,7 +3372,7 @@
         }
 
         function confirmQuoteReject(event) {
-            if (event) event.preventDefault();
+            if (event && typeof event.preventDefault === 'function') event.preventDefault();
             if (!currentQuoteRejectContext) return;
             const order = orders.find(o => String(o.id) === String(currentQuoteRejectContext.orderId));
             const target = String(currentQuoteRejectContext.supplierName || '').trim();
@@ -3327,11 +3388,8 @@
             const reason = String(document.getElementById('quote-reject-reason')?.value || '').trim();
             const rejectedDate = document.getElementById('quote-reject-date')?.value || new Date().toISOString().slice(0, 10);
             const rejectedBy = String(document.getElementById('quote-reject-by')?.value || order.by || 'Ngọc').trim();
-            const message = quote
-                ? `NCC "${target}" đã có báo giá thực tế cho mặt hàng "${order.item}".\n\nBạn có chắc muốn chuyển trạng thái sang "Từ chối báo giá"?\nBáo giá thực tế sẽ được giữ nguyên.`
-                : `Từ chối báo giá từ NCC "${target}" cho mặt hàng "${order.item}"?`;
-            if (!confirm(message)) return;
-
+            // The reject modal itself is the confirmation step. Do not use native window.confirm
+            // because embedded/preview environments can block or ignore it.
             request.status = 'Từ chối báo giá';
             request.rejectedDate = rejectedDate;
             request.rejectedBy = rejectedBy;
@@ -3358,7 +3416,20 @@
                 return;
             }
             if (!isQuoteRequestRejected(request)) return;
-            if (!confirm(`Khôi phục NCC "${target}" cho mặt hàng "${order.item}" về trạng thái "Chưa phản hồi"?`)) return;
+
+            openQuoteActionConfirm(
+                'Khôi phục NCC hỏi giá',
+                `Khôi phục NCC "${target}" cho mặt hàng "${order.item}" về trạng thái "Chưa phản hồi"?`,
+                { type: 'restore', orderId: order.id, supplierName: target }
+            );
+        }
+
+        function executeRestoreQuoteRequest(orderId, supplierName) {
+            const order = orders.find(o => String(o.id) === String(orderId));
+            const target = String(supplierName || '').trim();
+            if (!order || !target) return;
+            const request = getQuoteRequestForSupplier(order, target);
+            if (!request || !isQuoteRequestRejected(request)) return;
 
             request.status = findQuoteForOrderSupplier(order, target) ? 'Đã báo giá' : 'Đã hỏi';
             request.rejectedDate = '';
@@ -3374,11 +3445,26 @@
             const order = orders.find(o => String(o.id) === String(orderId));
             if (!order) return;
             const target = String(supplierName || '').trim();
+            if (!target) return;
             const hasQuote = !!findQuoteForOrderSupplier(order, target);
-            if (hasQuote && !confirm(`NCC "${target}" đã có báo giá. Bạn có chắc muốn xóa NCC này khỏi danh sách đã hỏi giá? Báo giá sẽ được giữ nguyên.`)) {
-                return;
-            }
-            if (!hasQuote && !confirm(`Xóa NCC "${target}" khỏi danh sách đã hỏi giá?`)) return;
+
+            const message = hasQuote
+                ? `NCC "${target}" đã có báo giá thực tế cho mặt hàng "${order.item}".\n\nBạn có chắc muốn xóa NCC này khỏi danh sách đã hỏi giá?\nBáo giá thực tế sẽ được giữ nguyên.`
+                : `Xóa NCC "${target}" khỏi danh sách đã hỏi giá của mặt hàng "${order.item}"?`;
+
+            openQuoteActionConfirm(
+                'Xóa NCC khỏi danh sách đã hỏi giá',
+                message,
+                { type: 'remove-request', orderId: order.id, supplierName: target }
+            );
+        }
+
+        function executeRemoveQuoteRequest(orderId, supplierName) {
+            const order = orders.find(o => String(o.id) === String(orderId));
+            if (!order) return;
+            const target = String(supplierName || '').trim();
+            if (!target) return;
+            const hasQuote = !!findQuoteForOrderSupplier(order, target);
 
             quoteRequests = quoteRequests.filter(r => !(
                 String(r?.itemId ?? r?.orderId ?? '') === String(order.id) &&
@@ -3391,6 +3477,45 @@
             }, order.by || 'Ngọc');
             saveToStorage();
             renderQuotes();
+        }
+
+        function openQuoteActionConfirm(title, message, action) {
+            pendingQuoteAction = action || null;
+            const titleEl = document.getElementById('quote-action-confirm-title');
+            const messageEl = document.getElementById('quote-action-confirm-message');
+            const modal = document.getElementById('modal-quote-action-confirm');
+            if (!modal) {
+                const ok = window.confirm(message || 'Bạn có chắc muốn thực hiện thao tác này?');
+                if (ok) confirmPendingQuoteAction();
+                return;
+            }
+            if (titleEl) titleEl.textContent = title || 'Xác nhận thao tác';
+            if (messageEl) messageEl.textContent = message || 'Bạn có chắc muốn thực hiện thao tác này?';
+            modal.classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeQuoteActionConfirm() {
+            pendingQuoteAction = null;
+            closeModal('modal-quote-action-confirm');
+        }
+
+        function confirmPendingQuoteAction() {
+            const action = pendingQuoteAction;
+            if (!action) return;
+            pendingQuoteAction = null;
+            closeModal('modal-quote-action-confirm');
+
+            try {
+                if (action.type === 'remove-request') {
+                    executeRemoveQuoteRequest(action.orderId, action.supplierName);
+                } else if (action.type === 'restore') {
+                    executeRestoreQuoteRequest(action.orderId, action.supplierName);
+                }
+            } catch (err) {
+                console.error('Quote action confirm error:', err);
+                alert('Không thể hoàn tất thao tác. Vui lòng thử lại.');
+            }
         }
 
         function viewQuoteFile(quoteId) {
