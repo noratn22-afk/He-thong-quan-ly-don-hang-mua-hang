@@ -191,6 +191,9 @@
                     <button onclick="openUploadQuoteModal()" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm transition">
                         <i data-lucide="upload" class="w-4 h-4 mr-2"></i> Tải lên Báo Giá
                     </button>
+                    <button onclick="openExportSSGModal()" class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg shadow-sm transition whitespace-nowrap">
+                        <i data-lucide="file-spreadsheet" class="w-4 h-4 mr-2"></i> Xuất Excel SSG
+                    </button>
                     <div class="relative flex-1 sm:w-64">
                         <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
                         <input type="text" id="search-quotes" oninput="renderQuotes()" placeholder="Tìm kiếm mặt hàng, NCC, From..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -727,6 +730,72 @@
         </div>
     </div>
 
+
+    <!-- MODAL 5: EXPORT SSG (TAB 3) -->
+    <div id="modal-export-ssg" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center hidden p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-xl space-y-5 max-h-[92vh] overflow-y-auto">
+            <div class="flex justify-between items-start border-b border-slate-100 pb-3">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base">Xuất Excel SSG – So Sánh Giá</h3>
+                    <p class="text-xs text-slate-500 mt-1">Chọn From và ngày Order. Dữ liệu được lấy đúng theo nhóm Order của hệ thống.</p>
+                </div>
+                <button type="button" onclick="closeModal('modal-export-ssg')" class="text-slate-400 hover:text-slate-600" title="Đóng">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Chọn From <span class="text-rose-500">*</span></label>
+                    <select id="export-ssg-from" onchange="updateSSGDateOptions(); updateSSGPreview();" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"></select>
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Chọn ngày Order <span class="text-rose-500">*</span></label>
+                    <select id="export-ssg-date" onchange="updateSSGPreview();" disabled class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none disabled:bg-slate-100 disabled:text-slate-400"></select>
+                    <p class="text-[11px] text-slate-500 mt-1">Chọn From trước để mở danh sách ngày.</p>
+                </div>
+            </div>
+
+            <div id="export-ssg-summary" class="grid grid-cols-2 sm:grid-cols-5 gap-3"></div>
+
+            <div id="export-ssg-preview" class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
+                Chưa chọn điều kiện xuất.
+            </div>
+
+            <div id="export-ssg-item-selection" class="hidden border border-slate-200 rounded-xl overflow-hidden">
+                <div class="bg-slate-50 border-b border-slate-200 px-4 py-3 space-y-3">
+                    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                        <div>
+                            <h4 class="text-sm font-bold text-slate-800">Chọn mặt hàng xuất SSG</h4>
+                            <p class="text-[11px] text-slate-500 mt-0.5">Mặc định chỉ chọn các mặt hàng đã báo giá. Bạn có thể chủ động chọn cả mặt hàng chưa báo giá.</p>
+                        </div>
+                        <div class="text-xs font-semibold text-indigo-700 bg-white border border-indigo-100 rounded-lg px-3 py-1.5">
+                            Đang chọn: <span id="export-ssg-selected-count">0</span> mặt hàng
+                        </div>
+                    </div>
+                    <div class="flex flex-wrap gap-2">
+                        <button type="button" data-ssg-filter="all" onclick="setSSGItemFilter('all')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-indigo-600 text-white border-indigo-600">Tất cả</button>
+                        <button type="button" data-ssg-filter="quoted" onclick="setSSGItemFilter('quoted')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white text-slate-700 border-slate-300 hover:bg-slate-100">Đã báo giá</button>
+                        <button type="button" data-ssg-filter="unquoted" onclick="setSSGItemFilter('unquoted')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white text-slate-700 border-slate-300 hover:bg-slate-100">Chưa báo giá</button>
+                        <span class="w-px h-7 bg-slate-200 mx-1"></span>
+                        <button type="button" onclick="selectAllSSGItems()" class="px-3 py-1.5 rounded-lg text-xs font-semibold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100">Chọn tất cả</button>
+                        <button type="button" onclick="selectQuotedSSGItems()" class="px-3 py-1.5 rounded-lg text-xs font-semibold border border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50">Chọn tất cả đã báo giá</button>
+                        <button type="button" onclick="selectUnquotedSSGItems()" class="px-3 py-1.5 rounded-lg text-xs font-semibold border border-amber-200 bg-white text-amber-700 hover:bg-amber-50">Chọn tất cả chưa báo giá</button>
+                        <button type="button" onclick="deselectAllSSGItems()" class="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white text-slate-700 hover:bg-slate-100">Bỏ chọn tất cả</button>
+                    </div>
+                </div>
+                <div id="export-ssg-item-list" class="max-h-[360px] overflow-y-auto divide-y divide-slate-100"></div>
+            </div>
+
+            <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button type="button" onclick="closeModal('modal-export-ssg')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition">Hủy</button>
+                <button type="button" onclick="exportSSGExcel()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg shadow-sm transition flex items-center gap-2">
+                    <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
+                    <span>Xuất Excel SSG</span>
+                </button>
+            </div>
+        </div>
+    </div>
 
     <!-- MODAL 5: EXCEL IMPORT PREVIEW (TAB 1 ONLY) -->
     <div id="modal-excel-import-preview" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center hidden p-4 no-print">
@@ -2467,7 +2536,528 @@
             }
         }
 
-        // --- TAB 4: STATUS & STAGE PROGRESS ---
+        // --- TAB 3: EXPORT SSG -------------------------------------------------
+        function normalizeSSGDateKey(value) {
+            if (value === null || value === undefined || value === '') return '';
+            const raw = String(value).trim();
+            if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+                const [d, m, y] = raw.split('/');
+                return `${y}-${m}-${d}`;
+            }
+            if (typeof value === 'number' && Number.isFinite(value)) {
+                const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+                const d = new Date(excelEpoch.getTime() + value * 86400000);
+                return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+            }
+            const d = value instanceof Date ? value : new Date(value);
+            if (Number.isNaN(d.getTime())) return raw;
+            return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+        }
+
+        function getSSGMatchingQuotes(order) {
+            return quotes.filter(q =>
+                String(q?.orderId ?? '') === String(order?.id ?? '') ||
+                String(q?.itemId ?? '') === String(order?.id ?? '')
+            );
+        }
+
+        function getSSGFilteredOrders() {
+            const from = document.getElementById('export-ssg-from')?.value || '';
+            const date = document.getElementById('export-ssg-date')?.value || '';
+            if (!from || !date) return [];
+
+            return getSortedOrders('desc').filter(o => {
+                const orderFrom = String(o.restaurant || 'Chưa xác định');
+                const orderDate = normalizeSSGDateKey(o.date);
+                const fromMatch = from === '__ALL_FROM__' || orderFrom === from;
+                const dateMatch = date === '__ALL_DATE__' || orderDate === date;
+                return fromMatch && dateMatch;
+            });
+        }
+
+        function getSSGDateValuesForFrom(fromValue) {
+            const filtered = orders.filter(o => {
+                const orderFrom = String(o.restaurant || 'Chưa xác định');
+                return fromValue === '__ALL_FROM__' ? true : orderFrom === fromValue;
+            });
+            return [...new Set(filtered.map(o => normalizeSSGDateKey(o.date)).filter(Boolean))]
+                .sort((a, b) => b.localeCompare(a));
+        }
+
+        function resetSSGItemSelectionState() {
+            window.ssgItemFilter = 'all';
+            window.ssgSelectedItemIds = new Set();
+        }
+
+        function getSSGItemQuoteInfo(order) {
+            // Quote status is determined ONLY by quotes actually linked to this item.
+            const itemQuotes = quotes.filter(q => String(q?.itemId ?? '') === String(order?.id ?? ''));
+            const validQuotes = itemQuotes.filter(q => {
+                const supplier = String(q?.supplierName || '').trim();
+                if (!supplier) return false;
+                const rawPrice = q?.quotedPrice;
+                const price = rawPrice === null || rawPrice === undefined || rawPrice === '' ? NaN : Number(String(rawPrice).replace(/,/g, '').trim());
+                return Number.isFinite(price);
+            });
+            const suppliers = [...new Set(validQuotes.map(q => String(q.supplierName || '').trim()).filter(Boolean))];
+            return {
+                quotes: validQuotes,
+                supplierCount: suppliers.length,
+                hasQuote: validQuotes.length > 0
+            };
+        }
+
+        function getSSGItemSelectionOrders() {
+            return getSSGFilteredOrders();
+        }
+
+        function updateSSGSelectedCount() {
+            const el = document.getElementById('export-ssg-selected-count');
+            if (el) el.textContent = String(window.ssgSelectedItemIds instanceof Set ? window.ssgSelectedItemIds.size : 0);
+        }
+
+        function setSSGItemFilter(filter) {
+            window.ssgItemFilter = ['all', 'quoted', 'unquoted'].includes(filter) ? filter : 'all';
+            renderSSGItemSelection();
+        }
+
+        function updateSSGFilterButtons() {
+            document.querySelectorAll('[data-ssg-filter]').forEach(btn => {
+                const active = btn.getAttribute('data-ssg-filter') === (window.ssgItemFilter || 'all');
+                btn.classList.toggle('bg-indigo-600', active);
+                btn.classList.toggle('text-white', active);
+                btn.classList.toggle('border-indigo-600', active);
+                btn.classList.toggle('bg-white', !active);
+                btn.classList.toggle('text-slate-700', !active);
+                btn.classList.toggle('border-slate-300', !active);
+            });
+        }
+
+        function toggleSSGItem(orderId, checked) {
+            if (!(window.ssgSelectedItemIds instanceof Set)) window.ssgSelectedItemIds = new Set();
+            const key = String(orderId);
+            if (checked) window.ssgSelectedItemIds.add(key);
+            else window.ssgSelectedItemIds.delete(key);
+            updateSSGSelectedCount();
+            renderSSGItemSelection(false);
+            updateSSGPreviewSummaryOnly();
+        }
+
+        function renderSSGItemSelection(resetSelection = false) {
+            const listEl = document.getElementById('export-ssg-item-list');
+            const wrapEl = document.getElementById('export-ssg-item-selection');
+            if (!listEl || !wrapEl) return;
+
+            if (!(window.ssgSelectedItemIds instanceof Set) || resetSelection) {
+                window.ssgSelectedItemIds = new Set();
+            }
+
+            const allOrders = getSSGItemSelectionOrders();
+            if (!allOrders.length) {
+                wrapEl.classList.add('hidden');
+                listEl.innerHTML = '';
+                updateSSGSelectedCount();
+                return;
+            }
+
+            // Keep the current selections even when switching filters.
+            const visibleOrders = allOrders.filter(order => {
+                const info = getSSGItemQuoteInfo(order);
+                if (window.ssgItemFilter === 'quoted') return info.hasQuote;
+                if (window.ssgItemFilter === 'unquoted') return !info.hasQuote;
+                return true;
+            });
+
+            wrapEl.classList.remove('hidden');
+            listEl.innerHTML = visibleOrders.map(order => {
+                const info = getSSGItemQuoteInfo(order);
+                const checked = window.ssgSelectedItemIds.has(String(order.id));
+                const status = info.hasQuote
+                    ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">🟢 Đã báo giá</span>'
+                    : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-semibold">🔴 Chưa báo giá</span>';
+                const warning = !info.hasQuote && checked
+                    ? '<div class="mt-2 text-[11px] font-semibold text-amber-700">⚠ Mặt hàng này chưa có báo giá từ NCC.</div>'
+                    : '';
+                const itemCode = order.orderNo || order.requestNo || order.requisitionNo || order.code || order.dnmh || order.itemCode || '';
+                return `
+                    <label class="flex items-start gap-3 px-4 py-3 hover:bg-slate-50 cursor-pointer ${checked ? 'bg-indigo-50/50' : ''}">
+                        <input type="checkbox" data-ssg-item-id="${escapeHTMLAttribute(order.id)}" ${checked ? 'checked' : ''} onchange="toggleSSGItem('${escapeHTMLAttribute(order.id)}', this.checked)" class="mt-1 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                        <div class="min-w-0 flex-1">
+                            <div class="flex items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <div class="font-semibold text-sm text-slate-800 break-words">${escapeHTML(order.item || '')}</div>
+                                    <div class="text-[11px] text-slate-500 mt-1 flex flex-wrap gap-x-3 gap-y-1">
+                                        <span>From: ${escapeHTML(order.restaurant || 'Chưa xác định')}</span>
+                                        ${itemCode ? `<span>Mã ĐNMH: ${escapeHTML(itemCode)}</span>` : ''}
+                                    </div>
+                                </div>
+                                <div class="shrink-0 text-[11px] font-semibold text-slate-500">${info.supplierCount} NCC báo giá</div>
+                            </div>
+                            <div class="mt-2 flex flex-wrap items-center gap-2">
+                                ${status}
+                            </div>
+                            ${warning}
+                        </div>
+                    </label>
+                `;
+            }).join('') || '<div class="p-5 text-sm text-slate-500 text-center">Không có mặt hàng phù hợp với bộ lọc.</div>';
+
+            updateSSGSelectedCount();
+            updateSSGFilterButtons();
+            lucide.createIcons();
+        }
+
+        function selectAllSSGItems() {
+            window.ssgSelectedItemIds = new Set(getSSGItemSelectionOrders().map(o => String(o.id)));
+            renderSSGItemSelection(false);
+            updateSSGPreviewSummaryOnly();
+        }
+
+        function selectQuotedSSGItems() {
+            window.ssgSelectedItemIds = new Set(getSSGItemSelectionOrders().filter(o => getSSGItemQuoteInfo(o).hasQuote).map(o => String(o.id)));
+            renderSSGItemSelection(false);
+            updateSSGPreviewSummaryOnly();
+        }
+
+        function selectUnquotedSSGItems() {
+            window.ssgSelectedItemIds = new Set(getSSGItemSelectionOrders().filter(o => !getSSGItemQuoteInfo(o).hasQuote).map(o => String(o.id)));
+            renderSSGItemSelection(false);
+            updateSSGPreviewSummaryOnly();
+        }
+
+        function deselectAllSSGItems() {
+            window.ssgSelectedItemIds = new Set();
+            renderSSGItemSelection(false);
+            updateSSGPreviewSummaryOnly();
+        }
+
+        function getSelectedSSGOrders() {
+            const selected = window.ssgSelectedItemIds instanceof Set ? window.ssgSelectedItemIds : new Set();
+            // Filter after getSortedOrders so the original Tab 1 order remains intact.
+            return getSSGFilteredOrders().filter(o => selected.has(String(o.id)));
+        }
+
+        function updateSSGPreviewSummaryOnly() {
+            const selectedOrders = getSelectedSSGOrders();
+            const from = document.getElementById('export-ssg-from')?.value || '';
+            const date = document.getElementById('export-ssg-date')?.value || '';
+            const matchedOrders = getSSGFilteredOrders();
+            const selectedQuoted = selectedOrders.filter(o => getSSGItemQuoteInfo(o).hasQuote).length;
+            const selectedUnquoted = selectedOrders.length - selectedQuoted;
+            const summaryEl = document.getElementById('export-ssg-summary');
+            if (!summaryEl) return;
+            const dates = [...new Set(matchedOrders.map(o => normalizeSSGDateKey(o.date)).filter(Boolean))];
+            const supplierSet = new Set();
+            matchedOrders.forEach(o => getSSGItemQuoteInfo(o).quotes.forEach(q => supplierSet.add(String(q.supplierName || '').trim())));
+            const noQuoteCount = matchedOrders.filter(o => !getSSGItemQuoteInfo(o).hasQuote).length;
+            const cards = [
+                ['Số From', new Set(matchedOrders.map(o => String(o.restaurant || 'Chưa xác định'))).size, 'text-indigo-700'],
+                ['Số ngày', dates.length, 'text-indigo-700'],
+                ['Số mặt hàng', matchedOrders.length, 'text-slate-800'],
+                ['NCC báo giá', supplierSet.size, 'text-emerald-700'],
+                ['Đang chọn xuất', selectedOrders.length, 'text-indigo-700']
+            ];
+            summaryEl.innerHTML = cards.map(([label, value, cls]) => `
+                <div class="rounded-xl border border-slate-200 bg-white p-3 shadow-sm">
+                    <div class="text-[11px] text-slate-500">${escapeHTML(label)}</div>
+                    <div class="text-xl font-bold mt-1 ${cls}">${value}</div>
+                </div>
+            `).join('');
+
+            const previewEl = document.getElementById('export-ssg-preview');
+            if (!previewEl || !from || !date || !matchedOrders.length) return;
+            const fromLabel = from === '__ALL_FROM__' ? 'Tất cả From' : from;
+            const dateLabel = date === '__ALL_DATE__' ? 'Tất cả ngày' : formatDateVN(date);
+            previewEl.innerHTML = `
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs mb-3">
+                    <div><span class="font-semibold">From:</span> ${escapeHTML(fromLabel)}</div>
+                    <div><span class="font-semibold">Ngày Order:</span> ${escapeHTML(dateLabel)}</div>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs mb-3">
+                    <div class="rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2"><span class="font-semibold text-emerald-700">Đã báo giá:</span> ${selectedQuoted} / ${matchedOrders.filter(o => getSSGItemQuoteInfo(o).hasQuote).length}</div>
+                    <div class="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2"><span class="font-semibold text-amber-700">Chưa báo giá:</span> ${selectedUnquoted} / ${noQuoteCount}</div>
+                    <div class="rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-2"><span class="font-semibold text-indigo-700">Đang chọn xuất:</span> ${selectedOrders.length}</div>
+                </div>
+                ${selectedUnquoted > 0 ? '<div class="mt-2 text-xs font-semibold text-amber-700">⚠ Có mặt hàng chưa báo giá đang được chọn. Khi xuất, cột SCM chọn của các mặt hàng này sẽ để trống.</div>' : ''}
+            `;
+        }
+
+        function openExportSSGModal() {
+            if (typeof XLSX === 'undefined') {
+                alert('Thư viện Excel chưa được tải. Vui lòng kiểm tra kết nối Internet và tải lại trang.');
+                return;
+            }
+
+            const fromSelect = document.getElementById('export-ssg-from');
+            const dateSelect = document.getElementById('export-ssg-date');
+            const fromValues = [...new Set(orders.map(o => String(o.restaurant || 'Chưa xác định')).filter(Boolean))]
+                .sort((a, b) => a.localeCompare(b, 'vi'));
+
+            fromSelect.innerHTML = [
+                '<option value="">-- Chọn From --</option>',
+                '<option value="__ALL_FROM__">-- Tất cả From --</option>',
+                ...fromValues.map(v => `<option value="${escapeHTMLAttribute(v)}">${escapeHTML(v)}</option>`)
+            ].join('');
+
+            dateSelect.innerHTML = '<option value="">-- Chọn From trước --</option>';
+            dateSelect.disabled = true;
+            resetSSGItemSelectionState();
+            document.getElementById('export-ssg-summary').innerHTML = '';
+            document.getElementById('export-ssg-preview').innerHTML = 'Chưa chọn điều kiện xuất.';
+            document.getElementById('export-ssg-item-selection').classList.add('hidden');
+            document.getElementById('export-ssg-item-list').innerHTML = '';
+            document.getElementById('export-ssg-selected-count').textContent = '0';
+            document.getElementById('modal-export-ssg').classList.remove('hidden');
+            updateSSGFilterButtons();
+            lucide.createIcons();
+        }
+
+        function updateSSGDateOptions() {
+            const from = document.getElementById('export-ssg-from')?.value || '';
+            const dateSelect = document.getElementById('export-ssg-date');
+            if (!from) {
+                dateSelect.innerHTML = '<option value="">-- Chọn From trước --</option>';
+                dateSelect.value = '';
+                dateSelect.disabled = true;
+                window.ssgSelectedItemIds = new Set();
+                document.getElementById('export-ssg-item-selection')?.classList.add('hidden');
+                updateSSGPreview();
+                return;
+            }
+
+            const dates = getSSGDateValuesForFrom(from);
+            dateSelect.innerHTML = [
+                '<option value="__ALL_DATE__">-- Tất cả ngày --</option>',
+                ...dates.map(d => `<option value="${d}">${formatDateVN(d)}</option>`)
+            ].join('');
+            dateSelect.disabled = false;
+            dateSelect.value = dates.length ? '__ALL_DATE__' : '';
+            window.ssgSelectedItemIds = new Set();
+            updateSSGPreview();
+        }
+
+        function updateSSGPreview() {
+            const previewEl = document.getElementById('export-ssg-preview');
+            const summaryEl = document.getElementById('export-ssg-summary');
+            if (!previewEl || !summaryEl) return;
+
+            const from = document.getElementById('export-ssg-from')?.value || '';
+            const date = document.getElementById('export-ssg-date')?.value || '';
+            if (!from || !date) {
+                summaryEl.innerHTML = '';
+                previewEl.innerHTML = 'Chưa chọn đủ From và ngày Order.';
+                document.getElementById('export-ssg-item-selection')?.classList.add('hidden');
+                return;
+            }
+
+            const matchedOrders = getSSGFilteredOrders();
+            if (!matchedOrders.length) {
+                summaryEl.innerHTML = '';
+                previewEl.innerHTML = '<div class="font-semibold text-rose-700">Không có dữ liệu Order phù hợp với From và ngày đã chọn.</div>';
+                document.getElementById('export-ssg-item-selection')?.classList.add('hidden');
+                window.ssgSelectedItemIds = new Set();
+                return;
+            }
+
+            // Default selection: ONLY quoted items.
+            window.ssgSelectedItemIds = new Set(matchedOrders.filter(o => getSSGItemQuoteInfo(o).hasQuote).map(o => String(o.id)));
+            window.ssgItemFilter = 'all';
+            renderSSGItemSelection(false);
+            updateSSGPreviewSummaryOnly();
+        }
+
+        function sanitizeSSGFilePart(value) {
+            return String(value || '')
+                .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+                .replace(/[\\/:*?"<>|]/g, '_')
+                .replace(/\s+/g, '_')
+                .replace(/_+/g, '_')
+                .replace(/^_+|_+$/g, '') || 'DATA';
+        }
+
+        function formatSSGPrice(value) {
+            if (value === null || value === undefined || value === '') return 'Chưa báo giá';
+            const num = Number(String(value).replace(/,/g, '').trim());
+            return Number.isFinite(num) ? num : 'Chưa báo giá';
+        }
+
+        function getSSGHodValue(order) {
+            const candidates = [order?.hod, order?.HOD, order?.hodSupplier, order?.hodChoice, order?.selectedByHOD];
+            const value = candidates.find(v => String(v ?? '').trim() !== '');
+            return value == null ? '' : String(value).trim();
+        }
+
+        function getSSGScmValue(order) {
+            const selectedSupplier = String(order?.supplier || '').trim();
+            if (!selectedSupplier) return '';
+
+            // Never use order.supplier as SCM selection unless this exact supplier
+            // has a real quote for this specific item.
+            const itemInfo = getSSGItemQuoteInfo(order);
+            const exists = itemInfo.quotes.some(q =>
+                String(q?.supplierName || '').trim().toLowerCase() === selectedSupplier.toLowerCase()
+            );
+            return exists ? selectedSupplier : '';
+        }
+
+        function applySSGSheetLayout(ws, supplierCount, rowCount) {
+            const widths = [8, 35, 15, 15];
+            for (let i = 0; i < supplierCount; i++) widths.push(18);
+            widths.push(18, 18);
+            ws['!cols'] = widths.map(w => ({ wch: w }));
+            ws['!rows'] = Array.from({ length: rowCount }, () => ({ hpt: 24 }));
+            ws['!freeze'] = { xSplit: 4, ySplit: 1 };
+        }
+
+        function applySSGCellStyles(ws, rowCount, colCount, supplierStartCol, supplierCount) {
+            const range = { s: { r: 0, c: 0 }, e: { r: rowCount - 1, c: colCount - 1 } };
+            if (!ws['!ref']) ws['!ref'] = XLSX.utils.encode_range(range);
+
+            // XLSX 0.18.5 does not guarantee writing full style objects in every mode.
+            // Still populate style metadata for compatibility with viewers that honor it.
+            for (let r = 0; r < rowCount; r++) {
+                for (let c = 0; c < colCount; c++) {
+                    const addr = XLSX.utils.encode_cell({ r, c });
+                    const cell = ws[addr];
+                    if (!cell) continue;
+                    cell.s = cell.s || {};
+                    cell.s.alignment = {
+                        vertical: 'center',
+                        wrapText: true,
+                        horizontal: r === 0 ? 'center' : (c === 1 ? 'left' : ([0,2,3].includes(c) ? 'center' : 'right'))
+                    };
+                    if (r === 0) {
+                        cell.s.font = { bold: true };
+                        cell.s.fill = { fgColor: { rgb: 'E5E7EB' } };
+                    }
+                    cell.s.border = {
+                        top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+                        bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+                        left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+                        right: { style: 'thin', color: { rgb: 'CBD5E1' } }
+                    };
+
+                    if (r > 0 && c >= supplierStartCol && c < supplierStartCol + supplierCount && typeof cell.v === 'number') {
+                        cell.z = '#,##0';
+                    }
+                }
+            }
+        }
+
+        function exportSSGExcel() {
+            if (typeof XLSX === 'undefined') {
+                alert('Thư viện Excel chưa được tải. Vui lòng kiểm tra kết nối Internet và tải lại trang.');
+                return;
+            }
+
+            const from = document.getElementById('export-ssg-from')?.value || '';
+            const date = document.getElementById('export-ssg-date')?.value || '';
+            if (!from) {
+                alert('Vui lòng chọn From.');
+                return;
+            }
+            if (!date) {
+                alert('Vui lòng chọn ngày Order.');
+                return;
+            }
+
+            const matchedOrders = getSSGFilteredOrders();
+            if (!matchedOrders.length) {
+                alert('Không có dữ liệu Order phù hợp với From và ngày đã chọn.');
+                return;
+            }
+
+            const selectedOrders = getSelectedSSGOrders();
+            if (!selectedOrders.length) {
+                alert('Vui lòng chọn ít nhất 1 mặt hàng để xuất SSG.');
+                return;
+            }
+
+            // Dynamic supplier columns are based ONLY on real quotes of the selected items.
+            const matchingQuotes = selectedOrders.flatMap(o => getSSGItemQuoteInfo(o).quotes);
+            const supplierNames = [...new Set(
+                matchingQuotes
+                    .map(q => String(q?.supplierName || '').trim())
+                    .filter(Boolean)
+            )];
+
+            const header = [
+                'STTNo.',
+                'Tên hàngITEM',
+                'Đơn vị tínhUNIT',
+                'Số lượngQuantity',
+                ...supplierNames,
+                'HOD',
+                'SCM chọn'
+            ];
+
+            const rows = [header];
+            const supplierStartCol = 4;
+
+            selectedOrders.forEach((order, index) => {
+                const itemInfo = getSSGItemQuoteInfo(order);
+                const priceMap = {};
+                itemInfo.quotes.forEach(q => {
+                    const supplier = String(q?.supplierName || '').trim();
+                    if (!supplier) return;
+                    const price = formatSSGPrice(q?.quotedPrice);
+                    if (!(supplier in priceMap) || priceMap[supplier] === 'Chưa báo giá') {
+                        priceMap[supplier] = price;
+                    }
+                });
+
+                // Critical rule:
+                // If there are no real quotes for this item, SCM chọn MUST be blank.
+                // Otherwise, it may only contain order.supplier when that exact supplier
+                // has a real quote for this exact item.
+                const scmValue = itemInfo.hasQuote ? getSSGScmValue(order) : '';
+
+                rows.push([
+                    index + 1,
+                    order?.item || '',
+                    order?.unit || '',
+                    Number.isFinite(Number(order?.qty)) ? Number(order.qty) : '',
+                    ...supplierNames.map(supplier => supplier in priceMap ? priceMap[supplier] : 'Chưa báo giá'),
+                    getSSGHodValue(order),
+                    scmValue
+                ]);
+            });
+
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            const totalCols = header.length;
+            const totalRows = rows.length;
+            ws['!autofilter'] = { ref: `A1:${XLSX.utils.encode_col(totalCols - 1)}${totalRows}` };
+            applySSGSheetLayout(ws, supplierNames.length, totalRows);
+            applySSGCellStyles(ws, totalRows, totalCols, supplierStartCol, supplierNames.length);
+
+            const qtyColumn = 3;
+            for (let r = 1; r < totalRows; r++) {
+                const qtyCell = ws[XLSX.utils.encode_cell({ r, c: qtyColumn })];
+                if (qtyCell && typeof qtyCell.v === 'number') qtyCell.z = '#,##0.##';
+            }
+
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'SSG');
+
+            const fromLabel = from === '__ALL_FROM__' ? 'ALL' : sanitizeSSGFilePart(from);
+            const dateLabel = date === '__ALL_DATE__' ? 'ALL_DATE' : String(formatDateVN(date)).replace(/\//g, '');
+            let fileName;
+            if (from === '__ALL_FROM__' && date === '__ALL_DATE__') {
+                fileName = 'SSG_ALL_FROM_ALL_DATE.xlsx';
+            } else if (from === '__ALL_FROM__') {
+                fileName = `SSG_ALL_${dateLabel}.xlsx`;
+            } else if (date === '__ALL_DATE__') {
+                fileName = `SSG_${fromLabel}_ALL_DATE.xlsx`;
+            } else {
+                fileName = `SSG_${fromLabel}_${dateLabel}.xlsx`;
+            }
+
+            XLSX.writeFile(wb, fileName);
+            closeModal('modal-export-ssg');
+        }
+
         function renderStatusTable() {
             const search = document.getElementById('search-status').value.toLowerCase();
             const filterStage = document.getElementById('filter-status-stage').value;
