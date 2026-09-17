@@ -236,6 +236,7 @@
                                 <button type="button" data-quote-status-filter="unasked" onclick="setQuoteStatusFilter('unasked')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white text-slate-700 border-slate-300 hover:bg-slate-100">Chưa hỏi giá</button>
                                 <button type="button" data-quote-status-filter="pending" onclick="setQuoteStatusFilter('pending')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white text-slate-700 border-slate-300 hover:bg-slate-100">Đã hỏi – Chưa phản hồi</button>
                                 <button type="button" data-quote-status-filter="quoted" onclick="setQuoteStatusFilter('quoted')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white text-slate-700 border-slate-300 hover:bg-slate-100">Đã báo giá</button>
+                                <button type="button" data-quote-status-filter="rejected" onclick="setQuoteStatusFilter('rejected')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white text-slate-700 border-slate-300 hover:bg-slate-100">Từ chối báo giá</button>
                                 <button type="button" data-quote-status-filter="complete" onclick="setQuoteStatusFilter('complete')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white text-slate-700 border-slate-300 hover:bg-slate-100">Đã đủ phản hồi</button>
                             </div>
                         </div>
@@ -805,6 +806,50 @@
         </div>
     </div>
 
+    <!-- MODAL: TỪ CHỐI BÁO GIÁ (TAB 3) -->
+    <div id="modal-quote-reject" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[70] flex items-center justify-center hidden p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-xl w-full p-6 shadow-xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start border-b border-slate-100 pb-3">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base">Từ chối báo giá</h3>
+                    <p class="text-xs text-slate-500 mt-1">Ghi nhận NCC đã phản hồi nhưng không báo giá cho mặt hàng này.</p>
+                </div>
+                <button type="button" onclick="closeQuoteRejectModal()" class="text-slate-400 hover:text-slate-600" title="Đóng">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+            <div id="quote-reject-item-info" class="rounded-xl bg-slate-50 border border-slate-200 p-4"></div>
+            <div id="quote-reject-warning" class="hidden rounded-xl bg-rose-50 border border-rose-200 p-3 text-xs text-rose-700"></div>
+            <div>
+                <label class="block text-xs font-semibold text-slate-700 mb-1">Lý do từ chối <span class="text-slate-400 font-normal">(không bắt buộc)</span></label>
+                <select id="quote-reject-reason-preset" onchange="applyQuoteRejectReasonPreset()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <option value="">-- Chọn lý do nhanh --</option>
+                    <option>Không cung cấp mặt hàng</option>
+                    <option>Hết hàng</option>
+                    <option>Không đáp ứng thời gian giao hàng</option>
+                    <option>Giá không phù hợp</option>
+                    <option>NCC từ chối báo giá</option>
+                    <option>Khác</option>
+                </select>
+                <textarea id="quote-reject-reason" rows="3" placeholder="Nhập lý do cụ thể nếu cần..." class="mt-2 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none"></textarea>
+            </div>
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Ngày xử lý</label>
+                    <input type="date" id="quote-reject-date" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Người xử lý</label>
+                    <input type="text" id="quote-reject-by" placeholder="Ngọc" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+            </div>
+            <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button type="button" onclick="closeQuoteRejectModal()" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition">Hủy</button>
+                <button type="button" onclick="confirmQuoteReject(event)" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-lg shadow-sm transition">Từ chối báo giá</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL 5: EXPORT SSG (TAB 3) -->
     <div id="modal-export-ssg" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center hidden p-4 no-print">
         <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-xl space-y-5 max-h-[92vh] overflow-y-auto">
@@ -1100,6 +1145,7 @@
         // Quote request tracking: separate from quotes so "đã hỏi giá" is not inferred from quotes.
         let quoteRequests = [];
         let currentQuoteRequestOrderId = null;
+        let currentQuoteRejectContext = null;
         let quoteStatusFilter = 'all';
 
         // App Initialization
@@ -1252,11 +1298,23 @@
                         quoteRequests = parsedQuoteRequests.filter(r => {
                             const itemId = String(r?.itemId ?? r?.orderId ?? '').trim();
                             const supplierName = String(r?.supplierName || '').trim();
-                            if (!itemId || !supplierName || !itemId) return false;
+                            if (!itemId || !supplierName) return false;
                             const key = `${itemId}||${supplierName.toLowerCase()}`;
                             if (seen.has(key)) return false;
                             seen.add(key);
                             return true;
+                        }).map(r => {
+                            const rawStatus = String(r?.status || '').trim().toLowerCase();
+                            const status = (rawStatus === 'rejected' || rawStatus === 'từ chối báo giá')
+                                ? 'Từ chối báo giá'
+                                : (rawStatus === 'đã báo giá' ? 'Đã báo giá' : 'Đã hỏi');
+                            return {
+                                ...r,
+                                status,
+                                rejectedDate: String(r?.rejectedDate || ''),
+                                rejectedBy: String(r?.rejectedBy || ''),
+                                rejectReason: String(r?.rejectReason || '')
+                            };
                         });
                     }
                 } catch (err) {
@@ -2476,20 +2534,40 @@
             ) || null;
         }
 
+        function getQuoteRequestForSupplier(order, supplierName) {
+            const target = String(supplierName || '').trim().toLowerCase();
+            if (!target) return null;
+            return getQuoteRequestRecordsForOrder(order).find(r =>
+                String(r?.supplierName || '').trim().toLowerCase() === target
+            ) || null;
+        }
+
+        function isQuoteRequestRejected(request) {
+            const status = String(request?.status || '').trim().toLowerCase();
+            return status === 'từ chối báo giá' || status === 'rejected';
+        }
+
         function getQuoteTrackingSummary(order) {
             const requests = getQuoteRequestRecordsForOrder(order);
             const askedSuppliers = [...new Set(requests.map(r => String(r?.supplierName || '').trim()).filter(Boolean))];
             const quotedSuppliers = [];
             const pendingSuppliers = [];
+            const rejectedSuppliers = [];
 
             askedSuppliers.forEach(supplierName => {
+                const request = getQuoteRequestForSupplier(order, supplierName);
                 const quote = findQuoteForOrderSupplier(order, supplierName);
-                if (quote) quotedSuppliers.push(supplierName);
-                else pendingSuppliers.push(supplierName);
+                if (isQuoteRequestRejected(request)) {
+                    rejectedSuppliers.push(supplierName);
+                } else if (quote) {
+                    quotedSuppliers.push(supplierName);
+                } else {
+                    pendingSuppliers.push(supplierName);
+                }
             });
 
-            // Quotes from suppliers that were not explicitly requested are still real quotes,
-            // but they must not be used to infer that a request existed.
+            // Quotes from suppliers that were not explicitly requested are still real quotes.
+            // They do not create an implied "đã hỏi" relationship.
             const allQuotedSuppliers = [...new Set(
                 quotes.filter(q => String(q?.itemId ?? q?.orderId ?? '') === String(order?.id ?? ''))
                     .map(q => String(q?.supplierName || '').trim())
@@ -2500,32 +2578,35 @@
                 askedSuppliers,
                 quotedSuppliers,
                 pendingSuppliers,
+                rejectedSuppliers,
                 allQuotedSuppliers,
                 askedCount: askedSuppliers.length,
-                // Ratio/card "đã báo" is based on suppliers that were explicitly asked.
                 quotedCount: quotedSuppliers.length,
-                pendingCount: pendingSuppliers.length
+                pendingCount: pendingSuppliers.length,
+                rejectedCount: rejectedSuppliers.length
             };
         }
 
         function getQuoteStatusForSupplier(order, supplierName) {
             const target = String(supplierName || '').trim().toLowerCase();
-            const requestExists = getQuoteRequestRecordsForOrder(order).some(r =>
-                String(r?.supplierName || '').trim().toLowerCase() === target
-            );
+            const request = getQuoteRequestForSupplier(order, supplierName);
+            const requestExists = !!request;
             const quote = findQuoteForOrderSupplier(order, supplierName);
 
+            if (isQuoteRequestRejected(request)) {
+                return { requestExists: true, quoteExists: !!quote, label: 'Từ chối báo giá', tone: 'rose', request };
+            }
             if (quote) {
-                return { requestExists, quoteExists: true, label: 'Đã báo giá', tone: 'emerald' };
+                return { requestExists, quoteExists: true, label: 'Đã báo giá', tone: 'emerald', request };
             }
             if (requestExists) {
-                return { requestExists: true, quoteExists: false, label: 'Chưa phản hồi', tone: 'amber' };
+                return { requestExists: true, quoteExists: false, label: 'Chưa phản hồi', tone: 'amber', request };
             }
-            return { requestExists: false, quoteExists: false, label: 'Chưa hỏi giá', tone: 'slate' };
+            return { requestExists: false, quoteExists: false, label: 'Chưa hỏi giá', tone: 'slate', request: null };
         }
 
         function setQuoteStatusFilter(filter) {
-            quoteStatusFilter = ['all', 'unasked', 'pending', 'quoted', 'complete'].includes(filter) ? filter : 'all';
+            quoteStatusFilter = ['all', 'unasked', 'pending', 'quoted', 'rejected', 'complete'].includes(filter) ? filter : 'all';
             renderQuotes();
         }
 
@@ -2581,15 +2662,22 @@
             const itemCode = order.orderNo || order.requestNo || order.requisitionNo || order.code || order.dnmh || order.itemCode || order.contractNo || '';
             const asked = tracking.askedSuppliers || [];
             const quoted = tracking.allQuotedSuppliers || [];
+            const rejected = tracking.rejectedSuppliers || [];
+            const rejectReasons = getQuoteRequestRecordsForOrder(order)
+                .filter(r => isQuoteRequestRejected(r))
+                .map(r => String(r?.rejectReason || '').trim())
+                .filter(Boolean);
+            const activeQuotedCount = itemQuotes.filter(q => getQuoteStatusForSupplier(order, q?.supplierName).label === 'Đã báo giá').length;
             const statusTerms = [];
             if (tracking.askedCount === 0) statusTerms.push('Chưa hỏi giá', 'Chua hoi gia');
             if (tracking.pendingCount > 0) statusTerms.push('Chưa phản hồi', 'Chua phan hoi');
-            if (tracking.quotedCount > 0 || itemQuotes.length > 0) statusTerms.push('Đã báo giá', 'Da bao gia');
+            if (tracking.quotedCount > 0 || activeQuotedCount > 0) statusTerms.push('Đã báo giá', 'Da bao gia');
+            if (tracking.rejectedCount > 0) statusTerms.push('Từ chối báo giá', 'Tu choi bao gia');
             if (tracking.askedCount > 0 && tracking.pendingCount === 0) statusTerms.push('Đã đủ phản hồi', 'Da du phan hoi');
-            if (itemQuotes.length === 0) statusTerms.push('Chưa báo giá', 'Chua bao gia');
+            if (activeQuotedCount === 0) statusTerms.push('Chưa báo giá', 'Chua bao gia');
             return normalizeSearchText([
                 order.item, order.restaurant, itemCode, formatDateVN(order.date),
-                ...asked, ...quoted, ...statusTerms
+                ...asked, ...quoted, ...rejected, ...rejectReasons, ...statusTerms
             ].join(' '));
         }
 
@@ -2673,6 +2761,7 @@
                 unasked: 'Chưa hỏi giá',
                 pending: 'Đã hỏi – Chưa phản hồi',
                 quoted: 'Đã báo giá',
+                rejected: 'Từ chối báo giá',
                 complete: 'Đã đủ phản hồi'
             };
             setChip(fromEl, from ? `From: ${from}` : '');
@@ -2717,6 +2806,7 @@
             if (quoteStatusFilter === 'unasked') return s.askedCount === 0;
             if (quoteStatusFilter === 'pending') return s.askedCount > 0 && s.pendingCount > 0;
             if (quoteStatusFilter === 'quoted') return s.quotedCount > 0;
+            if (quoteStatusFilter === 'rejected') return s.rejectedCount > 0;
             if (quoteStatusFilter === 'complete') return s.askedCount > 0 && s.pendingCount === 0;
             return true;
         }
@@ -2740,36 +2830,49 @@
             blocksContainer.innerHTML = '';
 
             // 1. LEFT SIDEBAR — "Đã hỏi" is based only on explicit quoteRequests.
-            suppliers.forEach(sup => {
+            const validEligibleOrders = eligibleOrders;
+            const renderSupplierTrackingCard = (sup) => {
                 const target = String(sup || '').trim().toLowerCase();
-                const askedItemIds = new Set();
-                quoteRequests.forEach(r => {
-                    if (String(r?.supplierName || '').trim().toLowerCase() !== target) return;
-                    const order = eligibleOrders.find(o => String(o.id) === String(r?.itemId ?? r?.orderId ?? ''));
-                    if (order) askedItemIds.add(String(order.id));
+                const summary = { asked: 0, quoted: 0, pending: 0, rejected: 0 };
+                validEligibleOrders.forEach(order => {
+                    const status = getQuoteStatusForSupplier(order, sup);
+                    if (!status.requestExists) return;
+                    summary.asked += 1;
+                    if (status.label === 'Đã báo giá') summary.quoted += 1;
+                    else if (status.label === 'Chưa phản hồi') summary.pending += 1;
+                    else if (status.label === 'Từ chối báo giá') summary.rejected += 1;
                 });
 
-                const reportedItemIds = new Set(
-                    eligibleQuotes
-                        .filter(q => String(q?.supplierName || '').trim().toLowerCase() === target)
-                        .map(q => String(q?.itemId ?? q?.orderId ?? ''))
-                );
-                const pendingItemIds = new Set([...askedItemIds].filter(id => !reportedItemIds.has(id)));
+                // Legacy / direct quotes without a request are still shown as reported, but
+                // they never contribute to "Đã hỏi" unless a request record exists.
+                const legacyReported = new Set(eligibleQuotes
+                    .filter(q => String(q?.supplierName || '').trim().toLowerCase() === target)
+                    .map(q => String(q?.itemId ?? q?.orderId ?? '')));
+                const legacyOnlyReported = [...legacyReported].filter(id => {
+                    const order = validEligibleOrders.find(o => String(o.id) === String(id));
+                    return order && !getQuoteRequestForSupplier(order, sup);
+                }).length;
+                const reportedDisplay = summary.quoted + legacyOnlyReported;
 
-                if (askedItemIds.size === 0 && reportedItemIds.size === 0) return;
+                if (summary.asked === 0 && reportedDisplay === 0) return '';
 
-                trackingContainer.innerHTML += `
+                return `
                     <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
                         <div class="flex justify-between items-start gap-2">
                             <span class="font-semibold text-xs text-slate-800">${escapeHTML(sup)}</span>
-                            <span class="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full font-medium">Đã hỏi: ${askedItemIds.size}</span>
+                            <span class="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full font-medium">Đã hỏi: ${summary.asked}</span>
                         </div>
                         <div class="grid grid-cols-2 gap-2 text-[11px]">
-                            <div class="rounded-lg bg-emerald-50 border border-emerald-100 px-2 py-1.5 text-emerald-700 font-semibold">Đã báo: ${reportedItemIds.size}</div>
-                            <div class="rounded-lg bg-amber-50 border border-amber-100 px-2 py-1.5 text-amber-700 font-semibold">Chưa phản hồi: ${pendingItemIds.size}</div>
+                            <div class="rounded-lg bg-emerald-50 border border-emerald-100 px-2 py-1.5 text-emerald-700 font-semibold">Đã báo: ${reportedDisplay}</div>
+                            <div class="rounded-lg bg-amber-50 border border-amber-100 px-2 py-1.5 text-amber-700 font-semibold">Chưa phản hồi: ${summary.pending}</div>
+                            <div class="rounded-lg bg-rose-50 border border-rose-100 px-2 py-1.5 text-rose-700 font-semibold col-span-2">Từ chối: ${summary.rejected}</div>
                         </div>
                     </div>
                 `;
+            };
+
+            suppliers.forEach(sup => {
+                trackingContainer.innerHTML += renderSupplierTrackingCard(sup);
             });
 
             // Include request records for suppliers that are no longer in the master list.
@@ -2777,25 +2880,11 @@
                 .filter(r => eligibleOrderIds.has(String(r?.itemId ?? r?.orderId ?? '')))
                 .map(r => String(r?.supplierName || '').trim())
                 .filter(Boolean))];
-            requestSupplierNames.filter(name => !suppliers.some(s => String(s).trim().toLowerCase() === name.toLowerCase())).forEach(sup => {
-                const target = sup.toLowerCase();
-                const askedItemIds = new Set(quoteRequests.filter(r => String(r?.supplierName || '').trim().toLowerCase() === target).map(r => String(r?.itemId ?? r?.orderId ?? '')));
-                const validAsked = new Set([...askedItemIds].filter(id => eligibleOrderIds.has(id)));
-                const reportedItemIds = new Set(eligibleQuotes.filter(q => String(q?.supplierName || '').trim().toLowerCase() === target).map(q => String(q?.itemId ?? q?.orderId ?? '')));
-                const pendingItemIds = new Set([...validAsked].filter(id => !reportedItemIds.has(id)));
-                trackingContainer.innerHTML += `
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
-                        <div class="flex justify-between items-start gap-2">
-                            <span class="font-semibold text-xs text-slate-800">${escapeHTML(sup)}</span>
-                            <span class="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full font-medium">Đã hỏi: ${validAsked.size}</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 text-[11px]">
-                            <div class="rounded-lg bg-emerald-50 border border-emerald-100 px-2 py-1.5 text-emerald-700 font-semibold">Đã báo: ${reportedItemIds.size}</div>
-                            <div class="rounded-lg bg-amber-50 border border-amber-100 px-2 py-1.5 text-amber-700 font-semibold">Chưa phản hồi: ${pendingItemIds.size}</div>
-                        </div>
-                    </div>
-                `;
-            });
+            requestSupplierNames
+                .filter(name => !suppliers.some(s => String(s).trim().toLowerCase() === name.toLowerCase()))
+                .forEach(sup => {
+                    trackingContainer.innerHTML += renderSupplierTrackingCard(sup);
+                });
 
             if (trackingContainer.innerHTML === '') {
                 trackingContainer.innerHTML = `<div class="text-xs text-slate-400 text-center py-6">Chưa có dữ liệu hỏi/báo giá NCC.</div>`;
@@ -2854,11 +2943,13 @@
                 filteredGroupOrders.forEach(o => {
                     const itemQuotes = eligibleQuotes.filter(q => String(q?.itemId ?? q?.orderId ?? '') === String(o.id));
                     const tracking = getQuoteTrackingSummary(o);
-                    const validPrices = itemQuotes.map(q => Number(String(q?.quotedPrice ?? '').replace(/,/g, '').trim())).filter(Number.isFinite);
+                    const validPrices = itemQuotes.filter(q => getQuoteStatusForSupplier(o, q?.supplierName).label !== 'Từ chối báo giá')
+                        .map(q => Number(String(q?.quotedPrice ?? '').replace(/,/g, '').trim()))
+                        .filter(Number.isFinite);
                     const minPrice = validPrices.length ? Math.min(...validPrices) : null;
                     const itemCode = o.orderNo || o.requestNo || o.requisitionNo || o.code || o.dnmh || o.itemCode || o.contractNo || ('DNMH' + String(o.id).padStart(3, '0'));
                     const responseText = tracking.askedCount > 0
-                        ? `${tracking.quotedCount}/${tracking.askedCount} NCC đã báo giá`
+                        ? `${tracking.quotedCount}/${tracking.askedCount} NCC đã báo giá${tracking.rejectedCount > 0 ? ` · ${tracking.rejectedCount} từ chối` : ''}`
                         : 'Chưa hỏi NCC nào';
 
                     const askedChips = tracking.askedSuppliers.length
@@ -2902,14 +2993,22 @@
                                                         ${quote && quote.fileData ? `<button onclick="viewQuoteFile('${escapeHTMLAttribute(quote.quoteId)}')" class="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md transition font-medium max-w-[220px]" title="${escapeHTML(fileName)}"><i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-600 shrink-0"></i><span class="truncate">📄 ${escapeHTML(shortName)}</span></button>` : (fileName ? `<span class="text-xs text-slate-500">📄 ${escapeHTML(shortName)}</span>` : '-')}
                                                     </td>
                                                     <td class="py-3 px-3 text-center">
-                                                        ${status.quoteExists
+                                                        ${status.label === 'Đã báo giá'
                                                             ? '<span class="inline-flex items-center px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold rounded-full">🟢 Đã báo giá</span>'
-                                                            : status.requestExists
-                                                                ? '<span class="inline-flex items-center px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-bold rounded-full">🟠 Chưa phản hồi</span>'
-                                                                : '<span class="inline-flex items-center px-2.5 py-1 bg-slate-50 text-slate-500 border border-slate-200 text-[11px] font-bold rounded-full">Chưa hỏi giá</span>'}
+                                                            : status.label === 'Từ chối báo giá'
+                                                                ? '<span class="inline-flex items-center px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold rounded-full">🔴 Từ chối báo giá</span>'
+                                                                : status.label === 'Chưa phản hồi'
+                                                                    ? '<span class="inline-flex items-center px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-bold rounded-full">🟠 Chưa phản hồi</span>'
+                                                                    : '<span class="inline-flex items-center px-2.5 py-1 bg-slate-50 text-slate-500 border border-slate-200 text-[11px] font-bold rounded-full">⚪ Chưa hỏi giá</span>'}
                                                     </td>
                                                     <td class="py-3 px-3 text-right whitespace-nowrap">
-                                                        ${quote ? `<button onclick="deleteQuote('${escapeHTMLAttribute(quote.quoteId)}')" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg transition" title="Xóa báo giá này"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>Xóa</span></button>` : '-'}
+                                                        <div class="flex flex-wrap gap-1.5 justify-end">
+                                                            ${status.label === 'Chưa phản hồi' ? `<button type="button" onclick="openQuoteRejectModal(${JSON.stringify(o.id)}, ${JSON.stringify(sup)})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg transition" title="Từ chối báo giá"><span>Từ chối</span></button>` : ''}
+                                                            ${status.label === 'Đã báo giá' ? `<button type="button" onclick="openQuoteRejectModal(${JSON.stringify(o.id)}, ${JSON.stringify(sup)})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg transition" title="Đổi trạng thái sang Từ chối báo giá"><span>Từ chối</span></button>` : ''}
+                                                            ${status.label === 'Từ chối báo giá' ? `<button type="button" onclick="restoreQuoteRequest(${JSON.stringify(o.id)}, ${JSON.stringify(sup)})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition" title="Khôi phục về Chưa phản hồi"><span>Khôi phục</span></button>` : ''}
+                                                            ${quote ? `<button type="button" onclick="deleteQuote('${escapeHTMLAttribute(quote.quoteId)}')" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg transition" title="Xóa báo giá này"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>Xóa báo giá</span></button>` : ''}
+                                                            ${!quote && status.requestExists ? `<button type="button" onclick="removeQuoteRequestForSupplier(${JSON.stringify(o.id)}, ${JSON.stringify(sup)})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-slate-50 hover:bg-slate-100 text-slate-600 text-xs font-semibold rounded-lg transition" title="Xóa NCC khỏi danh sách đã hỏi"><span>Xóa</span></button>` : ''}
+                                                        </div>
                                                     </td>
                                                 </tr>
                                             `;
@@ -2947,6 +3046,7 @@
                                     <span class="inline-flex items-center px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded-full text-[11px] font-bold">${tracking.askedCount} NCC đã hỏi</span>
                                     <span class="inline-flex items-center px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold">${tracking.quotedCount} NCC đã báo</span>
                                     <span class="inline-flex items-center px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[11px] font-bold">${tracking.pendingCount} NCC chưa phản hồi</span>
+                                    <span class="inline-flex items-center px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-[11px] font-bold">${tracking.rejectedCount} NCC từ chối</span>
                                     ${completionBadge}
                                 </div>
                             </div>
@@ -2969,7 +3069,15 @@
                                 <div class="flex flex-wrap gap-2">
                                     ${tracking.askedSuppliers.map(sup => {
                                         const status = getQuoteStatusForSupplier(o, sup);
-                                        return `<span class="inline-flex items-center px-2.5 py-1 ${status.quoteExists ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'} border rounded-full text-[11px] font-bold">${status.quoteExists ? '🟢' : '🟠'} ${escapeHTML(sup)} – ${status.label}</span>`;
+                                        const toneClass = status.label === 'Đã báo giá'
+                                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                                            : status.label === 'Từ chối báo giá'
+                                                ? 'bg-rose-50 text-rose-700 border-rose-200'
+                                                : status.label === 'Chưa phản hồi'
+                                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                                    : 'bg-slate-50 text-slate-500 border-slate-200';
+                                        const icon = status.label === 'Đã báo giá' ? '🟢' : status.label === 'Từ chối báo giá' ? '🔴' : status.label === 'Chưa phản hồi' ? '🟠' : '⚪';
+                                        return `<span class="inline-flex items-center gap-1 px-2.5 py-1 ${toneClass} border rounded-full text-[11px] font-bold">${icon} ${escapeHTML(sup)} – ${status.label}</span>`;
                                     }).join('') || '<span class="text-xs text-slate-400">Chưa có NCC được hỏi giá.</span>'}
                                 </div>
                             </div>
@@ -3061,7 +3169,7 @@
                         <label class="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
                             <input type="checkbox" data-quote-request-supplier="${escapeHTMLAttribute(sup)}" ${checked ? 'checked' : ''} class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
                             <span class="text-sm font-medium text-slate-700">${escapeHTML(sup)}</span>
-                            ${checked ? '<span class="ml-auto text-[10px] font-semibold text-emerald-600">Đã hỏi</span>' : ''}
+                            ${checked ? `<span class="ml-auto text-[10px] font-semibold ${isQuoteRequestRejected(getQuoteRequestForSupplier(order, sup)) ? 'text-rose-600' : 'text-emerald-600'}">${isQuoteRequestRejected(getQuoteRequestForSupplier(order, sup)) ? 'Từ chối' : 'Đã hỏi'}</span>` : ''}
                         </label>
                     `;
                 }).join('')
@@ -3070,9 +3178,12 @@
             const today = new Date().toISOString().slice(0, 10);
             dateEl.value = existing.length ? (getQuoteRequestRecordsForOrder(order)[0]?.requestedDate || today) : today;
             byEl.value = existing.length ? (getQuoteRequestRecordsForOrder(order)[0]?.requestedBy || order.by || 'Ngọc') : (order.by || 'Ngọc');
-            existingEl.innerHTML = existing.length
-                ? `Đã hỏi hiện tại: <strong>${escapeHTML(existing.join(', '))}</strong>. Bạn có thể bổ sung NCC mới; hệ thống không tạo duplicate.`
-                : 'Chưa có NCC nào được lưu là đã hỏi giá cho mặt hàng này.';
+            if (existing.length) {
+                const rejectedNames = existing.filter(name => isQuoteRequestRejected(getQuoteRequestForSupplier(order, name)));
+                existingEl.innerHTML = `Đã hỏi hiện tại: <strong>${escapeHTML(existing.join(', '))}</strong>. ${rejectedNames.length ? `Đã từ chối: <strong>${escapeHTML(rejectedNames.join(', '))}</strong>. ` : ''}NCC đã từ chối vẫn được giữ trong lịch sử; dùng nút Khôi phục trên Card để đổi lại trạng thái.`;
+            } else {
+                existingEl.innerHTML = 'Chưa có NCC nào được lưu là đã hỏi giá cho mặt hàng này.';
+            }
 
             document.getElementById('modal-quote-request').classList.remove('hidden');
             lucide.createIcons();
@@ -3121,13 +3232,142 @@
                 if (!selectedSuppliers.some(s => s.toLowerCase() === String(r?.supplierName || '').trim().toLowerCase())) return;
                 r.requestedDate = requestedDate;
                 r.requestedBy = requestedBy;
-                r.status = findQuoteForOrderSupplier(order, r.supplierName) ? 'Đã báo giá' : 'Đã hỏi';
+                if (!isQuoteRequestRejected(r)) {
+                    r.status = findQuoteForOrderSupplier(order, r.supplierName) ? 'Đã báo giá' : 'Đã hỏi';
+                }
             });
 
             saveToStorage();
             closeQuoteRequestModal();
             renderQuotes();
             alert(addedCount > 0 ? `Đã lưu ${addedCount} NCC mới được hỏi giá cho "${order.item}".` : `Danh sách NCC đã hỏi giá cho "${order.item}" đã được cập nhật.`);
+        }
+
+        function applyQuoteRejectReasonPreset() {
+            const preset = document.getElementById('quote-reject-reason-preset')?.value || '';
+            const reasonEl = document.getElementById('quote-reject-reason');
+            if (!reasonEl || !preset) return;
+            if (preset === 'Khác') {
+                reasonEl.value = '';
+                reasonEl.focus();
+                return;
+            }
+            reasonEl.value = preset;
+        }
+
+        function openQuoteRejectModal(orderId, supplierName) {
+            const order = orders.find(o => String(o.id) === String(orderId));
+            const target = String(supplierName || '').trim();
+            if (!order || !target) {
+                alert('Không tìm thấy mặt hàng hoặc NCC.');
+                return;
+            }
+            if (!isQuoteEligibleOrder(order)) {
+                alert('Mặt hàng mua theo Hợp đồng không thuộc Tab 3.');
+                return;
+            }
+            const request = getQuoteRequestForSupplier(order, target);
+            if (!request) {
+                alert(`NCC "${target}" chưa có trong danh sách đã hỏi giá của mặt hàng này.`);
+                return;
+            }
+
+            currentQuoteRejectContext = { orderId: order.id, supplierName: target };
+            const quote = findQuoteForOrderSupplier(order, target);
+            const itemCode = order.orderNo || order.requestNo || order.requisitionNo || order.code || order.dnmh || order.itemCode || ('DNMH' + String(order.id).padStart(3, '0'));
+            const infoEl = document.getElementById('quote-reject-item-info');
+            const warningEl = document.getElementById('quote-reject-warning');
+            const presetEl = document.getElementById('quote-reject-reason-preset');
+            const reasonEl = document.getElementById('quote-reject-reason');
+            const dateEl = document.getElementById('quote-reject-date');
+            const byEl = document.getElementById('quote-reject-by');
+
+            infoEl.innerHTML = `
+                <div class="text-sm font-bold text-slate-900">📦 ${escapeHTML(order.item)}</div>
+                <div class="text-xs text-slate-500 mt-1 flex flex-wrap gap-3">
+                    <span>From: <strong>${escapeHTML(order.restaurant)}</strong></span>
+                    <span>Mã ĐNMH: <strong>${escapeHTML(itemCode)}</strong></span>
+                    <span>NCC: <strong>${escapeHTML(target)}</strong></span>
+                </div>
+            `;
+            if (quote) {
+                warningEl.classList.remove('hidden');
+                warningEl.innerHTML = `⚠ NCC <strong>${escapeHTML(target)}</strong> đã có báo giá thực tế. Thay đổi trạng thái sang <strong>Từ chối báo giá</strong> sẽ <strong>không tự xóa</strong> file hoặc dữ liệu báo giá.`;
+            } else {
+                warningEl.classList.add('hidden');
+                warningEl.innerHTML = '';
+            }
+            presetEl.value = '';
+            reasonEl.value = request.rejectReason || '';
+            dateEl.value = new Date().toISOString().slice(0, 10);
+            byEl.value = request.rejectedBy || order.by || 'Ngọc';
+            document.getElementById('modal-quote-reject').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeQuoteRejectModal() {
+            currentQuoteRejectContext = null;
+            closeModal('modal-quote-reject');
+        }
+
+        function confirmQuoteReject(event) {
+            if (event) event.preventDefault();
+            if (!currentQuoteRejectContext) return;
+            const order = orders.find(o => String(o.id) === String(currentQuoteRejectContext.orderId));
+            const target = String(currentQuoteRejectContext.supplierName || '').trim();
+            if (!order || !target) return;
+            const request = getQuoteRequestForSupplier(order, target);
+            if (!request) {
+                alert('Không tìm thấy yêu cầu hỏi giá.');
+                closeQuoteRejectModal();
+                return;
+            }
+
+            const quote = findQuoteForOrderSupplier(order, target);
+            const reason = String(document.getElementById('quote-reject-reason')?.value || '').trim();
+            const rejectedDate = document.getElementById('quote-reject-date')?.value || new Date().toISOString().slice(0, 10);
+            const rejectedBy = String(document.getElementById('quote-reject-by')?.value || order.by || 'Ngọc').trim();
+            const message = quote
+                ? `NCC "${target}" đã có báo giá thực tế cho mặt hàng "${order.item}".\n\nBạn có chắc muốn chuyển trạng thái sang "Từ chối báo giá"?\nBáo giá thực tế sẽ được giữ nguyên.`
+                : `Từ chối báo giá từ NCC "${target}" cho mặt hàng "${order.item}"?`;
+            if (!confirm(message)) return;
+
+            request.status = 'Từ chối báo giá';
+            request.rejectedDate = rejectedDate;
+            request.rejectedBy = rejectedBy;
+            request.rejectReason = reason;
+
+            pushTrackingHistory(order, 'Từ chối báo giá', {
+                supplier: target,
+                reason: reason || 'Không nhập lý do',
+                quoteStillExists: !!quote
+            }, rejectedBy);
+
+            saveToStorage();
+            closeQuoteRejectModal();
+            renderQuotes();
+        }
+
+        function restoreQuoteRequest(orderId, supplierName) {
+            const order = orders.find(o => String(o.id) === String(orderId));
+            const target = String(supplierName || '').trim();
+            if (!order || !target) return;
+            const request = getQuoteRequestForSupplier(order, target);
+            if (!request) {
+                alert('Không tìm thấy yêu cầu hỏi giá.');
+                return;
+            }
+            if (!isQuoteRequestRejected(request)) return;
+            if (!confirm(`Khôi phục NCC "${target}" cho mặt hàng "${order.item}" về trạng thái "Chưa phản hồi"?`)) return;
+
+            request.status = findQuoteForOrderSupplier(order, target) ? 'Đã báo giá' : 'Đã hỏi';
+            request.rejectedDate = '';
+            request.rejectedBy = '';
+            request.rejectReason = '';
+
+            pushTrackingHistory(order, 'Khôi phục NCC hỏi giá', { supplier: target, newStatus: request.status }, order.by || 'Ngọc');
+            saveToStorage();
+            renderQuotes();
         }
 
         function removeQuoteRequestForSupplier(orderId, supplierName) {
@@ -3144,6 +3384,11 @@
                 String(r?.itemId ?? r?.orderId ?? '') === String(order.id) &&
                 String(r?.supplierName || '').trim().toLowerCase() === target.toLowerCase()
             ));
+            pushTrackingHistory(order, 'Xóa NCC đã hỏi giá', {
+                supplier: target,
+                hadQuote: hasQuote,
+                details: hasQuote ? 'Xóa quan hệ hỏi giá; báo giá thực tế được giữ nguyên.' : 'Xóa quan hệ hỏi giá.'
+            }, order.by || 'Ngọc');
             saveToStorage();
             renderQuotes();
         }
@@ -3181,12 +3426,17 @@
 
                 // Keep the quoteRequest. Once the quote is removed, the supplier is back to "Chưa phản hồi".
                 if (removedQuote) {
+                    const affectedOrder = orders.find(o => String(o.id) === String(removedQuote.itemId ?? removedQuote.orderId));
                     quoteRequests.forEach(r => {
                         if (String(r?.itemId ?? r?.orderId ?? '') === String(removedQuote?.itemId ?? removedQuote?.orderId ?? '') &&
                             String(r?.supplierName || '').trim().toLowerCase() === String(removedQuote?.supplierName || '').trim().toLowerCase()) {
+                            // Once the real quote is deleted, the request is back to awaiting response.
                             r.status = 'Đã hỏi';
                         }
                     });
+                    if (affectedOrder) {
+                        pushTrackingHistory(affectedOrder, 'Xóa báo giá', { supplier: removedQuote.supplierName || '', quoteId: removedQuote.quoteId }, affectedOrder.by || 'Ngọc');
+                    }
                 }
 
                 saveToStorage();
@@ -3261,7 +3511,10 @@
                 if (!supplier) return false;
                 const rawPrice = q?.quotedPrice;
                 const price = rawPrice === null || rawPrice === undefined || rawPrice === '' ? NaN : Number(String(rawPrice).replace(/,/g, '').trim());
-                return Number.isFinite(price);
+                if (!Number.isFinite(price)) return false;
+                // A quote kept only as historical data for a currently rejected supplier
+                // must not make the item look like it has an active quote.
+                return getQuoteStatusForSupplier(order, supplier).label !== 'Từ chối báo giá';
             });
             const suppliers = [...new Set(validQuotes.map(q => String(q.supplierName || '').trim()).filter(Boolean))];
             return {
@@ -3454,7 +3707,7 @@
 
             const fromSelect = document.getElementById('export-ssg-from');
             const dateSelect = document.getElementById('export-ssg-date');
-            const fromValues = [...new Set(orders.map(o => String(o.restaurant || 'Chưa xác định')).filter(Boolean))]
+            const fromValues = [...new Set(getQuoteEligibleOrdersSorted().map(o => String(o.restaurant || 'Chưa xác định')).filter(Boolean))]
                 .sort((a, b) => a.localeCompare(b, 'vi'));
 
             fromSelect.innerHTML = [
@@ -3557,12 +3810,15 @@
             if (!selectedSupplier) return '';
 
             // Never use order.supplier as SCM selection unless this exact supplier
-            // has a real quote for this specific item.
+            // has a real quote for this specific item and is not currently rejected.
             const itemInfo = getSSGItemQuoteInfo(order);
-            const exists = itemInfo.quotes.some(q =>
+            const matchingQuote = itemInfo.quotes.find(q =>
                 String(q?.supplierName || '').trim().toLowerCase() === selectedSupplier.toLowerCase()
             );
-            return exists ? selectedSupplier : '';
+            if (!matchingQuote) return '';
+            const status = getQuoteStatusForSupplier(order, selectedSupplier);
+            if (status.label === 'Từ chối báo giá') return '';
+            return selectedSupplier;
         }
 
         function applySSGSheetLayout(ws, supplierCount, rowCount) {
@@ -3638,12 +3894,14 @@
                 return;
             }
 
-            // Dynamic supplier columns are based ONLY on real quotes of the selected items.
-            const matchingQuotes = selectedOrders.flatMap(o => getSSGItemQuoteInfo(o).quotes);
+            // Supplier columns are the union of real quote suppliers and suppliers explicitly asked.
+            // This keeps rejected / pending suppliers visible even when they have no price.
             const supplierNames = [...new Set(
-                matchingQuotes
-                    .map(q => String(q?.supplierName || '').trim())
-                    .filter(Boolean)
+                selectedOrders.flatMap(o => {
+                    const tracking = getQuoteTrackingSummary(o);
+                    const quoted = getSSGItemQuoteInfo(o).quotes.map(q => String(q?.supplierName || '').trim()).filter(Boolean);
+                    return [...tracking.askedSuppliers, ...quoted];
+                }).filter(Boolean)
             )];
 
             const header = [
@@ -3665,16 +3923,24 @@
                 itemInfo.quotes.forEach(q => {
                     const supplier = String(q?.supplierName || '').trim();
                     if (!supplier) return;
+                    const status = getQuoteStatusForSupplier(order, supplier);
+                    if (status.label === 'Từ chối báo giá') {
+                        priceMap[supplier] = 'Từ chối báo giá';
+                        return;
+                    }
                     const price = formatSSGPrice(q?.quotedPrice);
                     if (!(supplier in priceMap) || priceMap[supplier] === 'Chưa báo giá') {
                         priceMap[supplier] = price;
                     }
                 });
 
-                // Critical rule:
-                // If there are no real quotes for this item, SCM chọn MUST be blank.
-                // Otherwise, it may only contain order.supplier when that exact supplier
-                // has a real quote for this exact item.
+                getQuoteTrackingSummary(order).askedSuppliers.forEach(supplier => {
+                    const status = getQuoteStatusForSupplier(order, supplier);
+                    if (status.label === 'Từ chối báo giá') priceMap[supplier] = 'Từ chối báo giá';
+                    else if (!(supplier in priceMap)) priceMap[supplier] = 'Chưa báo giá';
+                });
+
+                // Critical rule: SCM can only contain a supplier with a real quote that is not rejected.
                 const scmValue = itemInfo.hasQuote ? getSSGScmValue(order) : '';
 
                 rows.push([
