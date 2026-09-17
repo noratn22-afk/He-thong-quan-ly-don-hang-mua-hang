@@ -185,7 +185,7 @@
             <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
                 <div>
                     <h2 class="text-base font-bold text-slate-900">Báo giá & So sánh Nhà Cung Cấp (Multi-Supplier)</h2>
-                    <p class="text-xs text-slate-500">Mỗi mặt hàng hiển thị thành 1 Block riêng biệt, nhóm theo From và duy trì đúng thứ tự của Tab 1.</p>
+                    <p class="text-xs text-slate-500">Mỗi mặt hàng hiển thị thành 1 Block riêng biệt, nhóm theo From + Ngày Order và duy trì đúng thứ tự của Tab 1.</p>
                 </div>
                 <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                     <button onclick="openUploadQuoteModal()" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm transition">
@@ -2378,52 +2378,67 @@
                 trackingContainer.innerHTML = `<div class="text-xs text-slate-400 text-center py-6">Chưa có báo giá từ các NCC hiện tại.</div>`;
             }
 
-            // 2. Render Main Comparison Blocks (Grouped by From, strictly maintaining Tab 1 order)
+            // 2. Render Main Comparison Blocks — same grouping logic as Tab 2:
+            //    From + Ngày Order, while preserving the order returned by getSortedOrders('desc').
             const sortedOrders = eligibleOrders;
-            const fromGroups = {};
-            const fromKeys = [];
+            const groups = {};
+            const groupKeys = [];
 
             sortedOrders.forEach(o => {
-                const fromName = o.restaurant || 'Khác';
-                if (!fromGroups[fromName]) {
-                    fromGroups[fromName] = [];
-                    fromKeys.push(fromName);
+                const rest = o.restaurant || 'Khác';
+                const dateVal = o.date || '1970-01-01';
+                const key = `${rest}||${dateVal}`;
+
+                if (!groups[key]) {
+                    groups[key] = {
+                        restaurant: rest,
+                        date: dateVal,
+                        items: []
+                    };
+                    groupKeys.push(key);
                 }
-                fromGroups[fromName].push(o);
+                groups[key].items.push(o);
             });
 
             let hasAnyBlock = false;
 
-            fromKeys.forEach(fromName => {
-                const groupOrders = fromGroups[fromName];
-                const filteredGroupOrders = groupOrders.filter(o => {
+            groupKeys.forEach(key => {
+                const group = groups[key];
+                const items = group.items;
+
+                // Search only filters items inside the existing From + Date group.
+                const filteredGroupOrders = items.filter(o => {
                     if (!search) return true;
-                    const matchItem = o.item.toLowerCase().includes(search);
-                    const matchFrom = o.restaurant.toLowerCase().includes(search);
-                    const itemQuotes = eligibleQuotes.filter(q => q.itemId == o.id);
-                    const matchSup = itemQuotes.some(q => q.supplierName.toLowerCase().includes(search));
-                    return matchItem || matchFrom || matchSup;
+                    const itemText = String(o.item || '').toLowerCase();
+                    const fromText = String(o.restaurant || '').toLowerCase();
+                    const itemQuotes = eligibleQuotes.filter(q => String(q?.itemId ?? '') === String(o.id));
+                    const matchItem = itemText.includes(search);
+                    const matchFrom = fromText.includes(search);
+                    const matchSup = itemQuotes.some(q => String(q?.supplierName || '').toLowerCase().includes(search));
+                    const matchDate = String(o.date || '').toLowerCase().includes(search) || formatDateVN(o.date).toLowerCase().includes(search);
+                    return matchItem || matchFrom || matchSup || matchDate;
                 });
 
                 if (filteredGroupOrders.length === 0) return;
                 hasAnyBlock = true;
 
-                // Render From Section Wrapper
+                const formattedDate = formatDateVN(group.date);
                 let sectionHtml = `
                     <div class="mb-6 space-y-4">
                         <div class="bg-indigo-50 border border-indigo-200 text-indigo-900 px-4 py-2.5 rounded-xl font-bold text-sm flex items-center justify-between shadow-xs">
-                            <span class="flex items-center space-x-2">
+                            <h3 class="flex items-center space-x-2">
                                 <i data-lucide="building-2" class="w-4 h-4 text-indigo-600"></i>
-                                <span>FROM: ${fromName}</span>
-                            </span>
+                                <span>FROM: ${group.restaurant} — ${formattedDate} — ${filteredGroupOrders.length} mặt hàng</span>
+                            </h3>
                             <span class="text-xs font-semibold text-indigo-700 bg-white px-2.5 py-1 rounded-full border border-indigo-100">${filteredGroupOrders.length} mặt hàng</span>
                         </div>
                 `;
 
+                // Item order remains exactly the order produced by getSortedOrders('desc')
+                // within this From + Date group. No re-sorting by item, price, supplier or code.
                 filteredGroupOrders.forEach(o => {
-                    const itemQuotes = eligibleQuotes.filter(q => q.itemId == o.id);
-                    
-                    // Calculate minimum price among quotes strictly for THIS specific item block
+                    const itemQuotes = eligibleQuotes.filter(q => String(q?.itemId ?? '') === String(o.id));
+
                     let minPrice = null;
                     if (itemQuotes.length > 0) {
                         minPrice = Math.min(...itemQuotes.map(q => q.quotedPrice));
@@ -2447,7 +2462,7 @@
                                         <span>•</span>
                                         <span>SL: <strong class="text-slate-700">${o.qty} ${o.unit}</strong></span>
                                         <span>•</span>
-                                        <span>Ngày order: <strong class="text-slate-600">${formatDateVN(o.date)}</strong></span>
+                                        <span>Ngày order: <strong class="text-slate-600">${formattedDate}</strong></span>
                                     </div>
                                 </div>
                                 <button onclick="openUploadQuoteModalForItem(${o.id})" class="inline-flex items-center px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition whitespace-nowrap">
