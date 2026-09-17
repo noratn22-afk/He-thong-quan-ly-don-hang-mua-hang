@@ -208,7 +208,7 @@
                         <i data-lucide="users" class="w-4 h-4 text-indigo-600"></i>
                         <span>Theo dõi Báo giá theo Nhà Cung Cấp</span>
                     </h3>
-                    <p class="text-xs text-slate-500">Danh sách các NCC đã nộp báo giá và đơn giá cho từng mặt hàng.</p>
+                    <p class="text-xs text-slate-500">Theo dõi NCC đã hỏi giá, NCC đã báo giá và NCC chưa phản hồi.</p>
                     <div id="quote-tracking-list" class="space-y-4 overflow-y-auto max-h-[500px] pr-1">
                         <!-- Populated by JS -->
                     </div>
@@ -216,11 +216,20 @@
 
                 <!-- Right Area: Multi-Supplier Quote Comparison Blocks -->
                 <div class="lg:col-span-2 flex flex-col space-y-4">
-                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center justify-between">
-                        <h3 class="font-semibold text-sm text-slate-800 flex items-center space-x-2">
-                            <i data-lucide="trending-down" class="w-4 h-4 text-emerald-600"></i>
-                            <span>Bảng So Sánh Giá & Chọn NCC Tối Ưu (Mỗi mặt hàng = 1 Block độc lập)</span>
-                        </h3>
+                    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+                        <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                            <h3 class="font-semibold text-sm text-slate-800 flex items-center space-x-2">
+                                <i data-lucide="trending-down" class="w-4 h-4 text-emerald-600"></i>
+                                <span>Bảng So Sánh Giá & Theo Dõi Phản Hồi NCC</span>
+                            </h3>
+                            <div class="flex flex-wrap gap-2" id="quote-status-filters">
+                                <button type="button" data-quote-status-filter="all" onclick="setQuoteStatusFilter('all')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-indigo-600 text-white border-indigo-600">Tất cả</button>
+                                <button type="button" data-quote-status-filter="unasked" onclick="setQuoteStatusFilter('unasked')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white text-slate-700 border-slate-300 hover:bg-slate-100">Chưa hỏi giá</button>
+                                <button type="button" data-quote-status-filter="pending" onclick="setQuoteStatusFilter('pending')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white text-slate-700 border-slate-300 hover:bg-slate-100">Đã hỏi – Chưa phản hồi</button>
+                                <button type="button" data-quote-status-filter="quoted" onclick="setQuoteStatusFilter('quoted')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white text-slate-700 border-slate-300 hover:bg-slate-100">Đã báo giá</button>
+                                <button type="button" data-quote-status-filter="complete" onclick="setQuoteStatusFilter('complete')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white text-slate-700 border-slate-300 hover:bg-slate-100">Đã đủ phản hồi</button>
+                            </div>
+                        </div>
                     </div>
                     <div id="comparison-blocks-container" class="space-y-6 overflow-y-auto max-h-[650px] pr-1">
                         <!-- Populated dynamically by JS -->
@@ -731,6 +740,52 @@
     </div>
 
 
+    <!-- MODAL: HỎI GIÁ NCC (TAB 3) -->
+    <div id="modal-quote-request" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[65] flex items-center justify-center hidden p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl space-y-5 max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-start border-b border-slate-100 pb-3">
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base">Hỏi giá NCC</h3>
+                    <p class="text-xs text-slate-500 mt-1">Chọn nhiều NCC đã được hỏi giá cho đúng mặt hàng này.</p>
+                </div>
+                <button type="button" onclick="closeQuoteRequestModal()" class="text-slate-400 hover:text-slate-600" title="Đóng">
+                    <i data-lucide="x" class="w-5 h-5"></i>
+                </button>
+            </div>
+
+            <div id="quote-request-item-info" class="rounded-xl bg-slate-50 border border-slate-200 p-4"></div>
+
+            <div>
+                <div class="flex items-center justify-between gap-3 mb-2">
+                    <label class="block text-xs font-semibold text-slate-700">Danh sách Nhà cung cấp</label>
+                    <div class="flex gap-2">
+                        <button type="button" onclick="setAllQuoteRequestSuppliers(true)" class="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100">Chọn tất cả</button>
+                        <button type="button" onclick="setAllQuoteRequestSuppliers(false)" class="px-2.5 py-1.5 rounded-lg text-[11px] font-semibold border border-slate-300 bg-white text-slate-700 hover:bg-slate-100">Bỏ chọn tất cả</button>
+                    </div>
+                </div>
+                <div id="quote-request-supplier-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-64 overflow-y-auto border border-slate-200 rounded-xl p-3"></div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Ngày hỏi giá</label>
+                    <input type="date" id="quote-request-date" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Người hỏi</label>
+                    <input type="text" id="quote-request-by" placeholder="Ngọc" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                </div>
+            </div>
+
+            <div id="quote-request-existing" class="text-xs text-slate-500"></div>
+
+            <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button type="button" onclick="closeQuoteRequestModal()" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50 transition">Hủy</button>
+                <button type="button" onclick="saveQuoteRequest(event)" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg shadow-sm transition">Lưu NCC đã hỏi giá</button>
+            </div>
+        </div>
+    </div>
+
     <!-- MODAL 5: EXPORT SSG (TAB 3) -->
     <div id="modal-export-ssg" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[60] flex items-center justify-center hidden p-4 no-print">
         <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-xl space-y-5 max-h-[92vh] overflow-y-auto">
@@ -1023,6 +1078,11 @@
         // Tracking History (backward compatible with existing localStorage)
         let trackingHistory = [];
 
+        // Quote request tracking: separate from quotes so "đã hỏi giá" is not inferred from quotes.
+        let quoteRequests = [];
+        let currentQuoteRequestOrderId = null;
+        let quoteStatusFilter = 'all';
+
         // App Initialization
         document.addEventListener('DOMContentLoaded', () => {
             loadFromStorage();
@@ -1113,6 +1173,7 @@
                 localStorage.setItem('procure_quotes', JSON.stringify(quotes));
                 localStorage.setItem('procure_tracking_history', JSON.stringify(trackingHistory));
                 localStorage.setItem('procure_supplier_contracts', JSON.stringify(supplierContracts));
+                localStorage.setItem('procure_quote_requests', JSON.stringify(quoteRequests));
             } catch (err) {
                 console.warn('Lưu trữ localStorage đầy hoặc không hỗ trợ:', err);
             }
@@ -1124,6 +1185,7 @@
             const savedQuotes = localStorage.getItem('procure_quotes');
             const savedHistory = localStorage.getItem('procure_tracking_history');
             const savedSupplierContracts = localStorage.getItem('procure_supplier_contracts');
+            const savedQuoteRequests = localStorage.getItem('procure_quote_requests');
 
             if (savedOrders) {
                 try {
@@ -1161,6 +1223,29 @@
                 }
             } else {
                 trackingHistory = [];
+            }
+
+            if (savedQuoteRequests) {
+                try {
+                    const parsedQuoteRequests = JSON.parse(savedQuoteRequests);
+                    if (Array.isArray(parsedQuoteRequests)) {
+                        const seen = new Set();
+                        quoteRequests = parsedQuoteRequests.filter(r => {
+                            const itemId = String(r?.itemId ?? r?.orderId ?? '').trim();
+                            const supplierName = String(r?.supplierName || '').trim();
+                            if (!itemId || !supplierName || !itemId) return false;
+                            const key = `${itemId}||${supplierName.toLowerCase()}`;
+                            if (seen.has(key)) return false;
+                            seen.add(key);
+                            return true;
+                        });
+                    }
+                } catch (err) {
+                    console.error('Lỗi đọc procure_quote_requests:', err);
+                    quoteRequests = [];
+                }
+            } else {
+                quoteRequests = [];
             }
 
             // Load supplier -> contracts master. Existing contract numbers on orders are also
@@ -2334,92 +2419,226 @@
                 quotes.push(newQuote);
             }
 
+            // A quote uploaded without an existing request gets a request record now.
+            // This creates the explicit "đã hỏi" relationship without inferring it from old quotes.
+            ensureQuoteRequestForQuote(order, supplierName, newQuote.uploadDate, newQuote.uploadedBy);
+            quoteRequests.forEach(r => {
+                if (String(r?.itemId ?? r?.orderId ?? '') === String(order.id) &&
+                    String(r?.supplierName || '').trim().toLowerCase() === supplierName.trim().toLowerCase()) {
+                    r.status = 'Đã báo giá';
+                }
+            });
+
             saveToStorage();
             closeUploadQuoteModal();
             renderQuotes();
             alert(`Tải lên báo giá cho "${order.item}" từ NCC "${supplierName}" thành công!`);
         }
 
+        function getQuoteRequestRecordsForOrder(order) {
+            if (!isQuoteEligibleOrder(order)) return [];
+            return quoteRequests.filter(r => String(r?.itemId ?? r?.orderId ?? '') === String(order?.id ?? ''));
+        }
+
+        function getQuoteRequestSupplierNames(order) {
+            return [...new Set(
+                getQuoteRequestRecordsForOrder(order)
+                    .map(r => String(r?.supplierName || '').trim())
+                    .filter(Boolean)
+            )];
+        }
+
+        function findQuoteForOrderSupplier(order, supplierName) {
+            const target = String(supplierName || '').trim().toLowerCase();
+            if (!target) return null;
+            return quotes.find(q =>
+                String(q?.itemId ?? q?.orderId ?? '') === String(order?.id ?? '') &&
+                String(q?.supplierName || '').trim().toLowerCase() === target
+            ) || null;
+        }
+
+        function getQuoteTrackingSummary(order) {
+            const requests = getQuoteRequestRecordsForOrder(order);
+            const askedSuppliers = [...new Set(requests.map(r => String(r?.supplierName || '').trim()).filter(Boolean))];
+            const quotedSuppliers = [];
+            const pendingSuppliers = [];
+
+            askedSuppliers.forEach(supplierName => {
+                const quote = findQuoteForOrderSupplier(order, supplierName);
+                if (quote) quotedSuppliers.push(supplierName);
+                else pendingSuppliers.push(supplierName);
+            });
+
+            // Quotes from suppliers that were not explicitly requested are still real quotes,
+            // but they must not be used to infer that a request existed.
+            const allQuotedSuppliers = [...new Set(
+                quotes.filter(q => String(q?.itemId ?? q?.orderId ?? '') === String(order?.id ?? ''))
+                    .map(q => String(q?.supplierName || '').trim())
+                    .filter(Boolean)
+            )];
+
+            return {
+                askedSuppliers,
+                quotedSuppliers,
+                pendingSuppliers,
+                allQuotedSuppliers,
+                askedCount: askedSuppliers.length,
+                // Ratio/card "đã báo" is based on suppliers that were explicitly asked.
+                quotedCount: quotedSuppliers.length,
+                pendingCount: pendingSuppliers.length
+            };
+        }
+
+        function getQuoteStatusForSupplier(order, supplierName) {
+            const target = String(supplierName || '').trim().toLowerCase();
+            const requestExists = getQuoteRequestRecordsForOrder(order).some(r =>
+                String(r?.supplierName || '').trim().toLowerCase() === target
+            );
+            const quote = findQuoteForOrderSupplier(order, supplierName);
+
+            if (quote) {
+                return { requestExists, quoteExists: true, label: 'Đã báo giá', tone: 'emerald' };
+            }
+            if (requestExists) {
+                return { requestExists: true, quoteExists: false, label: 'Chưa phản hồi', tone: 'amber' };
+            }
+            return { requestExists: false, quoteExists: false, label: 'Chưa hỏi giá', tone: 'slate' };
+        }
+
+        function setQuoteStatusFilter(filter) {
+            quoteStatusFilter = ['all', 'unasked', 'pending', 'quoted', 'complete'].includes(filter) ? filter : 'all';
+            renderQuotes();
+        }
+
+        function updateQuoteStatusFilterButtons() {
+            document.querySelectorAll('[data-quote-status-filter]').forEach(btn => {
+                const active = btn.getAttribute('data-quote-status-filter') === quoteStatusFilter;
+                btn.classList.toggle('bg-indigo-600', active);
+                btn.classList.toggle('text-white', active);
+                btn.classList.toggle('border-indigo-600', active);
+                btn.classList.toggle('bg-white', !active);
+                btn.classList.toggle('text-slate-700', !active);
+                btn.classList.toggle('border-slate-300', !active);
+            });
+        }
+
+        function doesOrderMatchQuoteStatus(order) {
+            const s = getQuoteTrackingSummary(order);
+            if (quoteStatusFilter === 'unasked') return s.askedCount === 0;
+            if (quoteStatusFilter === 'pending') return s.askedCount > 0 && s.pendingCount > 0;
+            if (quoteStatusFilter === 'quoted') return s.quotedCount > 0;
+            if (quoteStatusFilter === 'complete') return s.askedCount > 0 && s.pendingCount === 0;
+            return true;
+        }
+
         function renderQuotes() {
-            const search = document.getElementById('search-quotes').value.toLowerCase();
+            const searchEl = document.getElementById('search-quotes');
+            const search = String(searchEl?.value || '').trim().toLowerCase();
             const trackingContainer = document.getElementById('quote-tracking-list');
             const blocksContainer = document.getElementById('comparison-blocks-container');
             const eligibleOrders = getQuoteEligibleOrdersSorted();
             const eligibleOrderIds = new Set(eligibleOrders.map(o => String(o.id)));
-            const eligibleQuotes = quotes.filter(q => eligibleOrderIds.has(String(q?.itemId ?? '')));
-            
+            const eligibleQuotes = quotes.filter(q => eligibleOrderIds.has(String(q?.itemId ?? q?.orderId ?? '')));
+
+            if (!trackingContainer || !blocksContainer) return;
             trackingContainer.innerHTML = '';
             blocksContainer.innerHTML = '';
 
-            // 1. Render Left Sidebar Tracking - only quotes linked to ĐNMH orders
+            // 1. LEFT SIDEBAR — "Đã hỏi" is based only on explicit quoteRequests.
             suppliers.forEach(sup => {
-                const supQuotes = eligibleQuotes.filter(q => q.supplierName === sup);
-                if (supQuotes.length > 0) {
-                    trackingContainer.innerHTML += `
-                        <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
-                            <div class="flex justify-between items-start">
-                                <span class="font-semibold text-xs text-slate-800">${sup}</span>
-                                <span class="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full font-medium">Đã báo ${supQuotes.length} mặt hàng</span>
-                            </div>
-                            <div class="text-xs text-slate-600 space-y-1">
-                                ${supQuotes.map(q => `
-                                    <div class="flex justify-between items-center text-[11px] border-b border-slate-100 pb-1">
-                                        <span class="truncate max-w-[140px]" title="${q.itemName}">${q.itemName}</span>
-                                        <span class="font-semibold text-indigo-600">${q.quotedPrice.toLocaleString('vi-VN')} VNĐ</span>
-                                    </div>
-                                `).join('')}
-                            </div>
+                const target = String(sup || '').trim().toLowerCase();
+                const askedItemIds = new Set();
+                quoteRequests.forEach(r => {
+                    if (String(r?.supplierName || '').trim().toLowerCase() !== target) return;
+                    const order = eligibleOrders.find(o => String(o.id) === String(r?.itemId ?? r?.orderId ?? ''));
+                    if (order) askedItemIds.add(String(order.id));
+                });
+
+                const reportedItemIds = new Set(
+                    eligibleQuotes
+                        .filter(q => String(q?.supplierName || '').trim().toLowerCase() === target)
+                        .map(q => String(q?.itemId ?? q?.orderId ?? ''))
+                );
+                const pendingItemIds = new Set([...askedItemIds].filter(id => !reportedItemIds.has(id)));
+
+                if (askedItemIds.size === 0 && reportedItemIds.size === 0) return;
+
+                trackingContainer.innerHTML += `
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                        <div class="flex justify-between items-start gap-2">
+                            <span class="font-semibold text-xs text-slate-800">${escapeHTML(sup)}</span>
+                            <span class="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full font-medium">Đã hỏi: ${askedItemIds.size}</span>
                         </div>
-                    `;
-                }
+                        <div class="grid grid-cols-2 gap-2 text-[11px]">
+                            <div class="rounded-lg bg-emerald-50 border border-emerald-100 px-2 py-1.5 text-emerald-700 font-semibold">Đã báo: ${reportedItemIds.size}</div>
+                            <div class="rounded-lg bg-amber-50 border border-amber-100 px-2 py-1.5 text-amber-700 font-semibold">Chưa phản hồi: ${pendingItemIds.size}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Include request records for suppliers that are no longer in the master list.
+            const requestSupplierNames = [...new Set(quoteRequests
+                .filter(r => eligibleOrderIds.has(String(r?.itemId ?? r?.orderId ?? '')))
+                .map(r => String(r?.supplierName || '').trim())
+                .filter(Boolean))];
+            requestSupplierNames.filter(name => !suppliers.some(s => String(s).trim().toLowerCase() === name.toLowerCase())).forEach(sup => {
+                const target = sup.toLowerCase();
+                const askedItemIds = new Set(quoteRequests.filter(r => String(r?.supplierName || '').trim().toLowerCase() === target).map(r => String(r?.itemId ?? r?.orderId ?? '')));
+                const validAsked = new Set([...askedItemIds].filter(id => eligibleOrderIds.has(id)));
+                const reportedItemIds = new Set(eligibleQuotes.filter(q => String(q?.supplierName || '').trim().toLowerCase() === target).map(q => String(q?.itemId ?? q?.orderId ?? '')));
+                const pendingItemIds = new Set([...validAsked].filter(id => !reportedItemIds.has(id)));
+                trackingContainer.innerHTML += `
+                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
+                        <div class="flex justify-between items-start gap-2">
+                            <span class="font-semibold text-xs text-slate-800">${escapeHTML(sup)}</span>
+                            <span class="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full font-medium">Đã hỏi: ${validAsked.size}</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-[11px]">
+                            <div class="rounded-lg bg-emerald-50 border border-emerald-100 px-2 py-1.5 text-emerald-700 font-semibold">Đã báo: ${reportedItemIds.size}</div>
+                            <div class="rounded-lg bg-amber-50 border border-amber-100 px-2 py-1.5 text-amber-700 font-semibold">Chưa phản hồi: ${pendingItemIds.size}</div>
+                        </div>
+                    </div>
+                `;
             });
 
             if (trackingContainer.innerHTML === '') {
-                trackingContainer.innerHTML = `<div class="text-xs text-slate-400 text-center py-6">Chưa có báo giá từ các NCC hiện tại.</div>`;
+                trackingContainer.innerHTML = `<div class="text-xs text-slate-400 text-center py-6">Chưa có dữ liệu hỏi/báo giá NCC.</div>`;
             }
 
-            // 2. Render Main Comparison Blocks — same grouping logic as Tab 2:
-            //    From + Ngày Order, while preserving the order returned by getSortedOrders('desc').
-            const sortedOrders = eligibleOrders;
+            // 2. MAIN COMPARISON — ĐNMH only, grouped by From + Date using the same order sequence as Tab 1.
             const groups = {};
             const groupKeys = [];
-
-            sortedOrders.forEach(o => {
+            eligibleOrders.forEach(o => {
                 const rest = o.restaurant || 'Khác';
                 const dateVal = o.date || '1970-01-01';
                 const key = `${rest}||${dateVal}`;
-
                 if (!groups[key]) {
-                    groups[key] = {
-                        restaurant: rest,
-                        date: dateVal,
-                        items: []
-                    };
+                    groups[key] = { restaurant: rest, date: dateVal, items: [] };
                     groupKeys.push(key);
                 }
                 groups[key].items.push(o);
             });
 
             let hasAnyBlock = false;
-
             groupKeys.forEach(key => {
                 const group = groups[key];
-                const items = group.items;
 
-                // Search only filters items inside the existing From + Date group.
-                const filteredGroupOrders = items.filter(o => {
+                const filteredGroupOrders = group.items.filter(o => {
+                    if (!doesOrderMatchQuoteStatus(o)) return false;
                     if (!search) return true;
+
                     const itemText = String(o.item || '').toLowerCase();
                     const fromText = String(o.restaurant || '').toLowerCase();
-                    const itemQuotes = eligibleQuotes.filter(q => String(q?.itemId ?? '') === String(o.id));
-                    const matchItem = itemText.includes(search);
-                    const matchFrom = fromText.includes(search);
-                    const matchSup = itemQuotes.some(q => String(q?.supplierName || '').toLowerCase().includes(search));
-                    const matchDate = String(o.date || '').toLowerCase().includes(search) || formatDateVN(o.date).toLowerCase().includes(search);
-                    return matchItem || matchFrom || matchSup || matchDate;
+                    const codeText = String(o.orderNo || o.requestNo || o.requisitionNo || o.code || o.dnmh || o.itemCode || o.contractNo || '').toLowerCase();
+                    const tracking = getQuoteTrackingSummary(o);
+                    const requestSupMatch = tracking.askedSuppliers.some(s => s.toLowerCase().includes(search));
+                    const quoteSupMatch = tracking.allQuotedSuppliers.some(s => s.toLowerCase().includes(search));
+                    const dateText = `${String(o.date || '').toLowerCase()} ${formatDateVN(o.date).toLowerCase()}`;
+                    return itemText.includes(search) || fromText.includes(search) || codeText.includes(search) || requestSupMatch || quoteSupMatch || dateText.includes(search);
                 });
 
-                if (filteredGroupOrders.length === 0) return;
+                if (!filteredGroupOrders.length) return;
                 hasAnyBlock = true;
 
                 const formattedDate = formatDateVN(group.date);
@@ -2428,98 +2647,143 @@
                         <div class="bg-indigo-50 border border-indigo-200 text-indigo-900 px-4 py-2.5 rounded-xl font-bold text-sm flex items-center justify-between shadow-xs">
                             <h3 class="flex items-center space-x-2">
                                 <i data-lucide="building-2" class="w-4 h-4 text-indigo-600"></i>
-                                <span>FROM: ${group.restaurant} — ${formattedDate} — ${filteredGroupOrders.length} mặt hàng</span>
+                                <span>FROM: ${escapeHTML(group.restaurant)} — ${escapeHTML(formattedDate)} — ${filteredGroupOrders.length} mặt hàng</span>
                             </h3>
                             <span class="text-xs font-semibold text-indigo-700 bg-white px-2.5 py-1 rounded-full border border-indigo-100">${filteredGroupOrders.length} mặt hàng</span>
                         </div>
                 `;
 
-                // Item order remains exactly the order produced by getSortedOrders('desc')
-                // within this From + Date group. No re-sorting by item, price, supplier or code.
                 filteredGroupOrders.forEach(o => {
-                    const itemQuotes = eligibleQuotes.filter(q => String(q?.itemId ?? '') === String(o.id));
+                    const itemQuotes = eligibleQuotes.filter(q => String(q?.itemId ?? q?.orderId ?? '') === String(o.id));
+                    const tracking = getQuoteTrackingSummary(o);
+                    const validPrices = itemQuotes.map(q => Number(String(q?.quotedPrice ?? '').replace(/,/g, '').trim())).filter(Number.isFinite);
+                    const minPrice = validPrices.length ? Math.min(...validPrices) : null;
+                    const itemCode = o.orderNo || o.requestNo || o.requisitionNo || o.code || o.dnmh || o.itemCode || o.contractNo || ('DNMH' + String(o.id).padStart(3, '0'));
+                    const responseText = tracking.askedCount > 0
+                        ? `${tracking.quotedCount}/${tracking.askedCount} NCC đã báo giá`
+                        : 'Chưa hỏi NCC nào';
 
-                    let minPrice = null;
-                    if (itemQuotes.length > 0) {
-                        minPrice = Math.min(...itemQuotes.map(q => q.quotedPrice));
+                    const askedChips = tracking.askedSuppliers.length
+                        ? tracking.askedSuppliers.map(sup => `
+                            <span class="inline-flex items-center gap-1 px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded-full text-[11px] font-semibold">
+                                ${escapeHTML(sup)}
+                                <button type="button" onclick="removeQuoteRequestForSupplier(${JSON.stringify(o.id)}, ${JSON.stringify(sup)})" class="text-sky-500 hover:text-rose-600 font-bold" title="Xóa NCC khỏi danh sách đã hỏi">×</button>
+                            </span>
+                        `).join('')
+                        : '<span class="text-xs text-slate-400">Chưa hỏi giá NCC nào.</span>';
+
+                    const responseRows = [...new Set([...tracking.askedSuppliers, ...tracking.allQuotedSuppliers])];
+                    let quoteTableHtml = '';
+                    if (responseRows.length) {
+                        quoteTableHtml = `
+                            <div class="overflow-x-auto">
+                                <table class="w-full text-left border-collapse text-sm">
+                                    <thead>
+                                        <tr class="text-slate-500 text-xs font-semibold uppercase tracking-wider border-b border-slate-200 bg-slate-50">
+                                            <th class="py-2.5 px-3">NCC</th>
+                                            <th class="py-2.5 px-3 text-right">Đơn giá trước VAT</th>
+                                            <th class="py-2.5 px-3">Báo giá thực tế</th>
+                                            <th class="py-2.5 px-3 text-center">Trạng thái</th>
+                                            <th class="py-2.5 px-3 text-right">Thao tác</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-slate-100">
+                                        ${responseRows.map(sup => {
+                                            const quote = findQuoteForOrderSupplier(o, sup);
+                                            const status = getQuoteStatusForSupplier(o, sup);
+                                            const fileName = quote?.fileName || '';
+                                            const shortName = fileName ? (fileName.length > 22 ? fileName.substring(0, 19) + '...' : fileName) : '-';
+                                            const isLowest = quote && minPrice !== null && Number(quote.quotedPrice) === minPrice;
+                                            return `
+                                                <tr class="hover:bg-slate-50/60 transition">
+                                                    <td class="py-3 px-3 font-semibold text-slate-800">${escapeHTML(sup)}</td>
+                                                    <td class="py-3 px-3 text-right font-bold ${isLowest ? 'text-emerald-700' : 'text-slate-900'}">
+                                                        ${quote ? `${Number(quote.quotedPrice).toLocaleString('vi-VN')} VNĐ${isLowest ? ' <span class="text-[10px] ml-1">⭐ Thấp nhất</span>' : ''}` : '-'}
+                                                    </td>
+                                                    <td class="py-3 px-3">
+                                                        ${quote && quote.fileData ? `<button onclick="viewQuoteFile('${escapeHTMLAttribute(quote.quoteId)}')" class="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md transition font-medium max-w-[220px]" title="${escapeHTML(fileName)}"><i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-600 shrink-0"></i><span class="truncate">📄 ${escapeHTML(shortName)}</span></button>` : (fileName ? `<span class="text-xs text-slate-500">📄 ${escapeHTML(shortName)}</span>` : '-')}
+                                                    </td>
+                                                    <td class="py-3 px-3 text-center">
+                                                        ${status.quoteExists
+                                                            ? '<span class="inline-flex items-center px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold rounded-full">🟢 Đã báo giá</span>'
+                                                            : status.requestExists
+                                                                ? '<span class="inline-flex items-center px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-bold rounded-full">🟠 Chưa phản hồi</span>'
+                                                                : '<span class="inline-flex items-center px-2.5 py-1 bg-slate-50 text-slate-500 border border-slate-200 text-[11px] font-bold rounded-full">Chưa hỏi giá</span>'}
+                                                    </td>
+                                                    <td class="py-3 px-3 text-right whitespace-nowrap">
+                                                        ${quote ? `<button onclick="deleteQuote('${escapeHTMLAttribute(quote.quoteId)}')" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg transition" title="Xóa báo giá này"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>Xóa</span></button>` : '-'}
+                                                    </td>
+                                                </tr>
+                                            `;
+                                        }).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                        `;
+                    } else {
+                        quoteTableHtml = `<div class="py-5 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs text-slate-400">Chưa có NCC được hỏi giá hoặc báo giá.</div>`;
                     }
 
+                    const completionBadge = tracking.askedCount > 0 && tracking.pendingCount === 0
+                        ? '<span class="inline-flex items-center px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold">Đã đủ phản hồi</span>'
+                        : '';
+
                     sectionHtml += `
-                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-3 transition hover:shadow-md mb-4">
-                            <!-- HEADER MỖI MẶT HÀNG (BLOCK HEADER) -->
-                            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-100 pb-3">
-                                <div>
+                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4 transition hover:shadow-md mb-4">
+                            <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 border-b border-slate-100 pb-3">
+                                <div class="min-w-0">
                                     <h4 class="font-bold text-slate-900 text-base flex items-center space-x-2 flex-wrap gap-2">
-                                        <span>📦 ${o.item}</span>
-                                        <span class="text-xs px-2.5 py-0.5 ${itemQuotes.length > 0 ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-slate-100 text-slate-500 border-slate-200'} border rounded-full font-medium">
-                                            ${itemQuotes.length > 0 ? `${itemQuotes.length} NCC báo giá` : 'Chưa có báo giá'}
-                                        </span>
+                                        <span>📦 ${escapeHTML(o.item)}</span>
                                     </h4>
                                     <div class="text-xs text-slate-500 mt-1 flex flex-wrap items-center gap-2">
-                                        <span><strong>From:</strong> ${o.restaurant}</span>
+                                        <span><strong>From:</strong> ${escapeHTML(o.restaurant)}</span>
                                         <span>•</span>
-                                        <span><strong>KFC ATP</strong> | Mã ĐNMH: <code class="bg-slate-100 px-1.5 py-0.5 rounded text-indigo-700 font-semibold">${o.contractNo || 'DNMH' + String(o.id).padStart(3, '0')}</code></span>
+                                        <span><strong>Mã ĐNMH:</strong> <code class="bg-slate-100 px-1.5 py-0.5 rounded text-indigo-700 font-semibold">${escapeHTML(itemCode)}</code></span>
                                         <span>•</span>
-                                        <span>SL: <strong class="text-slate-700">${o.qty} ${o.unit}</strong></span>
+                                        <span>SL: <strong class="text-slate-700">${escapeHTML(o.qty)} ${escapeHTML(o.unit)}</strong></span>
                                         <span>•</span>
-                                        <span>Ngày order: <strong class="text-slate-600">${formattedDate}</strong></span>
+                                        <span>Ngày order: <strong class="text-slate-600">${escapeHTML(formattedDate)}</strong></span>
                                     </div>
                                 </div>
+                                <div class="flex flex-wrap items-center gap-2 shrink-0">
+                                    <span class="inline-flex items-center px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded-full text-[11px] font-bold">${tracking.askedCount} NCC đã hỏi</span>
+                                    <span class="inline-flex items-center px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold">${tracking.quotedCount} NCC đã báo</span>
+                                    <span class="inline-flex items-center px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[11px] font-bold">${tracking.pendingCount} NCC chưa phản hồi</span>
+                                    ${completionBadge}
+                                </div>
+                            </div>
+
+                            <div class="rounded-xl bg-slate-50 border border-slate-200 p-3">
+                                <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-2 mb-2">
+                                    <div class="text-xs font-bold text-slate-700">ĐÃ HỎI GIÁ:</div>
+                                    <div class="text-xs font-semibold text-slate-600">${escapeHTML(responseText)}</div>
+                                </div>
+                                <div class="flex flex-wrap items-center gap-2">${askedChips}</div>
+                            </div>
+
+                            <div class="rounded-xl bg-white border border-slate-200 p-3">
+                                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-3">
+                                    <div class="text-xs font-bold text-slate-700">TÌNH TRẠNG PHẢN HỒI:</div>
+                                    <button type="button" onclick="openQuoteRequestModal(${o.id})" class="inline-flex items-center px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg shadow-sm transition whitespace-nowrap">
+                                        <i data-lucide="user-plus" class="w-3.5 h-3.5 mr-1"></i> + Hỏi giá NCC
+                                    </button>
+                                </div>
+                                <div class="flex flex-wrap gap-2">
+                                    ${tracking.askedSuppliers.map(sup => {
+                                        const status = getQuoteStatusForSupplier(o, sup);
+                                        return `<span class="inline-flex items-center px-2.5 py-1 ${status.quoteExists ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-amber-50 text-amber-700 border-amber-200'} border rounded-full text-[11px] font-bold">${status.quoteExists ? '🟢' : '🟠'} ${escapeHTML(sup)} – ${status.label}</span>`;
+                                    }).join('') || '<span class="text-xs text-slate-400">Chưa có NCC được hỏi giá.</span>'}
+                                </div>
+                            </div>
+
+                            ${quoteTableHtml}
+
+                            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pt-1">
+                                <div class="text-[11px] text-slate-500">Giá thấp nhất chỉ là thông tin so sánh, không tự động trở thành NCC được chọn.</div>
                                 <button onclick="openUploadQuoteModalForItem(${o.id})" class="inline-flex items-center px-3 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition whitespace-nowrap">
                                     <i data-lucide="plus" class="w-3.5 h-3.5 mr-1"></i> Tải lên báo giá
                                 </button>
                             </div>
-
-                            <!-- DANH SÁCH NCC BÁO GIÁ (BẢNG TRONG BLOCK) HOẶC EMPTY STATE -->
-                            ${itemQuotes.length > 0 ? `
-                                <div class="overflow-x-auto">
-                                    <table class="w-full text-left border-collapse text-sm">
-                                        <thead>
-                                            <tr class="text-slate-500 text-xs font-semibold uppercase tracking-wider border-b border-slate-200 bg-slate-50">
-                                                <th class="py-2.5 px-3">NCC báo giá</th>
-                                                <th class="py-2.5 px-3 text-right">Đơn giá trước VAT</th>
-                                                <th class="py-2.5 px-3">Báo giá thực tế</th>
-                                                <th class="py-2.5 px-3 text-right">Thao tác</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody class="divide-y divide-slate-100">
-                                            ${itemQuotes.map(q => {
-                                                const isLowest = (q.quotedPrice === minPrice);
-                                                const fileName = q.fileName || 'bao_gia.pdf';
-                                                const shortName = fileName.length > 22 ? fileName.substring(0, 19) + '...' : fileName;
-                                                return `
-                                                    <tr class="hover:bg-slate-50/60 transition">
-                                                        <td class="py-3 px-3 font-semibold text-slate-800">${q.supplierName}</td>
-                                                        <td class="py-3 px-3 text-right font-bold ${isLowest ? 'text-emerald-700 font-extrabold' : 'text-slate-900'}">
-                                                            ${q.quotedPrice.toLocaleString('vi-VN')} VNĐ
-                                                        </td>
-                                                        <td class="py-3 px-3">
-                                                            <button onclick="viewQuoteFile('${q.quoteId}')" class="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md transition font-medium max-w-[220px]" title="${fileName}">
-                                                                <i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-600 shrink-0"></i>
-                                                                <span class="truncate">📄 ${shortName}</span>
-                                                            </button>
-                                                        </td>
-                                                        <td class="py-3 px-3 text-right whitespace-nowrap space-x-2">
-                                                            ${isLowest ? '<span class="inline-flex items-center px-2.5 py-1 bg-emerald-100 text-emerald-800 text-[11px] font-bold rounded-full mr-1">⭐ Thấp nhất</span>' : ''}
-                                                            <button onclick="deleteQuote('${q.quoteId}')" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg transition" title="Xóa báo giá này">
-                                                                <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                                                                <span>Xóa</span>
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                `;
-                                            }).join('')}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            ` : `
-                                <div class="py-6 text-center bg-slate-50 rounded-xl border border-dashed border-slate-200 space-y-2">
-                                    <div class="text-slate-400 text-xs font-medium">Chưa có NCC báo giá</div>
-                                    <button onclick="openUploadQuoteModalForItem(${o.id})" class="inline-flex items-center px-3.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium rounded-lg shadow-sm transition">
-                                        <i data-lucide="upload" class="w-3.5 h-3.5 mr-1.5"></i> [+ Tải lên báo giá]
-                                    </button>
-                                </div>
-                            `}
                         </div>
                     `;
                 });
@@ -2529,14 +2793,160 @@
             });
 
             if (!hasAnyBlock) {
-                blocksContainer.innerHTML = `<div class="bg-white p-8 rounded-xl border border-slate-200 text-center text-slate-400">Không tìm thấy mặt hàng hoặc báo giá phù hợp.</div>`;
+                blocksContainer.innerHTML = `<div class="bg-white p-8 rounded-xl border border-slate-200 text-center text-slate-400">Không tìm thấy mặt hàng hoặc trạng thái báo giá phù hợp.</div>`;
             }
 
+            updateQuoteStatusFilterButtons();
             lucide.createIcons();
         }
 
         function openUploadQuoteModalForItem(orderId) {
             openUploadQuoteModal(orderId);
+        }
+
+        function ensureQuoteRequestForQuote(order, supplierName, requestedDate = '', requestedBy = '') {
+            if (!isQuoteEligibleOrder(order)) return false;
+            const target = String(supplierName || '').trim();
+            if (!target) return false;
+            const exists = quoteRequests.some(r =>
+                String(r?.itemId ?? r?.orderId ?? '') === String(order.id) &&
+                String(r?.supplierName || '').trim().toLowerCase() === target.toLowerCase()
+            );
+            if (exists) return false;
+
+            quoteRequests.push({
+                requestId: Date.now() + Math.random(),
+                orderId: order.id,
+                itemId: order.id,
+                supplierName: target,
+                requestedDate: requestedDate || new Date().toISOString().slice(0, 10),
+                requestedBy: requestedBy || order.by || 'Ngọc',
+                status: 'Đã hỏi'
+            });
+            return true;
+        }
+
+        function openQuoteRequestModal(orderId) {
+            const order = orders.find(o => String(o.id) === String(orderId));
+            if (!order) {
+                alert('Không tìm thấy mặt hàng.');
+                return;
+            }
+            if (!isQuoteEligibleOrder(order)) {
+                alert('Mặt hàng mua theo Hợp đồng không thuộc Tab 3.');
+                return;
+            }
+
+            currentQuoteRequestOrderId = order.id;
+            const infoEl = document.getElementById('quote-request-item-info');
+            const listEl = document.getElementById('quote-request-supplier-list');
+            const existingEl = document.getElementById('quote-request-existing');
+            const dateEl = document.getElementById('quote-request-date');
+            const byEl = document.getElementById('quote-request-by');
+            const itemCode = order.orderNo || order.requestNo || order.requisitionNo || order.code || order.dnmh || order.itemCode || order.contractNo || ('DNMH' + String(order.id).padStart(3, '0'));
+            const existing = getQuoteRequestSupplierNames(order);
+
+            infoEl.innerHTML = `
+                <div class="text-sm font-bold text-slate-900">📦 ${escapeHTML(order.item)}</div>
+                <div class="text-xs text-slate-500 mt-1 flex flex-wrap gap-3">
+                    <span>From: <strong>${escapeHTML(order.restaurant)}</strong></span>
+                    <span>Mã ĐNMH: <strong>${escapeHTML(itemCode)}</strong></span>
+                    <span>Ngày order: <strong>${escapeHTML(formatDateVN(order.date))}</strong></span>
+                </div>
+            `;
+
+            listEl.innerHTML = suppliers.length
+                ? suppliers.map((sup, idx) => {
+                    const checked = existing.some(name => name.toLowerCase() === String(sup).trim().toLowerCase());
+                    return `
+                        <label class="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
+                            <input type="checkbox" data-quote-request-supplier="${escapeHTMLAttribute(sup)}" ${checked ? 'checked' : ''} class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                            <span class="text-sm font-medium text-slate-700">${escapeHTML(sup)}</span>
+                            ${checked ? '<span class="ml-auto text-[10px] font-semibold text-emerald-600">Đã hỏi</span>' : ''}
+                        </label>
+                    `;
+                }).join('')
+                : '<div class="col-span-full text-xs text-slate-400 text-center py-4">Chưa có NCC trong danh sách master.</div>';
+
+            const today = new Date().toISOString().slice(0, 10);
+            dateEl.value = existing.length ? (getQuoteRequestRecordsForOrder(order)[0]?.requestedDate || today) : today;
+            byEl.value = existing.length ? (getQuoteRequestRecordsForOrder(order)[0]?.requestedBy || order.by || 'Ngọc') : (order.by || 'Ngọc');
+            existingEl.innerHTML = existing.length
+                ? `Đã hỏi hiện tại: <strong>${escapeHTML(existing.join(', '))}</strong>. Bạn có thể bổ sung NCC mới; hệ thống không tạo duplicate.`
+                : 'Chưa có NCC nào được lưu là đã hỏi giá cho mặt hàng này.';
+
+            document.getElementById('modal-quote-request').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function closeQuoteRequestModal() {
+            currentQuoteRequestOrderId = null;
+            closeModal('modal-quote-request');
+        }
+
+        function setAllQuoteRequestSuppliers(checked) {
+            document.querySelectorAll('#quote-request-supplier-list input[data-quote-request-supplier]').forEach(cb => cb.checked = !!checked);
+        }
+
+        function saveQuoteRequest(event) {
+            if (event) event.preventDefault();
+            const order = orders.find(o => String(o.id) === String(currentQuoteRequestOrderId));
+            if (!order) {
+                alert('Không tìm thấy mặt hàng.');
+                return;
+            }
+            if (!isQuoteEligibleOrder(order)) {
+                alert('Mặt hàng mua theo Hợp đồng không thuộc Tab 3.');
+                return;
+            }
+
+            const selectedSuppliers = [...document.querySelectorAll('#quote-request-supplier-list input[data-quote-request-supplier]:checked')]
+                .map(cb => String(cb.getAttribute('data-quote-request-supplier') || '').trim())
+                .filter(Boolean);
+            if (!selectedSuppliers.length) {
+                alert('Vui lòng chọn ít nhất 1 NCC.');
+                return;
+            }
+
+            const requestedDate = document.getElementById('quote-request-date').value || new Date().toISOString().slice(0, 10);
+            const requestedBy = document.getElementById('quote-request-by').value.trim() || 'Ngọc';
+            let addedCount = 0;
+
+            selectedSuppliers.forEach(supplierName => {
+                if (ensureQuoteRequestForQuote(order, supplierName, requestedDate, requestedBy)) addedCount += 1;
+            });
+
+            // Update request status for existing records without creating duplicates.
+            quoteRequests.forEach(r => {
+                if (String(r?.itemId ?? r?.orderId ?? '') !== String(order.id)) return;
+                if (!selectedSuppliers.some(s => s.toLowerCase() === String(r?.supplierName || '').trim().toLowerCase())) return;
+                r.requestedDate = requestedDate;
+                r.requestedBy = requestedBy;
+                r.status = findQuoteForOrderSupplier(order, r.supplierName) ? 'Đã báo giá' : 'Đã hỏi';
+            });
+
+            saveToStorage();
+            closeQuoteRequestModal();
+            renderQuotes();
+            alert(addedCount > 0 ? `Đã lưu ${addedCount} NCC mới được hỏi giá cho "${order.item}".` : `Danh sách NCC đã hỏi giá cho "${order.item}" đã được cập nhật.`);
+        }
+
+        function removeQuoteRequestForSupplier(orderId, supplierName) {
+            const order = orders.find(o => String(o.id) === String(orderId));
+            if (!order) return;
+            const target = String(supplierName || '').trim();
+            const hasQuote = !!findQuoteForOrderSupplier(order, target);
+            if (hasQuote && !confirm(`NCC "${target}" đã có báo giá. Bạn có chắc muốn xóa NCC này khỏi danh sách đã hỏi giá? Báo giá sẽ được giữ nguyên.`)) {
+                return;
+            }
+            if (!hasQuote && !confirm(`Xóa NCC "${target}" khỏi danh sách đã hỏi giá?`)) return;
+
+            quoteRequests = quoteRequests.filter(r => !(
+                String(r?.itemId ?? r?.orderId ?? '') === String(order.id) &&
+                String(r?.supplierName || '').trim().toLowerCase() === target.toLowerCase()
+            ));
+            saveToStorage();
+            renderQuotes();
         }
 
         function viewQuoteFile(quoteId) {
@@ -2567,7 +2977,19 @@
 
         function deleteQuote(quoteId) {
             if (confirm('Bạn có chắc chắn muốn xóa file báo giá này của NCC?')) {
+                const removedQuote = quotes.find(x => x.quoteId == quoteId);
                 quotes = quotes.filter(x => x.quoteId != quoteId);
+
+                // Keep the quoteRequest. Once the quote is removed, the supplier is back to "Chưa phản hồi".
+                if (removedQuote) {
+                    quoteRequests.forEach(r => {
+                        if (String(r?.itemId ?? r?.orderId ?? '') === String(removedQuote?.itemId ?? removedQuote?.orderId ?? '') &&
+                            String(r?.supplierName || '').trim().toLowerCase() === String(removedQuote?.supplierName || '').trim().toLowerCase()) {
+                            r.status = 'Đã hỏi';
+                        }
+                    });
+                }
+
                 saveToStorage();
                 renderQuotes();
             }
