@@ -194,10 +194,19 @@
                     <button onclick="openExportSSGModal()" class="inline-flex items-center px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium rounded-lg shadow-sm transition whitespace-nowrap">
                         <i data-lucide="file-spreadsheet" class="w-4 h-4 mr-2"></i> Xuất Excel SSG
                     </button>
-                    <div class="relative flex-1 sm:w-64">
+                    <div class="relative flex-1 sm:w-80 min-w-[280px]">
                         <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
-                        <input type="text" id="search-quotes" oninput="renderQuotes()" placeholder="Tìm kiếm mặt hàng, NCC, From..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="text" id="search-quotes" oninput="renderQuotes()" placeholder="Tìm From, ngày, mặt hàng, NCC, trạng thái..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
+                    <select id="quote-filter-from" onchange="onQuoteFromFilterChange()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[170px]">
+                        <option value="">-- Tất cả From --</option>
+                    </select>
+                    <select id="quote-filter-date" onchange="renderQuotes()" disabled class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[150px] disabled:bg-slate-100 disabled:text-slate-400">
+                        <option value="">-- Tất cả ngày --</option>
+                    </select>
+                    <button type="button" onclick="clearQuoteFilters()" class="inline-flex items-center px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 text-sm font-semibold rounded-lg border border-slate-300 whitespace-nowrap" title="Xóa toàn bộ bộ lọc Tab 3">
+                        <i data-lucide="rotate-ccw" class="w-4 h-4 mr-1.5"></i> Xóa lọc
+                    </button>
                 </div>
             </div>
 
@@ -229,6 +238,16 @@
                                 <button type="button" data-quote-status-filter="quoted" onclick="setQuoteStatusFilter('quoted')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white text-slate-700 border-slate-300 hover:bg-slate-100">Đã báo giá</button>
                                 <button type="button" data-quote-status-filter="complete" onclick="setQuoteStatusFilter('complete')" class="px-3 py-1.5 rounded-lg text-xs font-semibold border bg-white text-slate-700 border-slate-300 hover:bg-slate-100">Đã đủ phản hồi</button>
                             </div>
+                        </div>
+                    </div>
+                    <div id="quote-active-filters" class="hidden bg-white p-3 rounded-xl border border-indigo-100 shadow-sm text-xs text-slate-600">
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="font-bold text-slate-800">Đang lọc:</span>
+                            <span id="quote-active-filter-from" class="hidden inline-flex items-center px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100"></span>
+                            <span id="quote-active-filter-date" class="hidden inline-flex items-center px-2 py-1 rounded-full bg-indigo-50 text-indigo-700 border border-indigo-100"></span>
+                            <span id="quote-active-filter-search" class="hidden inline-flex items-center px-2 py-1 rounded-full bg-slate-50 text-slate-700 border border-slate-200"></span>
+                            <span id="quote-active-filter-status" class="hidden inline-flex items-center px-2 py-1 rounded-full bg-amber-50 text-amber-700 border border-amber-100"></span>
+                            <button type="button" onclick="clearQuoteFilters()" class="ml-auto text-xs font-semibold text-indigo-700 hover:text-indigo-900">× Xóa bộ lọc</button>
                         </div>
                     </div>
                     <div id="comparison-blocks-container" class="space-y-6 overflow-y-auto max-h-[650px] pr-1">
@@ -2510,6 +2529,177 @@
             renderQuotes();
         }
 
+        // --- TAB 3 SEARCH / FILTER HELPERS -----------------------------------
+        function normalizeSearchText(text) {
+            return String(text ?? '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/[–—−]/g, '-')
+                .replace(/[\s_-]+/g, ' ')
+                .trim();
+        }
+
+        function normalizeQuoteDateFilterKey(value) {
+            if (value === null || value === undefined || value === '') return '';
+            const raw = String(value).trim();
+            if (/^\d{4}-\d{2}-\d{2}/.test(raw)) return raw.slice(0, 10);
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(raw)) {
+                const [d, m, y] = raw.split('/');
+                return `${y}-${m}-${d}`;
+            }
+            if (/^\d{2}-\d{2}-\d{4}$/.test(raw)) {
+                const [d, m, y] = raw.split('-');
+                return `${y}-${m}-${d}`;
+            }
+            if (typeof value === 'number' && Number.isFinite(value)) {
+                const excelEpoch = new Date(Date.UTC(1899, 11, 30));
+                const d = new Date(excelEpoch.getTime() + value * 86400000);
+                return `${d.getUTCFullYear()}-${String(d.getUTCMonth()+1).padStart(2,'0')}-${String(d.getUTCDate()).padStart(2,'0')}`;
+            }
+            const parsed = new Date(raw);
+            return Number.isNaN(parsed.getTime()) ? raw : parsed.toISOString().slice(0, 10);
+        }
+
+        function buildQuoteDateSearchText(value) {
+            const key = normalizeQuoteDateFilterKey(value);
+            const formatted = formatDateVN(value);
+            const parts = [];
+            if (key) {
+                const [y, m, d] = key.split('-');
+                parts.push(key, `${d}/${m}/${y}`, `${d}-${m}-${y}`, `${d}/${m}`, `${m}/${y}`, `${y}/${m}`, `${y} ${m} ${d}`, `${d} ${m} ${y}`);
+            }
+            if (formatted) parts.push(formatted);
+            return normalizeSearchText(parts.join(' '));
+        }
+
+        function buildQuoteGroupSearchText(group) {
+            return normalizeSearchText(`${group.restaurant || ''} ${buildQuoteDateSearchText(group.date)} ${formatDateVN(group.date)}`);
+        }
+
+        function buildQuoteItemSearchText(order, tracking, itemQuotes) {
+            const itemCode = order.orderNo || order.requestNo || order.requisitionNo || order.code || order.dnmh || order.itemCode || order.contractNo || '';
+            const asked = tracking.askedSuppliers || [];
+            const quoted = tracking.allQuotedSuppliers || [];
+            const statusTerms = [];
+            if (tracking.askedCount === 0) statusTerms.push('Chưa hỏi giá', 'Chua hoi gia');
+            if (tracking.pendingCount > 0) statusTerms.push('Chưa phản hồi', 'Chua phan hoi');
+            if (tracking.quotedCount > 0 || itemQuotes.length > 0) statusTerms.push('Đã báo giá', 'Da bao gia');
+            if (tracking.askedCount > 0 && tracking.pendingCount === 0) statusTerms.push('Đã đủ phản hồi', 'Da du phan hoi');
+            if (itemQuotes.length === 0) statusTerms.push('Chưa báo giá', 'Chua bao gia');
+            return normalizeSearchText([
+                order.item, order.restaurant, itemCode, formatDateVN(order.date),
+                ...asked, ...quoted, ...statusTerms
+            ].join(' '));
+        }
+
+        function quoteSearchMatchesAllTokens(text, search) {
+            const normalized = normalizeSearchText(text);
+            const tokens = normalizeSearchText(search).split(' ').filter(Boolean);
+            return !tokens.length || tokens.every(token => normalized.includes(token));
+        }
+
+        function getQuoteSearchTerms(search) {
+            const normalized = normalizeSearchText(search);
+            return { normalized, tokens: normalized.split(' ').filter(Boolean) };
+        }
+
+        function getQuoteFilterFroms() {
+            return [...new Set(getQuoteEligibleOrdersSorted().map(o => String(o.restaurant || 'Khác').trim()).filter(Boolean))] 
+                .sort((a, b) => a.localeCompare(b, 'vi', { sensitivity: 'base' }));
+        }
+
+        function getQuoteFilterDates(selectedFrom = '') {
+            const fromValue = String(selectedFrom || '');
+            const values = getQuoteEligibleOrdersSorted()
+                .filter(o => !fromValue || String(o.restaurant || '') === fromValue)
+                .map(o => normalizeQuoteDateFilterKey(o.date))
+                .filter(Boolean);
+            return [...new Set(values)].sort((a, b) => new Date(b) - new Date(a));
+        }
+
+        function populateQuoteFilterFromOptions() {
+            const select = document.getElementById('quote-filter-from');
+            if (!select) return '';
+            const current = select.value || '';
+            const options = ['<option value="">-- Tất cả From --</option>'];
+            getQuoteFilterFroms().forEach(from => {
+                options.push(`<option value="${escapeHTMLAttribute(from)}">${escapeHTML(from)}</option>`);
+            });
+            select.innerHTML = options.join('');
+            const valid = getQuoteFilterFroms().some(from => from === current);
+            select.value = valid ? current : '';
+            return select.value;
+        }
+
+        function updateQuoteDateFilterOptions(preserveValue = '') {
+            const fromSelect = document.getElementById('quote-filter-from');
+            const dateSelect = document.getElementById('quote-filter-date');
+            if (!dateSelect) return;
+            const fromValue = String(fromSelect?.value || '');
+            const wanted = preserveValue || dateSelect.value || '';
+            const dates = getQuoteFilterDates(fromValue);
+            const options = ['<option value="">-- Tất cả ngày --</option>'];
+            dates.forEach(key => options.push(`<option value="${escapeHTMLAttribute(key)}">${escapeHTML(formatDateVN(key))}</option>`));
+            dateSelect.innerHTML = options.join('');
+            dateSelect.disabled = dates.length === 0;
+            if (wanted && dates.includes(wanted)) dateSelect.value = wanted;
+            else dateSelect.value = '';
+        }
+
+        function onQuoteFromFilterChange() {
+            const dateSelect = document.getElementById('quote-filter-date');
+            const previousDate = dateSelect?.value || '';
+            updateQuoteDateFilterOptions(previousDate);
+            renderQuotes();
+        }
+
+        function updateQuoteActiveFiltersUI() {
+            const wrap = document.getElementById('quote-active-filters');
+            const fromEl = document.getElementById('quote-active-filter-from');
+            const dateEl = document.getElementById('quote-active-filter-date');
+            const searchEl = document.getElementById('quote-active-filter-search');
+            const statusEl = document.getElementById('quote-active-filter-status');
+            const from = document.getElementById('quote-filter-from')?.value || '';
+            const date = document.getElementById('quote-filter-date')?.value || '';
+            const search = document.getElementById('search-quotes')?.value.trim() || '';
+            if (!wrap || !fromEl || !dateEl || !searchEl || !statusEl) return;
+
+            const setChip = (el, text) => {
+                if (text) { el.textContent = text; el.classList.remove('hidden'); }
+                else { el.textContent = ''; el.classList.add('hidden'); }
+            };
+            const statusLabels = {
+                unasked: 'Chưa hỏi giá',
+                pending: 'Đã hỏi – Chưa phản hồi',
+                quoted: 'Đã báo giá',
+                complete: 'Đã đủ phản hồi'
+            };
+            setChip(fromEl, from ? `From: ${from}` : '');
+            setChip(dateEl, date ? `Ngày: ${formatDateVN(date)}` : '');
+            setChip(searchEl, search ? `Search: ${search}` : '');
+            setChip(statusEl, quoteStatusFilter !== 'all' ? `Trạng thái: ${statusLabels[quoteStatusFilter] || quoteStatusFilter}` : '');
+            wrap.classList.toggle('hidden', !(from || date || search || quoteStatusFilter !== 'all'));
+        }
+
+        function clearQuoteFilters() {
+            const searchEl = document.getElementById('search-quotes');
+            const fromEl = document.getElementById('quote-filter-from');
+            const dateEl = document.getElementById('quote-filter-date');
+            if (searchEl) searchEl.value = '';
+            if (fromEl) fromEl.value = '';
+            if (dateEl) { dateEl.value = ''; dateEl.disabled = false; }
+            quoteStatusFilter = 'all';
+            updateQuoteDateFilterOptions('');
+            renderQuotes();
+        }
+
+        function updateQuoteSearchFilterUI() {
+            populateQuoteFilterFromOptions();
+            updateQuoteDateFilterOptions();
+            updateQuoteActiveFiltersUI();
+        }
+
         function updateQuoteStatusFilterButtons() {
             document.querySelectorAll('[data-quote-status-filter]').forEach(btn => {
                 const active = btn.getAttribute('data-quote-status-filter') === quoteStatusFilter;
@@ -2533,12 +2723,17 @@
 
         function renderQuotes() {
             const searchEl = document.getElementById('search-quotes');
-            const search = String(searchEl?.value || '').trim().toLowerCase();
+            const search = String(searchEl?.value || '').trim();
+            const searchInfo = getQuoteSearchTerms(search);
             const trackingContainer = document.getElementById('quote-tracking-list');
             const blocksContainer = document.getElementById('comparison-blocks-container');
+            const fromFilter = String(document.getElementById('quote-filter-from')?.value || '');
+            const dateFilter = String(document.getElementById('quote-filter-date')?.value || '');
             const eligibleOrders = getQuoteEligibleOrdersSorted();
             const eligibleOrderIds = new Set(eligibleOrders.map(o => String(o.id)));
             const eligibleQuotes = quotes.filter(q => eligibleOrderIds.has(String(q?.itemId ?? q?.orderId ?? '')));
+
+            updateQuoteSearchFilterUI();
 
             if (!trackingContainer || !blocksContainer) return;
             trackingContainer.innerHTML = '';
@@ -2624,18 +2819,21 @@
             groupKeys.forEach(key => {
                 const group = groups[key];
 
+                // Apply From/Date dropdown filters at GROUP level first.
+                if (fromFilter && String(group.restaurant || '') !== fromFilter) return;
+                if (dateFilter && normalizeQuoteDateFilterKey(group.date) !== dateFilter) return;
+
+                const groupSearchText = buildQuoteGroupSearchText(group);
+                const groupSearchMatch = !!searchInfo.normalized && quoteSearchMatchesAllTokens(groupSearchText, searchInfo.normalized);
+
                 const filteredGroupOrders = group.items.filter(o => {
                     if (!doesOrderMatchQuoteStatus(o)) return false;
-                    if (!search) return true;
+                    if (!searchInfo.normalized || groupSearchMatch) return true;
 
-                    const itemText = String(o.item || '').toLowerCase();
-                    const fromText = String(o.restaurant || '').toLowerCase();
-                    const codeText = String(o.orderNo || o.requestNo || o.requisitionNo || o.code || o.dnmh || o.itemCode || o.contractNo || '').toLowerCase();
                     const tracking = getQuoteTrackingSummary(o);
-                    const requestSupMatch = tracking.askedSuppliers.some(s => s.toLowerCase().includes(search));
-                    const quoteSupMatch = tracking.allQuotedSuppliers.some(s => s.toLowerCase().includes(search));
-                    const dateText = `${String(o.date || '').toLowerCase()} ${formatDateVN(o.date).toLowerCase()}`;
-                    return itemText.includes(search) || fromText.includes(search) || codeText.includes(search) || requestSupMatch || quoteSupMatch || dateText.includes(search);
+                    const itemQuotes = eligibleQuotes.filter(q => String(q?.itemId ?? q?.orderId ?? '') === String(o.id));
+                    const itemSearchText = buildQuoteItemSearchText(o, tracking, itemQuotes);
+                    return quoteSearchMatchesAllTokens(itemSearchText, searchInfo.normalized);
                 });
 
                 if (!filteredGroupOrders.length) return;
@@ -2647,9 +2845,9 @@
                         <div class="bg-indigo-50 border border-indigo-200 text-indigo-900 px-4 py-2.5 rounded-xl font-bold text-sm flex items-center justify-between shadow-xs">
                             <h3 class="flex items-center space-x-2">
                                 <i data-lucide="building-2" class="w-4 h-4 text-indigo-600"></i>
-                                <span>FROM: ${escapeHTML(group.restaurant)} — ${escapeHTML(formattedDate)} — ${filteredGroupOrders.length} mặt hàng</span>
+                                <span>FROM: ${escapeHTML(group.restaurant)} — ${escapeHTML(formattedDate)} — ${filteredGroupOrders.length}${filteredGroupOrders.length !== group.items.length ? `/${group.items.length}` : ''} mặt hàng${filteredGroupOrders.length !== group.items.length ? ' phù hợp' : ''}</span>
                             </h3>
-                            <span class="text-xs font-semibold text-indigo-700 bg-white px-2.5 py-1 rounded-full border border-indigo-100">${filteredGroupOrders.length} mặt hàng</span>
+                            <span class="text-xs font-semibold text-indigo-700 bg-white px-2.5 py-1 rounded-full border border-indigo-100">${filteredGroupOrders.length}${filteredGroupOrders.length !== group.items.length ? `/${group.items.length}` : ''} ${filteredGroupOrders.length !== group.items.length ? 'phù hợp' : 'mặt hàng'}</span>
                         </div>
                 `;
 
@@ -2797,6 +2995,7 @@
             }
 
             updateQuoteStatusFilterButtons();
+            updateQuoteActiveFiltersUI();
             lucide.createIcons();
         }
 
