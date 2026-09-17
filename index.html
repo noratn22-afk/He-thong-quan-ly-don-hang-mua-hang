@@ -2166,15 +2166,30 @@
         }
 
         // --- TAB 3: QUOTE UPLOAD & MULTI-SUPPLIER COMPARISON ---
+        // Tab 3 only processes purchase requests (ĐNMH). Contract purchases are excluded.
+        function isQuoteEligibleOrder(order) {
+            return !!order && String(order.checkType || 'ĐNMH').trim() === 'ĐNMH';
+        }
+
+        function getQuoteEligibleOrdersSorted() {
+            return getSortedOrders('desc').filter(isQuoteEligibleOrder);
+        }
+
+        function getQuoteEligibleQuotes() {
+            const eligibleIds = new Set(getQuoteEligibleOrdersSorted().map(o => String(o.id)));
+            return quotes.filter(q => eligibleIds.has(String(q?.itemId ?? '')));
+        }
+
         function openUploadQuoteModal(preselectedItemId = null) {
             const itemSelect = document.getElementById('modal-quote-item');
             const supSelect = document.getElementById('modal-quote-supplier');
 
             itemSelect.innerHTML = '<option value="">-- Chọn mặt hàng --</option>';
-            if (orders.length === 0) {
-                itemSelect.innerHTML += '<option value="" disabled>Chưa có mặt hàng nào trong Tab 1</option>';
+            const quoteOrders = getQuoteEligibleOrdersSorted();
+            if (quoteOrders.length === 0) {
+                itemSelect.innerHTML += '<option value="" disabled>Chưa có mặt hàng ĐNMH để báo giá</option>';
             } else {
-                getSortedOrders('desc').forEach(o => {
+                quoteOrders.forEach(o => {
                     itemSelect.innerHTML += `<option value="${o.id}">${o.item} (${o.restaurant}) - [Ngày: ${formatDateVN(o.date)}]</option>`;
                 });
             }
@@ -2287,6 +2302,10 @@
                 alert('Không tìm thấy thông tin mặt hàng tương ứng trong Tab 1!');
                 return;
             }
+            if (!isQuoteEligibleOrder(order)) {
+                alert('Mặt hàng mua theo Hợp đồng không thuộc Tab 3 và không cần báo giá.');
+                return;
+            }
 
             const rawPrice = parseFloat(priceVal);
 
@@ -2325,13 +2344,16 @@
             const search = document.getElementById('search-quotes').value.toLowerCase();
             const trackingContainer = document.getElementById('quote-tracking-list');
             const blocksContainer = document.getElementById('comparison-blocks-container');
+            const eligibleOrders = getQuoteEligibleOrdersSorted();
+            const eligibleOrderIds = new Set(eligibleOrders.map(o => String(o.id)));
+            const eligibleQuotes = quotes.filter(q => eligibleOrderIds.has(String(q?.itemId ?? '')));
             
             trackingContainer.innerHTML = '';
             blocksContainer.innerHTML = '';
 
-            // 1. Render Left Sidebar Tracking
+            // 1. Render Left Sidebar Tracking - only quotes linked to ĐNMH orders
             suppliers.forEach(sup => {
-                const supQuotes = quotes.filter(q => q.supplierName === sup);
+                const supQuotes = eligibleQuotes.filter(q => q.supplierName === sup);
                 if (supQuotes.length > 0) {
                     trackingContainer.innerHTML += `
                         <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
@@ -2357,7 +2379,7 @@
             }
 
             // 2. Render Main Comparison Blocks (Grouped by From, strictly maintaining Tab 1 order)
-            const sortedOrders = getSortedOrders('desc');
+            const sortedOrders = eligibleOrders;
             const fromGroups = {};
             const fromKeys = [];
 
@@ -2378,7 +2400,7 @@
                     if (!search) return true;
                     const matchItem = o.item.toLowerCase().includes(search);
                     const matchFrom = o.restaurant.toLowerCase().includes(search);
-                    const itemQuotes = quotes.filter(q => q.itemId == o.id);
+                    const itemQuotes = eligibleQuotes.filter(q => q.itemId == o.id);
                     const matchSup = itemQuotes.some(q => q.supplierName.toLowerCase().includes(search));
                     return matchItem || matchFrom || matchSup;
                 });
@@ -2399,7 +2421,7 @@
                 `;
 
                 filteredGroupOrders.forEach(o => {
-                    const itemQuotes = quotes.filter(q => q.itemId == o.id);
+                    const itemQuotes = eligibleQuotes.filter(q => q.itemId == o.id);
                     
                     // Calculate minimum price among quotes strictly for THIS specific item block
                     let minPrice = null;
@@ -2567,7 +2589,8 @@
             const date = document.getElementById('export-ssg-date')?.value || '';
             if (!from || !date) return [];
 
-            return getSortedOrders('desc').filter(o => {
+            // SSG in Tab 3 only handles ĐNMH. Contract purchases are excluded at source.
+            return getQuoteEligibleOrdersSorted().filter(o => {
                 const orderFrom = String(o.restaurant || 'Chưa xác định');
                 const orderDate = normalizeSSGDateKey(o.date);
                 const fromMatch = from === '__ALL_FROM__' || orderFrom === from;
@@ -2577,7 +2600,7 @@
         }
 
         function getSSGDateValuesForFrom(fromValue) {
-            const filtered = orders.filter(o => {
+            const filtered = getQuoteEligibleOrdersSorted().filter(o => {
                 const orderFrom = String(o.restaurant || 'Chưa xác định');
                 return fromValue === '__ALL_FROM__' ? true : orderFrom === fromValue;
             });
@@ -2591,7 +2614,11 @@
         }
 
         function getSSGItemQuoteInfo(order) {
-            // Quote status is determined ONLY by quotes actually linked to this item.
+            // Quote status is determined ONLY by quotes actually linked to this item,
+            // and only for orders eligible for Tab 3 (ĐNMH).
+            if (!isQuoteEligibleOrder(order)) {
+                return { quotes: [], supplierCount: 0, hasQuote: false };
+            }
             const itemQuotes = quotes.filter(q => String(q?.itemId ?? '') === String(order?.id ?? ''));
             const validQuotes = itemQuotes.filter(q => {
                 const supplier = String(q?.supplierName || '').trim();
