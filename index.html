@@ -635,9 +635,9 @@
                     </div>
                 </div>
                 <div id="check-contract-item-no-wrap" class="hidden">
-                    <label class="block text-xs font-medium text-slate-700 mb-1">STT / Mã hàng trong Hợp đồng</label>
-                    <input type="text" id="check-contract-item-no" placeholder="VD: 01 / VT-001" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
-                    <p class="text-[11px] text-slate-500 mt-1">Điền STT hoặc mã hàng của mặt hàng này trong Hợp đồng đã chọn.</p>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">STT mặt hàng trong Hợp đồng <span class="text-rose-500">*</span></label>
+                    <input type="number" id="check-contract-item-no" min="1" step="1" inputmode="numeric" placeholder="VD: 15" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 focus:outline-none">
+                    <p class="text-[11px] text-slate-500 mt-1">Chỉ nhập số nguyên dương, ví dụ: 15.</p>
                 </div>
                 <div class="border-t border-slate-100 pt-4 mt-2">
                     <div class="flex items-center gap-2 mb-2">
@@ -723,6 +723,27 @@
                     <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
                     <span>Xuất Excel</span>
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: CONTRACT EXPORT VALIDATION -->
+    <div id="modal-contract-export-validation" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[95] flex items-center justify-center hidden p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div class="flex items-start gap-3 border-b border-slate-100 pb-3">
+                <div class="w-10 h-10 rounded-full bg-amber-50 flex items-center justify-center shrink-0">
+                    <i data-lucide="triangle-alert" class="w-5 h-5 text-amber-600"></i>
+                </div>
+                <div>
+                    <h3 class="font-bold text-slate-900 text-base">Kiểm tra dữ liệu Hợp đồng trước khi xuất</h3>
+                    <p class="text-xs text-slate-500 mt-1">Có mặt hàng Hợp đồng chưa đủ NCC, Số Hợp đồng hoặc STT mặt hàng trong Hợp đồng.</p>
+                </div>
+            </div>
+            <div id="contract-export-validation-list" class="space-y-2"></div>
+            <div class="p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-800">Bạn có thể quay lại Tab 2 để bổ sung thông tin, hoặc tiếp tục xuất với dữ liệu hiện tại.</div>
+            <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button type="button" onclick="cancelContractExportValidation()" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50">Quay lại kiểm tra</button>
+                <button type="button" onclick="continueContractExport()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg">Tiếp tục xuất</button>
             </div>
         </div>
     </div>
@@ -1060,15 +1081,15 @@
         <div class="bg-white rounded-2xl max-w-sm w-full p-6 shadow-xl space-y-4">
             <div class="flex justify-between items-center border-b border-slate-100 pb-3">
                 <div>
-                    <h3 class="font-bold text-slate-900 text-base">Trạng thái đặt hàng</h3>
+                    <h3 class="font-bold text-slate-900 text-base">Thông tin đặt hàng</h3>
                     <p id="order-placement-action-item" class="text-xs text-slate-500 mt-1"></p>
                 </div>
                 <button type="button" onclick="closeModal('modal-order-placement-actions')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
             <div class="space-y-2">
-                <button type="button" onclick="openEditOrderPlacedTime()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-slate-200 hover:bg-slate-50 text-left">
-                    <i data-lucide="calendar-clock" class="w-5 h-5 text-indigo-600"></i>
-                    <span><span class="block text-sm font-semibold text-slate-800">Chỉnh thời gian đặt</span><span class="block text-[11px] text-slate-500">Sửa ngày và giờ đã đặt hàng</span></span>
+                <button type="button" onclick="openEditOrderPlacementInfo()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-slate-200 hover:bg-slate-50 text-left">
+                    <i data-lucide="pencil" class="w-5 h-5 text-indigo-600"></i>
+                    <span><span class="block text-sm font-semibold text-slate-800">Chỉnh thông tin đặt hàng</span><span class="block text-[11px] text-slate-500">Sửa NCC, hình thức, số HĐ/ĐNMH, thời gian, người đặt</span></span>
                 </button>
                 <button type="button" onclick="openUnplaceOrderConfirmation()" class="w-full flex items-center gap-3 px-4 py-3 rounded-lg border border-rose-200 hover:bg-rose-50 text-left">
                     <i data-lucide="undo-2" class="w-5 h-5 text-rose-600"></i>
@@ -1081,43 +1102,97 @@
         </div>
     </div>
 
-    <!-- MODAL: ORDER PLACEMENT CONFIRM -->
-    <div id="modal-order-placement-confirm" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[85] flex items-center justify-center hidden p-4 no-print">
+    <!-- MODAL: CONFIRM BỎ ĐÃ ĐẶT -->
+    <div id="modal-order-unplace-confirm" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[86] flex items-center justify-center hidden p-4 no-print">
         <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
             <div class="flex items-center gap-3 border-b border-slate-100 pb-3">
-                <div class="w-10 h-10 rounded-full bg-emerald-50 flex items-center justify-center"><i data-lucide="check-circle-2" class="w-5 h-5 text-emerald-600"></i></div>
+                <div class="w-10 h-10 rounded-full bg-rose-50 flex items-center justify-center"><i data-lucide="alert-triangle" class="w-5 h-5 text-rose-600"></i></div>
                 <div>
-                    <h3 id="order-placement-confirm-title" class="font-bold text-slate-900 text-base">Xác nhận</h3>
-                    <p id="order-placement-confirm-message" class="text-xs text-slate-500 mt-1"></p>
+                    <h3 class="font-bold text-slate-900 text-base">Bỏ trạng thái Đã đặt</h3>
+                    <p class="text-xs text-slate-500 mt-1">Bạn có chắc muốn bỏ trạng thái Đã đặt?</p>
                 </div>
             </div>
-            <div id="order-placement-confirm-item" class="p-3 bg-slate-50 rounded-lg text-sm font-semibold text-slate-800"></div>
-            <div class="flex justify-end gap-3 pt-2">
-                <button type="button" onclick="closeModal('modal-order-placement-confirm')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50">Hủy</button>
-                <button type="button" id="order-placement-confirm-btn" onclick="confirmOrderPlacementAction()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg">Xác nhận</button>
+            <div id="order-unplace-confirm-item" class="p-3 bg-slate-50 rounded-lg text-sm font-semibold text-slate-800"></div>
+            <div class="p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-800">Sau khi xác nhận, timer sẽ dừng và mốc thời gian đặt hàng sẽ được xóa. Thông tin Hợp đồng / ĐNMH / NCC vẫn được giữ nguyên.</div>
+            <div class="flex justify-end gap-3 pt-2 border-t border-slate-100">
+                <button type="button" onclick="closeModal('modal-order-unplace-confirm')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50">Hủy</button>
+                <button type="button" onclick="confirmUnplaceOrder()" class="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-lg">Bỏ Đã đặt</button>
             </div>
         </div>
     </div>
 
-    <!-- MODAL: EDIT ORDERED TIME -->
-    <div id="modal-order-placed-time" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[90] flex items-center justify-center hidden p-4 no-print">
-        <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl space-y-4">
+    <!-- MODAL: XÁC NHẬN / CHỈNH SỬA ĐẶT HÀNG -->
+    <div id="modal-place-order" class="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-[85] flex items-center justify-center hidden p-4 no-print">
+        <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl space-y-4 max-h-[92vh] overflow-y-auto">
             <div class="flex justify-between items-center border-b border-slate-100 pb-3">
                 <div>
-                    <h3 class="font-bold text-slate-900 text-base">Chỉnh thời gian đặt hàng</h3>
-                    <p id="order-placed-time-item" class="text-xs text-slate-500 mt-1"></p>
+                    <h3 id="place-order-title" class="font-bold text-slate-900 text-base">Xác nhận Đặt Hàng</h3>
+                    <p id="place-order-subtitle" class="text-xs text-slate-500 mt-1"></p>
                 </div>
-                <button type="button" onclick="closeModal('modal-order-placed-time')" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
+                <button type="button" onclick="cancelPlaceOrder()" class="text-slate-400 hover:text-slate-600"><i data-lucide="x" class="w-5 h-5"></i></button>
             </div>
-            <input type="hidden" id="order-placed-time-id">
-            <div>
-                <label class="block text-xs font-medium text-slate-700 mb-1">Ngày & giờ đặt hàng</label>
-                <input type="datetime-local" id="order-placed-time-input" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+            <input type="hidden" id="place-order-id">
+
+            <div class="space-y-3">
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Mặt hàng</label>
+                    <input type="text" id="place-order-item" disabled class="w-full px-3 py-2 border border-slate-200 bg-slate-100 rounded-lg text-sm text-slate-700 font-semibold">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">NCC <span class="text-rose-500">*</span></label>
+                    <select id="place-order-supplier" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"></select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Hình thức mua hàng <span class="text-rose-500">*</span></label>
+                    <select id="place-order-type" onchange="updatePlacementContractFieldMode()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                        <option value="ĐNMH">ĐNMH</option>
+                        <option value="Hợp đồng">Hợp đồng</option>
+                    </select>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Số Hợp đồng / ĐNMH <span class="text-rose-500">*</span></label>
+                    <div id="place-order-contract-select-wrap">
+                        <select id="place-order-contract-select" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"></select>
+                        <p class="text-[11px] text-slate-500 mt-1">NCC + Hợp đồng: chọn số HĐ đã quản lý trong Tab 7.</p>
+                    </div>
+                    <div id="place-order-contract-input-wrap">
+                        <input type="text" id="place-order-contract-input" placeholder="VD: DNMH003" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                </div>
+
+                <div id="place-order-contract-item-no-wrap" class="hidden">
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">STT mặt hàng trong Hợp đồng <span class="text-rose-500">*</span></label>
+                    <input type="number" id="place-order-contract-item-no" min="1" step="1" inputmode="numeric" placeholder="VD: 15" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <p class="text-[11px] text-slate-500 mt-1">Chỉ áp dụng cho Hợp đồng.</p>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Ngày / giờ đặt hàng <span class="text-rose-500">*</span></label>
+                        <input type="datetime-local" id="place-order-datetime" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Người đặt</label>
+                        <input type="text" id="place-order-ordered-by" value="Ngọc" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-semibold text-slate-700 mb-1">Ghi chú</label>
+                    <textarea id="place-order-note" rows="3" placeholder="VD: Đã gửi PO cho NCC qua email/Zalo..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
+                </div>
             </div>
-            <div class="p-3 bg-amber-50 border border-amber-100 rounded-lg text-xs text-amber-800">Sau khi lưu, timer sẽ tính lại từ thời điểm mới. Dữ liệu Order gốc chỉ được cập nhật đúng hai trường đặt hàng.</div>
-            <div class="flex justify-end gap-3 pt-2 border-t border-slate-100">
-                <button type="button" onclick="closeModal('modal-order-placed-time')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50">Hủy</button>
-                <button type="button" onclick="saveOrderPlacedTime()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg">Lưu thời gian</button>
+
+            <div class="p-3 bg-emerald-50 border border-emerald-100 rounded-lg text-xs text-emerald-800">
+                Sau khi xác nhận, hệ thống lưu <strong>orderPlaced + orderedAt + NCC + hình thức + số HĐ/ĐNMH + người đặt</strong> và kích hoạt timer.
+            </div>
+
+            <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
+                <button type="button" onclick="cancelPlaceOrder()" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50">Hủy</button>
+                <button type="button" id="place-order-confirm-btn" data-mode="create" onclick="confirmPlaceOrder()" class="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg">Xác nhận đã đặt</button>
             </div>
         </div>
     </div>
@@ -1379,6 +1454,19 @@
             return value;
         }
 
+        function normalizeContractItemNoValue(value, checkType = 'ĐNMH') {
+            if (String(checkType || 'ĐNMH').trim() !== 'Hợp đồng') return '';
+            if (value === null || value === undefined || String(value).trim() === '') return '';
+            const raw = String(value).trim();
+            return /^\d+$/.test(raw) ? Number(raw) : raw;
+        }
+
+        function isValidContractItemNo(value) {
+            if (value === null || value === undefined || String(value).trim() === '') return false;
+            const raw = String(value).trim();
+            return /^\d+$/.test(raw) && Number(raw) > 0 && Number.isInteger(Number(raw));
+        }
+
         function normalizeOrderRecord(order, fallbackIndex = 0) {
             const source = order || {};
             const rawDate = source.date;
@@ -1404,7 +1492,7 @@
                 checkType: source.checkType || 'ĐNMH',
                 supplier: String(source.supplier ?? ''),
                 contractNo: String(source.contractNo ?? ''),
-                contractItemNo: String(source.contractItemNo ?? ''),
+                contractItemNo: normalizeContractItemNoValue(source.contractItemNo, source.checkType || 'ĐNMH'),
                 stage: source.stage || 'SSG',
                 invoiceNo: String(source.invoiceNo ?? ''),
                 invoiceDate: source.invoiceDate ? (function(){ try { const r=parseExcelDate(source.invoiceDate); return r.valid ? r.value : ''; } catch(e){ return ''; } })() : '',
@@ -1413,6 +1501,8 @@
                 orderPlaced: source.orderPlaced === true || Boolean(source.orderedAt || source.orderPlacedAt),
                 orderedAt: String(source.orderedAt ?? source.orderPlacedAt ?? ''),
                 orderPlacedAt: String(source.orderPlacedAt ?? source.orderedAt ?? ''),
+                orderedBy: String(source.orderedBy ?? source.orderByPlaced ?? ''),
+                orderPlacementNote: String(source.orderPlacementNote ?? source.placementNote ?? ''),
                 deliveredAt: String(source.deliveredAt ?? ''),
                 deliveryStatus: String(source.deliveryStatus ?? 'Chưa giao'),
                 deliveryUpdatedAt: String(source.deliveryUpdatedAt ?? ''),
@@ -1707,6 +1797,8 @@
                         orderPlaced: false,
                         orderedAt: '',
                         orderPlacedAt: '',
+                        orderedBy: '',
+                        orderPlacementNote: '',
                         deliveredAt: '',
                         stageChangedAt: '',
                         deliveryStatus: 'Chưa giao',
@@ -1806,6 +1898,8 @@
             } else {
                 order.orderPlaced = order.orderPlaced === true;
             }
+            if (order.orderedBy === null || order.orderedBy === undefined) order.orderedBy = '';
+            if (order.orderPlacementNote === null || order.orderPlacementNote === undefined) order.orderPlacementNote = '';
             if (!order.deliveredAt) order.deliveredAt = '';
         }
 
@@ -1888,20 +1982,108 @@
             updateVisibleOrderTimers();
         }
 
-        function openOrderPlacementConfirmation(id) {
+        function populatePlacementSupplierOptions(selectedSupplier = '') {
+            const select = document.getElementById('place-order-supplier');
+            if (!select) return;
+            const names = uniqueSorted([...(Array.isArray(suppliers) ? suppliers : []), ...orders.map(o => o?.supplier || '')]);
+            select.innerHTML = '<option value="">-- Chọn NCC --</option>' +
+                names.map(name => `<option value="${escapeHTMLAttribute(name)}">${escapeHTML(name)}</option>`).join('');
+            if (selectedSupplier && names.includes(selectedSupplier)) select.value = selectedSupplier;
+        }
+
+        function updatePlacementContractFieldMode(preferredValue = '') {
+            const typeEl = document.getElementById('place-order-type');
+            const supplierEl = document.getElementById('place-order-supplier');
+            const selectWrap = document.getElementById('place-order-contract-select-wrap');
+            const inputWrap = document.getElementById('place-order-contract-input-wrap');
+            const selectEl = document.getElementById('place-order-contract-select');
+            const inputEl = document.getElementById('place-order-contract-input');
+            const itemNoWrap = document.getElementById('place-order-contract-item-no-wrap');
+            const itemNoEl = document.getElementById('place-order-contract-item-no');
+            if (!typeEl || !supplierEl || !selectWrap || !inputWrap || !selectEl || !inputEl) return;
+
+            const isContract = typeEl.value === 'Hợp đồng';
+            selectWrap.classList.toggle('hidden', !isContract);
+            inputWrap.classList.toggle('hidden', isContract);
+            if (itemNoWrap) itemNoWrap.classList.toggle('hidden', !isContract);
+            selectEl.required = isContract;
+            inputEl.required = !isContract;
+            if (itemNoEl) {
+                itemNoEl.required = isContract;
+                if (!isContract) itemNoEl.value = '';
+            }
+
+            if (!isContract) {
+                inputEl.value = preferredValue || inputEl.value || '';
+                return;
+            }
+
+            const supplier = String(supplierEl.value || '').trim();
+            const current = String(preferredValue || selectEl.value || '').trim();
+            let options = supplier ? [...ensureSupplierContractList(supplier)] : [];
+            if (current && !options.includes(current)) options.push(current);
+            options = uniqueSorted(options);
+
+            if (!supplier) {
+                selectEl.innerHTML = '<option value="">-- Chọn NCC trước --</option>';
+            } else if (options.length === 0) {
+                selectEl.innerHTML = '<option value="">-- Chưa có số HĐ cho NCC này --</option>';
+            } else {
+                selectEl.innerHTML = '<option value="">-- Chọn số Hợp đồng --</option>' +
+                    options.map(v => `<option value="${escapeHTMLAttribute(v)}">${escapeHTML(v)}</option>`).join('');
+            }
+            if (current && options.includes(current)) selectEl.value = current;
+        }
+
+        function getPlacementContractValue() {
+            const type = document.getElementById('place-order-type')?.value || 'ĐNMH';
+            return type === 'Hợp đồng'
+                ? String(document.getElementById('place-order-contract-select')?.value || '').trim()
+                : String(document.getElementById('place-order-contract-input')?.value || '').trim();
+        }
+
+        function openPlaceOrderModal(id, mode = 'create') {
             const order = orders.find(x => String(x.id) === String(id));
             if (!order) return;
             ensureOrderTrackingFields(order);
             currentPlacementActionOrderId = order.id;
-            document.getElementById('order-placement-confirm-title').innerText = 'Xác nhận đã đặt hàng';
-            document.getElementById('order-placement-confirm-message').innerText = 'Xác nhận đã đặt hàng cho mặt hàng này?';
-            document.getElementById('order-placement-confirm-item').innerText = order.item || '-';
-            const btn = document.getElementById('order-placement-confirm-btn');
-            btn.className = 'px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold rounded-lg';
-            btn.innerText = 'Xác nhận';
-            btn.dataset.action = 'place';
-            document.getElementById('modal-order-placement-confirm').classList.remove('hidden');
+            document.getElementById('place-order-id').value = order.id;
+            document.getElementById('place-order-item').value = order.item || '-';
+
+            populatePlacementSupplierOptions(order.supplier || '');
+            const placeSupplierEl = document.getElementById('place-order-supplier');
+            placeSupplierEl.value = order.supplier || '';
+            placeSupplierEl.onchange = () => updatePlacementContractFieldMode();
+            document.getElementById('place-order-type').value = order.checkType || 'ĐNMH';
+            document.getElementById('place-order-ordered-by').value = order.orderedBy || order.by || 'Ngọc';
+            document.getElementById('place-order-note').value = order.orderPlacementNote || '';
+
+            const existingTime = order.orderedAt || order.orderPlacedAt || '';
+            document.getElementById('place-order-datetime').value = mode === 'edit'
+                ? toDateTimeLocalValue(existingTime || getNowISO())
+                : toDateTimeLocalValue(getNowISO());
+
+            const existingContract = order.contractNo || '';
+            document.getElementById('place-order-contract-input').value = existingContract;
+            document.getElementById('place-order-contract-select').value = '';
+            const placementItemNo = document.getElementById('place-order-contract-item-no');
+            if (placementItemNo) placementItemNo.value = order.contractItemNo || '';
+            updatePlacementContractFieldMode(existingContract);
+
+            const isEdit = mode === 'edit';
+            document.getElementById('place-order-title').innerText = isEdit ? 'Thông tin đặt hàng' : 'Xác nhận Đặt Hàng';
+            document.getElementById('place-order-subtitle').innerText = isEdit
+                ? 'Kiểm tra và chỉnh sửa thông tin đặt hàng trước khi lưu.'
+                : 'Xác nhận Purchasing đã thực sự đặt hàng cho mặt hàng này.';
+            const saveBtn = document.getElementById('place-order-confirm-btn');
+            saveBtn.innerText = isEdit ? 'Lưu thay đổi' : 'Xác nhận đã đặt';
+            saveBtn.dataset.mode = isEdit ? 'edit' : 'create';
+            document.getElementById('modal-place-order').classList.remove('hidden');
             lucide.createIcons();
+        }
+
+        function openOrderPlacementConfirmation(id) {
+            openPlaceOrderModal(id, 'create');
         }
 
         function openOrderPlacementActions(id) {
@@ -1910,106 +2092,128 @@
             ensureOrderTrackingFields(order);
             currentPlacementActionOrderId = order.id;
             document.getElementById('order-placement-action-item').innerText = order.item || '-';
-            closeModal('modal-order-placement-confirm');
+            closeModal('modal-place-order');
             document.getElementById('modal-order-placement-actions').classList.remove('hidden');
             lucide.createIcons();
         }
 
-        function confirmOrderPlacementAction() {
-            const order = orders.find(x => String(x.id) === String(currentPlacementActionOrderId));
-            const btn = document.getElementById('order-placement-confirm-btn');
-            const action = btn?.dataset.action || 'place';
-            if (!order) {
-                closeModal('modal-order-placement-confirm');
-                return;
-            }
+        function openEditOrderPlacementInfo() {
+            if (currentPlacementActionOrderId === null || currentPlacementActionOrderId === undefined) return;
+            closeModal('modal-order-placement-actions');
+            openPlaceOrderModal(currentPlacementActionOrderId, 'edit');
+        }
+
+        function confirmPlaceOrder() {
+            const id = document.getElementById('place-order-id')?.value;
+            const order = orders.find(x => String(x.id) === String(id));
+            if (!order) return;
             ensureOrderTrackingFields(order);
 
-            if (action === 'place') {
-                const timestamp = getNowISO();
-                order.orderPlaced = true;
-                order.orderedAt = timestamp;
-                order.orderPlacedAt = timestamp;
-                pushTrackingHistory(order, 'order_placed', {
-                    message: 'Xác nhận đã đặt hàng',
-                    orderedAt: timestamp
-                }, order.by || 'Ngọc', timestamp);
-                saveToStorage();
-                closeModal('modal-order-placement-confirm');
-                closeModal('modal-order-placement-actions');
-                renderAll();
+            const mode = document.getElementById('place-order-confirm-btn')?.dataset.mode || 'create';
+            const supplier = String(document.getElementById('place-order-supplier')?.value || '').trim();
+            const checkType = document.getElementById('place-order-type')?.value || 'ĐNMH';
+            const contractNo = getPlacementContractValue();
+            const contractItemNoRaw = String(document.getElementById('place-order-contract-item-no')?.value || '').trim();
+            const datetimeInput = document.getElementById('place-order-datetime')?.value || '';
+            const orderedBy = String(document.getElementById('place-order-ordered-by')?.value || '').trim();
+            const note = String(document.getElementById('place-order-note')?.value || '').trim();
+
+            if (!supplier) {
+                alert('Vui lòng chọn Nhà Cung Cấp (NCC).');
                 return;
             }
-
-            if (action === 'unplace') {
-                const timestamp = getNowISO();
-                order.orderPlaced = false;
-                order.orderedAt = '';
-                order.orderPlacedAt = '';
-                pushTrackingHistory(order, 'order_unplaced', {
-                    message: 'Bỏ trạng thái Đã đặt'
-                }, order.by || 'Ngọc', timestamp);
-                saveToStorage();
-                closeModal('modal-order-placement-confirm');
-                closeModal('modal-order-placement-actions');
-                renderAll();
+            if (!contractNo) {
+                alert(checkType === 'Hợp đồng' ? 'Vui lòng nhập Số Hợp đồng.' : 'Vui lòng nhập Số ĐNMH.');
+                return;
             }
+            if (checkType === 'Hợp đồng' && !isValidContractItemNo(contractItemNoRaw)) {
+                alert('Vui lòng nhập STT mặt hàng trong Hợp đồng là số nguyên dương (lớn hơn 0).');
+                return;
+            }
+            if (!datetimeInput) {
+                alert('Vui lòng chọn Ngày / giờ đặt hàng.');
+                return;
+            }
+            const parsed = new Date(datetimeInput);
+            if (Number.isNaN(parsed.getTime())) {
+                alert('Ngày / giờ đặt hàng không hợp lệ.');
+                return;
+            }
+            if (mode === 'edit' && !confirm('Xác nhận lưu các thay đổi thông tin đặt hàng?')) return;
+
+            const timestamp = parsed.toISOString();
+            const old = {
+                supplier: order.supplier || '',
+                checkType: order.checkType || 'ĐNMH',
+                contractNo: order.contractNo || '',
+                orderedAt: order.orderedAt || '',
+                orderedBy: order.orderedBy || '',
+                note: order.orderPlacementNote || ''
+            };
+
+            order.orderPlaced = true;
+            order.orderedAt = timestamp;
+            order.orderPlacedAt = timestamp;
+            order.checkType = checkType;
+            order.supplier = supplier;
+            order.contractNo = contractNo;
+            order.contractItemNo = checkType === 'Hợp đồng' ? Number(contractItemNoRaw) : '';
+            order.orderedBy = orderedBy || order.by || 'Ngọc';
+            order.orderPlacementNote = note;
+
+            if (order.stage === 'SSG') {
+                updateStageRecord(order, 'Đặt hàng', 'Xác nhận đặt hàng thực tế tại Tab 2');
+            }
+
+            pushTrackingHistory(order, mode === 'edit' ? 'order_placement_update' : 'order_placed', {
+                message: mode === 'edit' ? 'Cập nhật thông tin đặt hàng' : 'Xác nhận đã đặt hàng',
+                orderedAt: timestamp,
+                orderedBy: order.orderedBy,
+                old,
+                newData: {
+                    supplier: order.supplier,
+                    checkType: order.checkType,
+                    contractNo: order.contractNo,
+                    contractItemNo: order.contractItemNo,
+                    orderedAt: order.orderedAt,
+                    orderedBy: order.orderedBy,
+                    note: order.orderPlacementNote
+                }
+            }, order.orderedBy, getNowISO());
+
+            saveToStorage();
+            closeModal('modal-place-order');
+            renderAll();
+        }
+
+        function cancelPlaceOrder() {
+            closeModal('modal-place-order');
         }
 
         function openUnplaceOrderConfirmation() {
             const order = orders.find(x => String(x.id) === String(currentPlacementActionOrderId));
             if (!order) return;
-            document.getElementById('order-placement-confirm-title').innerText = 'Bỏ trạng thái Đã đặt';
-            document.getElementById('order-placement-confirm-message').innerText = 'Bạn có chắc muốn bỏ trạng thái Đã đặt?';
-            document.getElementById('order-placement-confirm-item').innerText = order.item || '-';
-            const btn = document.getElementById('order-placement-confirm-btn');
-            btn.className = 'px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white text-sm font-semibold rounded-lg';
-            btn.innerText = 'Bỏ Đã đặt';
-            btn.dataset.action = 'unplace';
+            document.getElementById('order-unplace-confirm-item').innerText = order.item || '-';
+            document.getElementById('modal-order-unplace-confirm').classList.remove('hidden');
             closeModal('modal-order-placement-actions');
-            document.getElementById('modal-order-placement-confirm').classList.remove('hidden');
             lucide.createIcons();
         }
 
-        function openEditOrderPlacedTime() {
+        function confirmUnplaceOrder() {
             const order = orders.find(x => String(x.id) === String(currentPlacementActionOrderId));
-            if (!order) return;
-            ensureOrderTrackingFields(order);
-            const input = document.getElementById('order-placed-time-input');
-            input.value = toDateTimeLocalValue(order.orderedAt || order.orderPlacedAt || getNowISO());
-            document.getElementById('order-placed-time-id').value = order.id;
-            document.getElementById('order-placed-time-item').innerText = order.item || '-';
-            closeModal('modal-order-placement-actions');
-            document.getElementById('modal-order-placed-time').classList.remove('hidden');
-            lucide.createIcons();
-        }
-
-        function saveOrderPlacedTime() {
-            const id = document.getElementById('order-placed-time-id').value;
-            const value = document.getElementById('order-placed-time-input').value;
-            const order = orders.find(x => String(x.id) === String(id));
-            if (!order || !value) {
-                alert('Vui lòng chọn ngày và giờ đặt hàng.');
-                return;
-            }
-            const parsed = new Date(value);
-            if (Number.isNaN(parsed.getTime())) {
-                alert('Thời gian đặt hàng không hợp lệ.');
+            if (!order) {
+                closeModal('modal-order-unplace-confirm');
                 return;
             }
             ensureOrderTrackingFields(order);
-            const previous = order.orderedAt || order.orderPlacedAt || '';
-            const iso = parsed.toISOString();
-            order.orderPlaced = true;
-            order.orderedAt = iso;
-            order.orderPlacedAt = iso;
-            pushTrackingHistory(order, 'order_placed_time_update', {
-                message: 'Cập nhật thời gian đặt hàng',
-                oldOrderedAt: previous,
-                newOrderedAt: iso
-            }, order.by || 'Ngọc', getNowISO());
+            order.orderPlaced = false;
+            order.orderedAt = '';
+            order.orderPlacedAt = '';
+            pushTrackingHistory(order, 'order_unplaced', { message: 'Bỏ trạng thái Đã đặt' }, order.by || 'Ngọc', getNowISO());
             saveToStorage();
-            closeModal('modal-order-placed-time');
+            closeModal('modal-order-unplace-confirm');
+            closeModal('modal-order-placement-actions');
+            closeModal('modal-place-order');
             renderAll();
         }
 
@@ -2120,7 +2324,7 @@
                                         <th class="py-3 px-4">Hình thức</th>
                                         <th class="py-3 px-4">Nhà Cung Cấp (NCC)</th>
                                         <th class="py-3 px-4">Số HĐ / ĐNMH</th>
-                                        <th class="py-3 px-4">STT / Mã hàng HĐ</th>
+                                        <th class="py-3 px-4">STT HĐ</th>
                                         <th class="py-3 px-4 text-center min-w-[190px]">Trạng thái đặt / Thời gian</th>
                                         <th class="py-3 px-4 text-center min-w-[190px]">Tình trạng giao hàng</th>
                                         <th class="py-3 px-4 text-right">Thao tác</th>
@@ -2159,7 +2363,7 @@
                             </td>
                             <td class="py-3 px-4 text-slate-700">${o.supplier ? escapeHTML(o.supplier) : '<span class="text-rose-500 italic text-xs">Chưa chọn NCC</span>'}</td>
                             <td class="py-3 px-4 text-indigo-600 font-medium">${escapeHTML(o.contractNo || '-')}</td>
-                            <td class="py-3 px-4 text-slate-700 font-medium">${o.checkType === 'Hợp đồng' ? escapeHTML(o.contractItemNo || '-') : '-'}</td>
+                            <td class="py-3 px-4 text-slate-700 font-medium">${o.checkType === 'Hợp đồng' ? escapeHTML(o.contractItemNo || '-') : ''}</td>
                             <td class="py-3 px-4 text-center align-middle">
                                 <button type="button" onclick="${placed ? `openOrderPlacementActions(${JSON.stringify(o.id)})` : `openOrderPlacementConfirmation(${JSON.stringify(o.id)})`}" class="w-full min-w-[175px] text-center rounded-lg border px-2.5 py-2 transition cursor-pointer hover:shadow-sm ${placed ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200' : 'bg-slate-50 hover:bg-emerald-50 border-slate-200 hover:border-emerald-200'}" title="${placed ? 'Bấm để cập nhật / bỏ trạng thái Đã đặt' : 'Bấm để xác nhận Đã đặt'}">
                                     <div>${statusBadge}</div>
@@ -2175,10 +2379,16 @@
                                 </button>
                             </td>
                             <td class="py-3 px-4 text-right whitespace-nowrap">
-                                <button type="button" onclick="deleteCheckItem(${JSON.stringify(o.id)})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg transition" title="Xóa mặt hàng này">
-                                    <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                                    <span>Xóa</span>
-                                </button>
+                                <div class="flex items-center justify-end gap-2 flex-wrap">
+                                    <button type="button" onclick="openCheckModal(${JSON.stringify(o.id)})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition" title="Kiểm tra / Sửa HĐ, ĐNMH, NCC">
+                                        <i data-lucide="pencil" class="w-3.5 h-3.5"></i>
+                                        <span>Kiểm tra / Sửa</span>
+                                    </button>
+                                    <button type="button" onclick="deleteCheckItem(${JSON.stringify(o.id)})" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg transition" title="Xóa mặt hàng này">
+                                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                                        <span>Xóa</span>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
                     `;
@@ -2459,25 +2669,44 @@
             const oldDeliveryStatus = o.deliveryStatus || 'Chưa giao';
             const oldDeliveryNote = o.deliveryIssue || o.deliveryAction || '';
 
-            o.checkType = document.getElementById('check-type').value;
-            o.supplier = document.getElementById('check-supplier').value;
-
+            const newCheckType = document.getElementById('check-type').value;
+            const newSupplier = String(document.getElementById('check-supplier').value || '').trim();
             let selectedContractNo = '';
-            if (o.checkType === 'Hợp đồng') {
-                selectedContractNo = document.getElementById('check-contract-no-select').value.trim();
-                if (!o.supplier) {
-                    alert('Vui lòng chọn Nhà Cung Cấp trước khi chọn số Hợp đồng.');
+            let newContractItemNo = '';
+
+            if (newCheckType === 'Hợp đồng') {
+                selectedContractNo = String(document.getElementById('check-contract-no-select').value || '').trim();
+                newContractItemNo = String(document.getElementById('check-contract-item-no')?.value || '').trim();
+                if (!newSupplier) {
+                    alert('Vui lòng chọn Nhà Cung Cấp (NCC).');
                     return;
                 }
                 if (!selectedContractNo) {
-                    alert('NCC mua theo Hợp đồng bắt buộc phải chọn Số Hợp đồng.');
+                    alert('Vui lòng chọn Số Hợp đồng.');
                     return;
                 }
+                if (!isValidContractItemNo(newContractItemNo)) {
+                    alert('Vui lòng nhập STT mặt hàng trong Hợp đồng là số nguyên dương (lớn hơn 0).');
+                    return;
+                }
+                newContractItemNo = Number(newContractItemNo);
             } else {
-                selectedContractNo = document.getElementById('check-contract-no').value.trim();
+                selectedContractNo = String(document.getElementById('check-contract-no').value || '').trim();
+                if (!newSupplier) {
+                    alert('Vui lòng chọn Nhà Cung Cấp (NCC).');
+                    return;
+                }
+                if (!selectedContractNo) {
+                    alert('Vui lòng nhập Số ĐNMH.');
+                    return;
+                }
+                newContractItemNo = '';
             }
+
+            o.checkType = newCheckType;
+            o.supplier = newSupplier;
             o.contractNo = selectedContractNo;
-            o.contractItemNo = o.checkType === 'Hợp đồng' ? document.getElementById('check-contract-item-no').value.trim() : '';
+            o.contractItemNo = newContractItemNo;
 
             const deliveryStatus = document.getElementById('check-delivery-status').value;
             const deliveryUpdatedInput = document.getElementById('check-delivery-updated-at').value;
@@ -2526,6 +2755,7 @@
         // --- EXPORT FILTERED ORDERS (TAB 2) ---
         let currentExportDefaultFrom = '';
         let currentExportDefaultDate = '';
+        let pendingContractExportOrders = null;
 
         function uniqueSorted(values) {
             return [...new Set(values.filter(v => v !== null && v !== undefined && String(v).trim() !== '').map(v => String(v).trim()))]
@@ -2633,6 +2863,175 @@
             `;
         }
 
+        function validateContractOrdersForExport(orderList) {
+            return orderList.map(o => {
+                const missing = [];
+                if (!String(o.supplier || '').trim()) missing.push('NCC');
+                if (!String(o.contractNo || '').trim()) missing.push('Số Hợp đồng');
+                if (!isValidContractItemNo(o.contractItemNo)) missing.push('STT mặt hàng trong Hợp đồng');
+                return { order: o, missing };
+            }).filter(x => x.missing.length > 0);
+        }
+
+        function openContractExportValidation(missingRows, orderList) {
+            pendingContractExportOrders = orderList;
+            const listEl = document.getElementById('contract-export-validation-list');
+            if (!listEl) return;
+            listEl.innerHTML = missingRows.map(({ order, missing }, idx) => `
+                <div class="rounded-xl border border-amber-200 bg-amber-50 p-3">
+                    <div class="font-semibold text-sm text-slate-800">${idx + 1}. ${escapeHTML(order.item || 'Không tên')}</div>
+                    <div class="text-[11px] text-slate-600 mt-1">From: ${escapeHTML(order.restaurant || '-')} • Ngày: ${escapeHTML(formatDateVN(order.date))}</div>
+                    <div class="text-[11px] text-rose-700 font-semibold mt-1">Thiếu: ${escapeHTML(missing.join(', '))}</div>
+                </div>
+            `).join('');
+            document.getElementById('modal-contract-export-validation').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function cancelContractExportValidation() {
+            pendingContractExportOrders = null;
+            closeModal('modal-contract-export-validation');
+            closeModal('modal-export-order');
+            switchTab('check');
+        }
+
+        function continueContractExport() {
+            const ordersToExport = Array.isArray(pendingContractExportOrders) ? pendingContractExportOrders : [];
+            pendingContractExportOrders = null;
+            closeModal('modal-contract-export-validation');
+            buildAndDownloadFilteredOrderExcel(ordersToExport);
+        }
+
+        function buildAndDownloadFilteredOrderExcel(groupOrders) {
+            if (!Array.isArray(groupOrders) || groupOrders.length === 0) {
+                alert('Không có order nào phù hợp với điều kiện đã chọn.');
+                return;
+            }
+
+            const from = document.getElementById('export-filter-from')?.value || '';
+            const type = document.getElementById('export-filter-type')?.value || 'Tất cả';
+            const supplierValue = document.getElementById('export-filter-supplier')?.value || '';
+            const date = document.getElementById('export-filter-date')?.value || '';
+
+            let wsData;
+            let filePrefix;
+
+            if (type === 'Hợp đồng') {
+                wsData = [[
+                    'STT', 'Tên hàng', 'ĐVT', 'Số lượng', 'Khu vực',
+                    'Hình thức mua hàng', 'Nhà Cung Cấp', 'Số Hợp đồng',
+                    'STT mặt hàng trong Hợp đồng'
+                ]];
+                groupOrders.forEach((o, i) => {
+                    wsData.push([
+                        i + 1,
+                        o.item || '',
+                        o.unit || '',
+                        Number.isFinite(Number(o.qty)) ? Number(o.qty) : '',
+                        o.area || '',
+                        'Hợp đồng',
+                        o.supplier || '',
+                        o.contractNo || '',
+                        isValidContractItemNo(o.contractItemNo) ? Number(o.contractItemNo) : (o.contractItemNo || '')
+                    ]);
+                });
+                filePrefix = 'HD';
+            } else if (type === 'ĐNMH') {
+                wsData = [[
+                    'STT', 'Tên hàng', 'ĐVT', 'Số lượng', 'Khu vực',
+                    'Hình thức mua hàng', 'Nhà Cung Cấp', 'Số ĐNMH'
+                ]];
+                groupOrders.forEach((o, i) => {
+                    wsData.push([
+                        i + 1,
+                        o.item || '',
+                        o.unit || '',
+                        Number.isFinite(Number(o.qty)) ? Number(o.qty) : '',
+                        o.area || '',
+                        'ĐNMH',
+                        o.supplier || '',
+                        o.contractNo || ''
+                    ]);
+                });
+                filePrefix = 'DNMH';
+            } else {
+                // Preserve current generic export behavior for "Tất cả".
+                wsData = [['Tên hàng', 'ĐVT', 'Số lượng']];
+                groupOrders.forEach(o => {
+                    wsData.push([
+                        o.item || '',
+                        o.unit || '',
+                        Number.isFinite(Number(o.qty)) ? Number(o.qty) : ''
+                    ]);
+                });
+                filePrefix = 'Order';
+            }
+
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.aoa_to_sheet(wsData);
+
+            if (type === 'Hợp đồng') {
+                ws['!cols'] = [
+                    { wch: 8 }, { wch: 42 }, { wch: 12 }, { wch: 12 }, { wch: 18 },
+                    { wch: 20 }, { wch: 24 }, { wch: 24 }, { wch: 24 }
+                ];
+            } else if (type === 'ĐNMH') {
+                ws['!cols'] = [
+                    { wch: 8 }, { wch: 42 }, { wch: 12 }, { wch: 12 }, { wch: 18 },
+                    { wch: 20 }, { wch: 24 }, { wch: 20 }
+                ];
+            } else {
+                ws['!cols'] = [{ wch: 42 }, { wch: 12 }, { wch: 14 }];
+            }
+
+            ws['!autofilter'] = { ref: `A1:${XLSX.utils.encode_col(wsData[0].length - 1)}${wsData.length}` };
+
+            // Basic spreadsheet formatting compatible with current XLSX build.
+            const headerCols = wsData[0].length;
+            for (let c = 0; c < headerCols; c++) {
+                const addr = XLSX.utils.encode_cell({ r: 0, c });
+                if (ws[addr]) {
+                    ws[addr].s = {
+                        font: { bold: true },
+                        alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+                        fill: { fgColor: { rgb: 'E2E8F0' } },
+                        border: {
+                            top: { style: 'thin', color: { rgb: 'CBD5E1' } },
+                            bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
+                            left: { style: 'thin', color: { rgb: 'CBD5E1' } },
+                            right: { style: 'thin', color: { rgb: 'CBD5E1' } }
+                        }
+                    };
+                }
+            }
+
+            const fromLabel = from || 'TatCaFrom';
+            const supplierLabel = supplierValue === '__NO_SUPPLIER__' ? 'ChuaChonNCC' : (supplierValue || 'TatCaNCC');
+            const dateLabel = date || 'TatCaNgay';
+            const typeLabel = type === 'Hợp đồng' ? 'HopDong' : type === 'ĐNMH' ? 'DNMH' : 'TatCaHinhThuc';
+            const safe = v => String(v)
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+                .replace(/[\\/:*?"<>|]/g, '_')
+                .replace(/\s+/g, '_')
+                .replace(/_+/g, '_')
+                .replace(/^_+|_+$/g, '');
+
+            let fileName;
+            if (type === 'Hợp đồng' && date && from) {
+                fileName = `HD_${safe(from)}_${safe(formatDateVN(date).replace(/\//g, ''))}.xlsx`;
+            } else if (type === 'ĐNMH' && date && from) {
+                fileName = `DNMH_${safe(from)}_${safe(formatDateVN(date).replace(/\//g, ''))}.xlsx`;
+            } else {
+                fileName = `${filePrefix}_${safe(fromLabel)}_${safe(typeLabel)}_${safe(supplierLabel)}_${safe(dateLabel)}_${groupOrders.length}_mat_hang.xlsx`;
+            }
+
+            XLSX.writeFile(wb, fileName);
+            closeModal('modal-export-order');
+            alert(`Xuất Excel thành công!\nĐã xuất: ${groupOrders.length} order.`);
+        }
+
         function exportFilteredOrders() {
             try {
                 if (typeof XLSX === 'undefined') {
@@ -2646,108 +3045,20 @@
                     return;
                 }
 
-                const from = document.getElementById('export-filter-from')?.value || '';
                 const type = document.getElementById('export-filter-type')?.value || 'Tất cả';
-                const supplierValue = document.getElementById('export-filter-supplier')?.value || '';
-                const date = document.getElementById('export-filter-date')?.value || '';
+                if (type === 'Hợp đồng') {
+                    const missingRows = validateContractOrdersForExport(groupOrders);
+                    if (missingRows.length) {
+                        openContractExportValidation(missingRows, groupOrders);
+                        closeModal('modal-export-order');
+                        return;
+                    }
+                }
 
-                const wsData = [['Tên hàng', 'ĐVT', 'Số lượng']];
-                groupOrders.forEach(o => {
-                    wsData.push([
-                        o.item || '',
-                        o.unit || '',
-                        Number.isFinite(Number(o.qty)) ? Number(o.qty) : ''
-                    ]);
-                });
-
-                const wb = XLSX.utils.book_new();
-                const ws = XLSX.utils.aoa_to_sheet(wsData);
-                ws['!cols'] = [
-                    { wch: 42 },
-                    { wch: 12 },
-                    { wch: 14 }
-                ];
-                ws['!autofilter'] = { ref: `A1:C${wsData.length}` };
-                XLSX.utils.book_append_sheet(wb, ws, 'Order');
-
-                const supplierLabel = supplierValue === '__NO_SUPPLIER__' ? 'ChuaChonNCC' : (supplierValue || 'TatCaNCC');
-                const fromLabel = from || 'TatCaFrom';
-                const typeLabel = type === 'Hợp đồng' ? 'HopDong' : type === 'ĐNMH' ? 'DNMH' : 'TatCaHinhThuc';
-                const dateLabel = date || 'TatCaNgay';
-                const safe = v => String(v)
-                    .normalize('NFD')
-                    .replace(/[\u0300-\u036f]/g, '')
-                    .replace(/đ/g, 'd').replace(/Đ/g, 'D')
-                    .replace(/[\\/:*?"<>|]/g, '-')
-                    .replace(/\s+/g, '_')
-                    .replace(/_+/g, '_')
-                    .replace(/^_+|_+$/g, '');
-
-                const fileName = `Order_${safe(fromLabel)}_${safe(typeLabel)}_${safe(supplierLabel)}_${safe(dateLabel)}_${groupOrders.length}_mat_hang.xlsx`;
-                XLSX.writeFile(wb, fileName);
-
-                closeModal('modal-export-order');
-                alert(`Xuất Excel thành công!\nĐã xuất: ${groupOrders.length} order.`);
+                buildAndDownloadFilteredOrderExcel(groupOrders);
             } catch (err) {
                 console.error('Filtered Order Excel export error:', err);
                 alert('Không thể xuất file Excel. Vui lòng thử lại.');
-            }
-        }
-
-        // --- EXPORT GROUP ORDER (TAB 2) - Backward compatibility ---
-        function exportOrderGroup(orderIds, restaurant, orderDate) {
-            try {
-                if (typeof XLSX === 'undefined') {
-                    alert('Thư viện Excel chưa được tải. Vui lòng kiểm tra kết nối Internet và tải lại trang.');
-                    return;
-                }
-
-                const ids = Array.isArray(orderIds) ? orderIds.map(Number) : [];
-                const groupOrders = ids
-                    .map(id => orders.find(o => Number(o.id) === id))
-                    .filter(Boolean);
-
-                if (groupOrders.length === 0) {
-                    alert('Không có dữ liệu order để xuất.');
-                    return;
-                }
-
-                const wsData = [
-                    ['Tên hàng', 'ĐVT', 'Số lượng']
-                ];
-
-                groupOrders.forEach(o => {
-                    wsData.push([
-                        o.item || '',
-                        o.unit || '',
-                        Number.isFinite(Number(o.qty)) ? Number(o.qty) : ''
-                    ]);
-                });
-
-                const wb = XLSX.utils.book_new();
-                const ws = XLSX.utils.aoa_to_sheet(wsData);
-                ws['!cols'] = [
-                    { wch: 42 },
-                    { wch: 12 },
-                    { wch: 14 }
-                ];
-
-                // Thêm filter trên hàng tiêu đề để file Excel dễ sử dụng.
-                ws['!autofilter'] = { ref: `A1:C${wsData.length}` };
-
-                XLSX.utils.book_append_sheet(wb, ws, 'Order');
-
-                const safeFrom = String(restaurant || 'Order')
-                    .replace(/[\\/:*?"<>|]/g, '-')
-                    .replace(/\s+/g, ' ')
-                    .trim();
-                const safeDate = String(orderDate || new Date().toISOString().slice(0, 10));
-                const fileName = `${safeFrom}_${safeDate}_Order_${groupOrders.length}_mat_hang.xlsx`;
-
-                XLSX.writeFile(wb, fileName);
-            } catch (err) {
-                console.error('Order group Excel export error:', err);
-                alert('Không thể xuất file Excel nhóm order. Vui lòng thử lại.');
             }
         }
 
@@ -4834,7 +5145,11 @@
             qty: ["số lượng", "qty", "quantity", "số lượng yêu cầu"],
             area: ["khu vực", "area", "location", "region"],
             note: ["ghi chú", "note", "notes", "remark", "remarks"],
-            by: ["người order", "by", "ordered by", "requester", "người yêu cầu"]
+            by: ["người order", "by", "ordered by", "requester", "người yêu cầu"],
+            checkType: ["hình thức", "hình thức mua hàng", "loại mua hàng", "purchase type", "check type"],
+            supplier: ["ncc", "nhà cung cấp", "supplier", "supplier name"],
+            contractNo: ["số hđ", "số hợp đồng", "contract no", "contract number", "số đnmh", "số đnmh"],
+            contractItemNo: ["stt hđ", "stt mặt hàng trong hợp đồng", "contract item no", "contract item number", "stt / mã hàng hđ"]
         };
 
         function normalizeHeader(value) {
@@ -5048,7 +5363,11 @@
                     qty: quantity.value,
                     area: String(getField('area') || 'Chưa xác định').trim() || 'Chưa xác định',
                     note: String(getField('note') || '').trim(),
-                    by: String(getField('by') || 'Ngọc').trim() || 'Ngọc'
+                    by: String(getField('by') || 'Ngọc').trim() || 'Ngọc',
+                    checkType: String(getField('checkType') || 'ĐNMH').trim() || 'ĐNMH',
+                    supplier: String(getField('supplier') || '').trim(),
+                    contractNo: String(getField('contractNo') || '').trim(),
+                    contractItemNo: String(getField('contractItemNo') || '').trim()
                 }
             };
         }
@@ -5181,7 +5500,11 @@
                 qty: 'Số lượng',
                 area: 'Khu vực',
                 note: 'Ghi chú',
-                by: 'Người order'
+                by: 'Người order',
+                checkType: 'Hình thức',
+                supplier: 'NCC',
+                contractNo: 'Số HĐ / ĐNMH',
+                contractItemNo: 'STT HĐ'
             };
 
             document.getElementById('excel-import-preview-mapped').innerText =
@@ -5240,10 +5563,10 @@
                         note: row.data.note,
                         by: row.data.by,
                         date: row.data.date,
-                        checkType: 'ĐNMH',
-                        supplier: '',
-                        contractNo: `DNMH${String(baseOrderCount + index + 1).padStart(3, '0')}`,
-                        contractItemNo: '',
+                        checkType: row.data.checkType || 'ĐNMH',
+                        supplier: row.data.supplier || '',
+                        contractNo: row.data.contractNo || ((row.data.checkType || 'ĐNMH') === 'Hợp đồng' ? '' : `DNMH${String(baseOrderCount + index + 1).padStart(3, '0')}`),
+                        contractItemNo: normalizeContractItemNoValue(row.data.contractItemNo, row.data.checkType || 'ĐNMH'),
                         stage: 'SSG',
                         invoiceNo: '',
                         invoiceDate: '',
