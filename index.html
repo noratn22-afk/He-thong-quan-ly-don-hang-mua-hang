@@ -408,7 +408,22 @@
                 <hr class="my-3 border-slate-300">
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="bg-white p-3 rounded-xl border border-slate-200 shadow-sm flex flex-col md:flex-row md:items-center gap-3 no-print">
+                <div class="text-xs font-bold text-slate-700 whitespace-nowrap">Bộ lọc báo cáo:</div>
+                <select id="report-filter-type" onchange="renderReport()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="Tất cả">Tất cả hình thức</option>
+                    <option value="ĐNMH">ĐNMH</option>
+                    <option value="Hợp đồng">Hợp đồng</option>
+                </select>
+                <select id="report-filter-price" onchange="renderReport()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <option value="Tất cả">Tất cả trạng thái giá</option>
+                    <option value="Đã có giá mua">Đã có giá mua</option>
+                    <option value="Chưa có giá mua">Chưa có giá mua</option>
+                </select>
+                <div id="report-filter-summary" class="text-xs text-slate-500 md:ml-auto"></div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-4">
                 <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
                     <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><i data-lucide="shopping-bag" class="w-6 h-6"></i></div>
                     <div>
@@ -437,6 +452,27 @@
                         <h4 id="rep-invoiced" class="text-xl font-bold text-slate-800">0</h4>
                     </div>
                 </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-emerald-50 text-emerald-600 rounded-xl"><i data-lucide="coins" class="w-6 h-6"></i></div>
+                    <div class="min-w-0">
+                        <p class="text-xs text-slate-500 font-medium">Tổng giá trị mua ĐNMH</p>
+                        <h4 id="rep-purchase-value" class="text-lg font-bold text-slate-800 truncate">0 VNĐ</h4>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-indigo-50 text-indigo-600 rounded-xl"><i data-lucide="badge-check" class="w-6 h-6"></i></div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Item đã xác định giá mua</p>
+                        <h4 id="rep-priced-count" class="text-xl font-bold text-slate-800">0 / 0</h4>
+                    </div>
+                </div>
+                <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm flex items-center space-x-4">
+                    <div class="p-3 bg-amber-50 text-amber-600 rounded-xl"><i data-lucide="file-signature" class="w-6 h-6"></i></div>
+                    <div>
+                        <p class="text-xs text-slate-500 font-medium">Số item Hợp đồng</p>
+                        <h4 id="rep-contract-count" class="text-xl font-bold text-slate-800">0</h4>
+                    </div>
+                </div>
             </div>
 
             <div class="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex-1 flex flex-col space-y-4">
@@ -454,7 +490,10 @@
                                 <th class="py-3 px-3">Tên mặt hàng</th>
                                 <th class="py-3 px-3">SL & ĐVT</th>
                                 <th class="py-3 px-3">Khu vực</th>
+                                <th class="py-3 px-3">Hình thức</th>
                                 <th class="py-3 px-3">Nhà Cung Cấp</th>
+                                <th class="py-3 px-3">Đơn giá mua</th>
+                                <th class="py-3 px-3">Giá trị mua</th>
                                 <th class="py-3 px-3">Giai đoạn</th>
                                 <th class="py-3 px-3">Hóa đơn</th>
                             </tr>
@@ -1146,7 +1185,7 @@
 
                 <div>
                     <label class="block text-xs font-semibold text-slate-700 mb-1">Hình thức mua hàng <span class="text-rose-500">*</span></label>
-                    <select id="place-order-type" onchange="updatePlacementContractFieldMode()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    <select id="place-order-type" onchange="updatePlacementContractFieldMode(); updatePlacementPurchasePriceUI()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
                         <option value="ĐNMH">ĐNMH</option>
                         <option value="Hợp đồng">Hợp đồng</option>
                     </select>
@@ -1184,10 +1223,48 @@
                     <label class="block text-xs font-semibold text-slate-700 mb-1">Ghi chú</label>
                     <textarea id="place-order-note" rows="3" placeholder="VD: Đã gửi PO cho NCC qua email/Zalo..." class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-none focus:outline-none focus:ring-2 focus:ring-emerald-500"></textarea>
                 </div>
+
+                <div id="place-order-purchase-section" class="p-4 rounded-xl border border-emerald-200 bg-emerald-50/40 space-y-3">
+                    <div>
+                        <div class="text-[11px] font-bold uppercase tracking-wider text-emerald-700">Thông tin giá mua</div>
+                        <div class="text-[11px] text-slate-500 mt-1">Chọn giá từ báo giá NCC hiện có hoặc nhập giá mua thực tế.</div>
+                    </div>
+
+                    <div id="place-order-price-source-wrap">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Nguồn đơn giá <span class="text-rose-500">*</span></label>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <label class="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 bg-white cursor-pointer hover:border-emerald-300">
+                                <input type="radio" name="place-order-price-source" id="place-order-price-source-quote" value="Quote" checked onchange="updatePlacementPurchasePriceUI()" class="text-emerald-600 focus:ring-emerald-500">
+                                <span class="text-xs font-medium text-slate-700">Giá theo báo giá NCC</span>
+                            </label>
+                            <label class="flex items-center gap-2 p-2.5 rounded-lg border border-slate-200 bg-white cursor-pointer hover:border-emerald-300">
+                                <input type="radio" name="place-order-price-source" id="place-order-price-source-manual" value="Manual" onchange="updatePlacementPurchasePriceUI()" class="text-emerald-600 focus:ring-emerald-500">
+                                <span class="text-xs font-medium text-slate-700">Nhập giá thủ công</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div id="place-order-quote-price-wrap" class="space-y-2">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-700 mb-1">Báo giá của NCC đang chọn</label>
+                            <select id="place-order-quote-select" onchange="updatePlacementPurchaseSummary()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500"></select>
+                        </div>
+                        <div id="place-order-quote-info" class="text-[11px] text-slate-500"></div>
+                    </div>
+
+                    <div id="place-order-manual-price-wrap" class="hidden">
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Đơn giá mua (VNĐ) <span class="text-rose-500">*</span></label>
+                        <input type="number" id="place-order-manual-price" min="0" step="1" inputmode="numeric" autocomplete="off" placeholder="VD: 150000" oninput="updatePlacementPurchaseSummary()" class="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-emerald-500">
+                    </div>
+
+                    <div id="place-order-purchase-summary" class="pt-2 border-t border-emerald-100">
+                        <!-- Purchase price preview populated dynamically -->
+                    </div>
+                </div>
             </div>
 
             <div class="p-3 bg-emerald-50 border border-emerald-100 rounded-lg text-xs text-emerald-800">
-                Sau khi xác nhận, hệ thống lưu <strong>orderPlaced + orderedAt + NCC + hình thức + số HĐ/ĐNMH + người đặt</strong> và kích hoạt timer.
+                Sau khi xác nhận, hệ thống lưu <strong>orderPlaced + orderedAt + NCC + hình thức + số HĐ/ĐNMH + giá mua + người đặt</strong> và kích hoạt timer.
             </div>
 
             <div class="flex justify-end gap-3 pt-3 border-t border-slate-100">
@@ -1503,6 +1580,10 @@
                 orderPlacedAt: String(source.orderPlacedAt ?? source.orderedAt ?? ''),
                 orderedBy: String(source.orderedBy ?? source.orderByPlaced ?? ''),
                 orderPlacementNote: String(source.orderPlacementNote ?? source.placementNote ?? ''),
+                purchasePrice: source.purchasePrice === null || source.purchasePrice === undefined || source.purchasePrice === '' ? null : (Number.isFinite(Number(source.purchasePrice)) ? Number(source.purchasePrice) : null),
+                purchaseValue: source.purchaseValue === null || source.purchaseValue === undefined || source.purchaseValue === '' ? null : (Number.isFinite(Number(source.purchaseValue)) ? Number(source.purchaseValue) : null),
+                purchasePriceSource: String(source.purchasePriceSource ?? ''),
+                purchaseQuoteId: source.purchaseQuoteId ?? null,
                 deliveredAt: String(source.deliveredAt ?? ''),
                 deliveryStatus: String(source.deliveryStatus ?? 'Chưa giao'),
                 deliveryUpdatedAt: String(source.deliveryUpdatedAt ?? ''),
@@ -1858,6 +1939,275 @@
             return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}`;
         }
 
+        // --- PURCHASE PRICE HELPERS (TAB 2 + TAB 5) ---
+        function getOrderPurchaseType(order) {
+            return String(order?.checkType || 'ĐNMH').trim() || 'ĐNMH';
+        }
+
+        function getQuotesForOrderSupplier(order, supplierOverride = null) {
+            if (!order || getOrderPurchaseType(order) !== 'ĐNMH') return [];
+            const supplier = String(supplierOverride === null ? (order.supplier || '') : (supplierOverride || '')).trim().toLowerCase();
+            if (!supplier) return [];
+            const itemId = String(order.id);
+            return quotes.filter(q => {
+                const qItemId = String(q?.itemId ?? q?.orderId ?? '');
+                const qSupplier = String(q?.supplierName || '').trim().toLowerCase();
+                return qItemId === itemId && qSupplier === supplier && Number.isFinite(Number(q?.quotedPrice));
+            });
+        }
+
+        function getSelectedPurchaseQuote(order, supplierOverride = null, quoteIdOverride = null) {
+            const list = getQuotesForOrderSupplier(order, supplierOverride);
+            if (!list.length) return null;
+            const targetQuoteId = quoteIdOverride !== null && quoteIdOverride !== undefined
+                ? String(quoteIdOverride)
+                : (order.purchaseQuoteId !== null && order.purchaseQuoteId !== undefined && String(order.purchaseQuoteId).trim() !== '' ? String(order.purchaseQuoteId) : '');
+            if (targetQuoteId) {
+                const matched = list.find(q => String(q?.quoteId ?? '') === targetQuoteId);
+                if (matched) return matched;
+            }
+            if (order.orderPlaced === true && String(order.purchasePriceSource || '') === 'Manual') return null;
+            return list.length === 1 ? list[0] : list[0];
+        }
+
+        function getPurchasePrice(order, supplierOverride = null) {
+            if (!order || getOrderPurchaseType(order) !== 'ĐNMH') return null;
+
+            // Once an order is placed, purchasePrice is the confirmed purchase price.
+            // It must not change when quotes are edited/deleted later.
+            if (order.orderPlaced === true && Number.isFinite(Number(order.purchasePrice))) {
+                return Number(order.purchasePrice);
+            }
+
+            // Before placement, do not infer a purchase price from quotes.
+            return null;
+        }
+
+        function getPurchaseValue(order, supplierOverride = null) {
+            if (!order || getOrderPurchaseType(order) === 'Hợp đồng') return null;
+            if (order.orderPlaced !== true) return null;
+            if (Number.isFinite(Number(order.purchaseValue))) return Number(order.purchaseValue);
+            const price = getPurchasePrice(order, supplierOverride);
+            const qty = Number(order.qty);
+            if (price === null || !Number.isFinite(qty)) return null;
+            return qty * price;
+        }
+
+        function formatPurchaseMoney(value) {
+            const num = Number(value);
+            return Number.isFinite(num) ? `${num.toLocaleString('vi-VN')} VNĐ` : '';
+        }
+
+        function getPurchaseDisplay(order, supplierOverride = null) {
+            const type = getOrderPurchaseType(order);
+            if (type === 'Hợp đồng') {
+                return { price: 'Hợp đồng', value: 'Hợp đồng', priceNumber: null, valueNumber: null };
+            }
+
+            if (order?.orderPlaced !== true) {
+                const supplier = String(supplierOverride === null ? (order?.supplier || '') : (supplierOverride || '')).trim();
+                if (!supplier) return { price: 'Chưa chọn NCC', value: 'Chưa xác định', priceNumber: null, valueNumber: null };
+                return { price: 'Chưa xác định', value: 'Chưa xác định', priceNumber: null, valueNumber: null };
+            }
+
+            const supplier = String(supplierOverride === null ? (order?.supplier || '') : (supplierOverride || '')).trim();
+            if (!supplier) {
+                return { price: 'Chưa chọn NCC', value: 'Chưa xác định', priceNumber: null, valueNumber: null };
+            }
+
+            const price = getPurchasePrice(order, supplier);
+            if (price === null) {
+                return { price: 'Chưa xác định', value: 'Chưa xác định', priceNumber: null, valueNumber: null };
+            }
+
+            const value = getPurchaseValue(order, supplier);
+            return {
+                price: formatPurchaseMoney(price),
+                value: value === null ? 'Chưa xác định' : formatPurchaseMoney(value),
+                priceNumber: price,
+                valueNumber: value
+            };
+        }
+
+        function getPlacementPriceSource() {
+            const checked = document.querySelector('input[name="place-order-price-source"]:checked');
+            return checked ? checked.value : 'Quote';
+        }
+
+        function setPlacementPriceSource(source) {
+            const value = source === 'Manual' ? 'Manual' : 'Quote';
+            const quoteRadio = document.getElementById('place-order-price-source-quote');
+            const manualRadio = document.getElementById('place-order-price-source-manual');
+            if (quoteRadio) quoteRadio.checked = value === 'Quote';
+            if (manualRadio) manualRadio.checked = value === 'Manual';
+        }
+
+        function populatePlacementQuoteOptions(order, supplier, preferredQuoteId = null) {
+            const select = document.getElementById('place-order-quote-select');
+            const info = document.getElementById('place-order-quote-info');
+            if (!select) return [];
+
+            // IMPORTANT: only quotes belonging to THIS item + THIS selected supplier are eligible.
+            const list = getQuotesForOrderSupplier(order, supplier);
+            const preferred = preferredQuoteId !== null && preferredQuoteId !== undefined ? String(preferredQuoteId) : '';
+            select.innerHTML = '';
+            select.disabled = false;
+
+            if (!String(supplier || '').trim()) {
+                select.innerHTML = '<option value="">-- Chọn NCC trước --</option>';
+                select.disabled = true;
+                select.dataset.initialValue = '';
+                if (info) info.innerHTML = '<span class="text-slate-500">Vui lòng chọn NCC để xem báo giá của NCC đó.</span>';
+                return [];
+            }
+
+            if (!list.length) {
+                select.innerHTML = '<option value="">-- NCC chưa có báo giá --</option>';
+                select.disabled = true;
+                select.dataset.initialValue = '';
+                if (info) info.innerHTML = `<span class="text-amber-700">⚠ NCC <strong>${escapeHTML(supplier)}</strong> chưa có báo giá cho mặt hàng này trên hệ thống.</span>`;
+                return list;
+            }
+
+            select.innerHTML = '<option value="">-- Chọn báo giá --</option>' + list.map(q => {
+                const id = String(q?.quoteId ?? '');
+                const price = formatPurchaseMoney(q?.quotedPrice);
+                const date = q?.uploadDate ? ` • ${formatDateVN(q.uploadDate)}` : '';
+                return `<option value="${escapeHtmlAttribute(id)}">${escapeHTML(q?.supplierName || supplier)} – ${escapeHTML(price)}${escapeHTML(date)}</option>`;
+            }).join('');
+
+            const current = list.find(q => String(q?.quoteId ?? '') === preferred);
+            if (current) {
+                select.value = String(current.quoteId);
+            } else if (list.length === 1) {
+                select.value = String(list[0].quoteId);
+            }
+
+            select.dataset.initialValue = String(select.value || '');
+            const selected = list.find(q => String(q?.quoteId ?? '') === String(select.value));
+            if (info) {
+                info.innerHTML = selected
+                    ? `Báo giá của NCC <strong class="text-slate-700">${escapeHTML(supplier)}</strong>: <strong class="text-emerald-700">${escapeHTML(formatPurchaseMoney(selected.quotedPrice))}</strong>`
+                    : (list.length > 1
+                        ? `<span class="text-slate-500">NCC <strong>${escapeHTML(supplier)}</strong> có ${list.length} báo giá. Vui lòng chọn một báo giá để làm đơn giá mua.</span>`
+                        : `<span class="text-slate-500">Báo giá của NCC <strong>${escapeHTML(supplier)}</strong> đã được nạp để làm đơn giá mua.</span>`);
+            }
+            return list;
+        }
+
+        function getPlacementSelectedQuote(order, supplier) {
+            if (!order) return null;
+            const list = getQuotesForOrderSupplier(order, supplier);
+            if (!list.length) return null;
+            const select = document.getElementById('place-order-quote-select');
+            const selectedId = String(select?.value || '').trim();
+            if (!selectedId) return list.length === 1 ? list[0] : null;
+            return list.find(q => String(q?.quoteId ?? '') === selectedId) || null;
+        }
+
+        function updatePlacementPurchasePriceUI() {
+            const id = document.getElementById('place-order-id')?.value;
+            const order = orders.find(x => String(x.id) === String(id));
+            const section = document.getElementById('place-order-purchase-section');
+            if (!order || !section) return;
+            const type = document.getElementById('place-order-type')?.value || getOrderPurchaseType(order);
+            section.classList.remove('hidden');
+            const sourceWrap = document.getElementById('place-order-price-source-wrap');
+            const quoteWrap = document.getElementById('place-order-quote-price-wrap');
+            const manualWrap = document.getElementById('place-order-manual-price-wrap');
+
+            if (type === 'Hợp đồng') {
+                if (sourceWrap) sourceWrap.classList.add('hidden');
+                if (quoteWrap) quoteWrap.classList.add('hidden');
+                if (manualWrap) manualWrap.classList.add('hidden');
+                updatePlacementPurchaseSummary();
+                return;
+            }
+
+            if (sourceWrap) sourceWrap.classList.remove('hidden');
+            const source = getPlacementPriceSource();
+            if (quoteWrap) quoteWrap.classList.toggle('hidden', source !== 'Quote');
+            if (manualWrap) manualWrap.classList.toggle('hidden', source !== 'Manual');
+            updatePlacementPurchaseSummary();
+        }
+
+        function updatePlacementPurchaseSummary() {
+            const summaryEl = document.getElementById('place-order-purchase-summary');
+            const id = document.getElementById('place-order-id')?.value;
+            const order = orders.find(x => String(x.id) === String(id));
+            if (!summaryEl || !order) return;
+
+            const type = document.getElementById('place-order-type')?.value || getOrderPurchaseType(order);
+            const supplier = String(document.getElementById('place-order-supplier')?.value || '').trim();
+            const qty = Number(order.qty);
+
+            if (type === 'Hợp đồng') {
+                summaryEl.innerHTML = `
+                    <div class="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <div><div class="text-[11px] text-slate-500">Nguồn giá</div><div class="text-sm font-bold text-emerald-700">Hợp đồng</div></div>
+                        <div><div class="text-[11px] text-slate-500">Đơn giá mua</div><div class="text-sm font-bold text-slate-700">Hợp đồng</div></div>
+                        <div><div class="text-[11px] text-slate-500">Số lượng</div><div class="text-sm font-bold text-slate-700">${Number.isFinite(qty) ? escapeHTML(String(qty)) : '-'}</div></div>
+                        <div><div class="text-[11px] text-slate-500">Thành tiền</div><div class="text-sm font-bold text-slate-700">Hợp đồng</div></div>
+                    </div>`;
+                return;
+            }
+
+            const source = getPlacementPriceSource();
+            let price = null;
+            let sourceLabel = source === 'Manual' ? 'Nhập giá thủ công' : 'Báo giá NCC';
+            let warning = '';
+
+            if (source === 'Quote') {
+                const list = getQuotesForOrderSupplier({ ...order, checkType: type }, supplier);
+                const quoteSelect = document.getElementById('place-order-quote-select');
+                const selectedQuote = getPlacementSelectedQuote({ ...order, checkType: type }, supplier);
+                const originalQuoteId = String(quoteSelect?.dataset?.initialValue || (order.purchaseQuoteId ?? ''));
+                const sameSupplierAsStored = String(order.supplier || '').trim().toLowerCase() === supplier.toLowerCase();
+                const preserveConfirmedQuotePrice = order.orderPlaced === true && order.purchasePriceSource === 'Quote' && Number.isFinite(Number(order.purchasePrice)) && sameSupplierAsStored && originalQuoteId && String(quoteSelect?.value || '') === originalQuoteId;
+                if (preserveConfirmedQuotePrice) {
+                    // Reopening an already placed order must show the confirmed purchasePrice,
+                    // not a later change to the underlying quote.
+                    price = Number(order.purchasePrice);
+                    sourceLabel = 'Báo giá NCC (giá đã xác nhận)';
+                    const info = document.getElementById('place-order-quote-info');
+                    if (info) info.innerHTML = selectedQuote
+                        ? `Báo giá NCC hiện tại: <strong class="text-slate-700">${escapeHTML(formatPurchaseMoney(selectedQuote.quotedPrice))}</strong> • Giá mua đã xác nhận: <strong class="text-emerald-700">${escapeHTML(formatPurchaseMoney(price))}</strong>`
+                        : '<span class="text-amber-700">⚠ Báo giá gốc hiện không còn trong hệ thống; vẫn giữ nguyên giá mua đã xác nhận.</span>';
+                    if (selectedQuote && Number(selectedQuote.quotedPrice) !== price) {
+                        warning = '<div class="text-[11px] text-amber-700 mt-1">⚠ Báo giá hiện tại đã thay đổi. Giá mua xác nhận của Order vẫn được giữ nguyên cho đến khi bạn chủ động lưu thay đổi.</div>';
+                    }
+                } else if (selectedQuote) {
+                    price = Number(selectedQuote.quotedPrice);
+                    sourceLabel = 'Báo giá NCC';
+                    const info = document.getElementById('place-order-quote-info');
+                    if (info) info.innerHTML = `Báo giá của NCC: <strong class="text-emerald-700">${escapeHTML(formatPurchaseMoney(price))}</strong>`;
+                } else if (order.orderPlaced === true && order.purchasePriceSource === 'Quote' && Number.isFinite(Number(order.purchasePrice)) && sameSupplierAsStored) {
+                    // Preserve the confirmed quote price even if the underlying quote was later deleted.
+                    price = Number(order.purchasePrice);
+                    sourceLabel = 'Báo giá NCC (giá đã xác nhận)';
+                    warning = '<div class="text-[11px] text-amber-700 mt-1">⚠ Báo giá gốc hiện không còn trong hệ thống; vẫn giữ nguyên giá mua đã xác nhận khi đặt hàng.</div>';
+                } else {
+                    warning = '<div class="text-[11px] text-amber-700 mt-1">⚠ NCC này chưa có báo giá trên hệ thống. Bạn có thể chuyển sang <strong>Nhập giá thủ công</strong>.</div>';
+                }
+            } else {
+                const manualInput = document.getElementById('place-order-manual-price');
+                const parsed = Number(manualInput?.value);
+                if (String(manualInput?.value || '').trim() !== '' && Number.isFinite(parsed) && parsed >= 0) price = parsed;
+            }
+
+            const value = price !== null && Number.isFinite(qty) ? price * qty : null;
+            const priceDisplay = price === null ? 'Chưa xác định' : formatPurchaseMoney(price);
+            const valueDisplay = value === null ? 'Chưa xác định' : formatPurchaseMoney(value);
+
+            summaryEl.innerHTML = `
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <div><div class="text-[11px] text-slate-500">Nguồn giá</div><div class="text-sm font-bold text-slate-800">${escapeHTML(sourceLabel)}</div>${warning}</div>
+                    <div><div class="text-[11px] text-slate-500">Đơn giá mua</div><div class="text-sm font-bold ${price !== null ? 'text-emerald-700' : 'text-slate-500'}">${escapeHTML(priceDisplay)}</div></div>
+                    <div><div class="text-[11px] text-slate-500">Số lượng</div><div class="text-sm font-bold text-slate-700">${Number.isFinite(qty) ? escapeHTML(String(qty)) : '-'}</div></div>
+                    <div><div class="text-[11px] text-slate-500">Thành tiền</div><div class="text-sm font-bold ${value !== null ? 'text-indigo-700' : 'text-slate-500'}">${escapeHTML(valueDisplay)}</div></div>
+                </div>`;
+        }
+
         function toDateTimeLocalValue(value) {
             if (!value) return '';
             const d = new Date(value);
@@ -1900,6 +2250,10 @@
             }
             if (order.orderedBy === null || order.orderedBy === undefined) order.orderedBy = '';
             if (order.orderPlacementNote === null || order.orderPlacementNote === undefined) order.orderPlacementNote = '';
+            if (order.purchasePrice === undefined) order.purchasePrice = null;
+            if (order.purchaseValue === undefined) order.purchaseValue = null;
+            if (order.purchasePriceSource === undefined || order.purchasePriceSource === null) order.purchasePriceSource = '';
+            if (order.purchaseQuoteId === undefined) order.purchaseQuoteId = null;
             if (!order.deliveredAt) order.deliveredAt = '';
         }
 
@@ -2053,7 +2407,12 @@
             populatePlacementSupplierOptions(order.supplier || '');
             const placeSupplierEl = document.getElementById('place-order-supplier');
             placeSupplierEl.value = order.supplier || '';
-            placeSupplierEl.onchange = () => updatePlacementContractFieldMode();
+            placeSupplierEl.onchange = () => {
+                updatePlacementContractFieldMode();
+                populatePlacementQuoteOptions(order, placeSupplierEl.value, null);
+                updatePlacementPurchasePriceUI();
+            };
+
             document.getElementById('place-order-type').value = order.checkType || 'ĐNMH';
             document.getElementById('place-order-ordered-by').value = order.orderedBy || order.by || 'Ngọc';
             document.getElementById('place-order-note').value = order.orderPlacementNote || '';
@@ -2070,15 +2429,32 @@
             if (placementItemNo) placementItemNo.value = order.contractItemNo || '';
             updatePlacementContractFieldMode(existingContract);
 
+            // Load existing purchase-price state for edit. For a new order default to Quote.
+            const hasStoredPrice = order.orderPlaced === true && Number.isFinite(Number(order.purchasePrice));
+            let source = (mode === 'edit' && order.purchasePriceSource === 'Manual') ? 'Manual' : 'Quote';
+            if (mode === 'edit' && hasStoredPrice && !order.purchasePriceSource) source = 'Quote';
+            setPlacementPriceSource(source);
+
+            const manualInput = document.getElementById('place-order-manual-price');
+            if (manualInput) manualInput.value = source === 'Manual' && hasStoredPrice ? Number(order.purchasePrice) : '';
+            const quoteList = populatePlacementQuoteOptions(order, placeSupplierEl.value, source === 'Quote' ? order.purchaseQuoteId : null);
+
+            // If this is a new order and the selected supplier has no quote, guide user to manual input.
+            if (mode === 'create' && getOrderPurchaseType(order) === 'ĐNMH' && !quoteList.length) {
+                setPlacementPriceSource('Manual');
+                if (manualInput) manualInput.value = '';
+            }
+
             const isEdit = mode === 'edit';
             document.getElementById('place-order-title').innerText = isEdit ? 'Thông tin đặt hàng' : 'Xác nhận Đặt Hàng';
             document.getElementById('place-order-subtitle').innerText = isEdit
-                ? 'Kiểm tra và chỉnh sửa thông tin đặt hàng trước khi lưu.'
+                ? 'Kiểm tra và chỉnh sửa thông tin đặt hàng, bao gồm cả giá mua.'
                 : 'Xác nhận Purchasing đã thực sự đặt hàng cho mặt hàng này.';
             const saveBtn = document.getElementById('place-order-confirm-btn');
             saveBtn.innerText = isEdit ? 'Lưu thay đổi' : 'Xác nhận đã đặt';
             saveBtn.dataset.mode = isEdit ? 'edit' : 'create';
             document.getElementById('modal-place-order').classList.remove('hidden');
+            updatePlacementPurchasePriceUI();
             lucide.createIcons();
         }
 
@@ -2118,37 +2494,70 @@
             const orderedBy = String(document.getElementById('place-order-ordered-by')?.value || '').trim();
             const note = String(document.getElementById('place-order-note')?.value || '').trim();
 
-            if (!supplier) {
-                alert('Vui lòng chọn Nhà Cung Cấp (NCC).');
-                return;
-            }
-            if (!contractNo) {
-                alert(checkType === 'Hợp đồng' ? 'Vui lòng nhập Số Hợp đồng.' : 'Vui lòng nhập Số ĐNMH.');
-                return;
-            }
+            if (!supplier) { alert('Vui lòng chọn Nhà Cung Cấp (NCC).'); return; }
+            if (!contractNo) { alert(checkType === 'Hợp đồng' ? 'Vui lòng nhập Số Hợp đồng.' : 'Vui lòng nhập Số ĐNMH.'); return; }
             if (checkType === 'Hợp đồng' && !isValidContractItemNo(contractItemNoRaw)) {
-                alert('Vui lòng nhập STT mặt hàng trong Hợp đồng là số nguyên dương (lớn hơn 0).');
-                return;
+                alert('Vui lòng nhập STT mặt hàng trong Hợp đồng là số nguyên dương (lớn hơn 0).'); return;
             }
-            if (!datetimeInput) {
-                alert('Vui lòng chọn Ngày / giờ đặt hàng.');
-                return;
-            }
+            if (!datetimeInput) { alert('Vui lòng chọn Ngày / giờ đặt hàng.'); return; }
             const parsed = new Date(datetimeInput);
-            if (Number.isNaN(parsed.getTime())) {
-                alert('Ngày / giờ đặt hàng không hợp lệ.');
-                return;
+            if (Number.isNaN(parsed.getTime())) { alert('Ngày / giờ đặt hàng không hợp lệ.'); return; }
+
+            let purchasePrice = null;
+            let purchaseValue = null;
+            let purchasePriceSource = '';
+            let purchaseQuoteId = null;
+
+            if (checkType === 'ĐNMH') {
+                purchasePriceSource = getPlacementPriceSource();
+                const list = getQuotesForOrderSupplier({ ...order, checkType: 'ĐNMH' }, supplier);
+                if (purchasePriceSource === 'Quote') {
+                    const quoteSelect = document.getElementById('place-order-quote-select');
+                    const selectedQuoteId = String(quoteSelect?.value || '').trim();
+                    const originalQuoteId = String(quoteSelect?.dataset?.initialValue || (order.purchaseQuoteId ?? ''));
+                    const sameSupplierAsStored = String(order.supplier || '').trim().toLowerCase() === supplier.toLowerCase();
+                    const selectedQuote = list.find(q => String(q?.quoteId ?? '') === selectedQuoteId) || null;
+                    const preserveStoredConfirmedQuote = mode === 'edit' && order.orderPlaced === true && order.purchasePriceSource === 'Quote' && Number.isFinite(Number(order.purchasePrice)) && sameSupplierAsStored && originalQuoteId && selectedQuoteId === originalQuoteId;
+                    if (preserveStoredConfirmedQuote) {
+                        purchasePrice = Number(order.purchasePrice);
+                        purchaseQuoteId = (order.purchaseQuoteId ?? selectedQuoteId) || null;
+                    } else if (selectedQuote) {
+                        purchasePrice = Number(selectedQuote.quotedPrice);
+                        purchaseQuoteId = selectedQuote.quoteId ?? null;
+                    } else if (list.length > 1) {
+                        alert(`NCC ${supplier} có ${list.length} báo giá. Vui lòng chọn một báo giá cụ thể.`);
+                        return;
+                    } else if (mode === 'edit' && order.orderPlaced === true && order.purchasePriceSource === 'Quote' && Number.isFinite(Number(order.purchasePrice)) && sameSupplierAsStored) {
+                        purchasePrice = Number(order.purchasePrice);
+                        purchaseQuoteId = order.purchaseQuoteId ?? null;
+                    } else {
+                        alert('NCC này chưa có báo giá phù hợp. Vui lòng chọn báo giá hoặc chuyển sang Nhập giá thủ công.');
+                        return;
+                    }
+                    if (!Number.isFinite(purchasePrice) || purchasePrice < 0) {
+                        alert('Đơn giá mua từ báo giá NCC không hợp lệ.');
+                        return;
+                    }
+                } else {
+                    const manualRaw = String(document.getElementById('place-order-manual-price')?.value || '').trim();
+                    if (!manualRaw) { alert('Vui lòng nhập đơn giá mua.'); return; }
+                    purchasePrice = Number(manualRaw);
+                    if (!Number.isFinite(purchasePrice) || purchasePrice < 0) { alert('Đơn giá mua phải là số >= 0.'); return; }
+                    purchaseQuoteId = null;
+                }
+                const qty = Number(order.qty);
+                if (!Number.isFinite(qty)) { alert('Số lượng của mặt hàng không hợp lệ.'); return; }
+                purchaseValue = qty * purchasePrice;
             }
+
             if (mode === 'edit' && !confirm('Xác nhận lưu các thay đổi thông tin đặt hàng?')) return;
 
             const timestamp = parsed.toISOString();
             const old = {
-                supplier: order.supplier || '',
-                checkType: order.checkType || 'ĐNMH',
-                contractNo: order.contractNo || '',
-                orderedAt: order.orderedAt || '',
-                orderedBy: order.orderedBy || '',
-                note: order.orderPlacementNote || ''
+                supplier: order.supplier || '', checkType: order.checkType || 'ĐNMH', contractNo: order.contractNo || '',
+                contractItemNo: order.contractItemNo || '', orderedAt: order.orderedAt || '', orderedBy: order.orderedBy || '',
+                note: order.orderPlacementNote || '', purchasePrice: order.purchasePrice ?? null, purchaseValue: order.purchaseValue ?? null,
+                purchasePriceSource: order.purchasePriceSource || '', purchaseQuoteId: order.purchaseQuoteId ?? null
             };
 
             order.orderPlaced = true;
@@ -2160,25 +2569,26 @@
             order.contractItemNo = checkType === 'Hợp đồng' ? Number(contractItemNoRaw) : '';
             order.orderedBy = orderedBy || order.by || 'Ngọc';
             order.orderPlacementNote = note;
-
-            if (order.stage === 'SSG') {
-                updateStageRecord(order, 'Đặt hàng', 'Xác nhận đặt hàng thực tế tại Tab 2');
+            if (checkType === 'Hợp đồng') {
+                order.purchasePrice = null;
+                order.purchaseValue = null;
+                order.purchasePriceSource = '';
+                order.purchaseQuoteId = null;
+            } else {
+                order.purchasePrice = purchasePrice;
+                order.purchaseValue = purchaseValue;
+                order.purchasePriceSource = purchasePriceSource;
+                order.purchaseQuoteId = purchaseQuoteId;
             }
 
+            if (order.stage === 'SSG') updateStageRecord(order, 'Đặt hàng', 'Xác nhận đặt hàng thực tế tại Tab 2');
+
             pushTrackingHistory(order, mode === 'edit' ? 'order_placement_update' : 'order_placed', {
-                message: mode === 'edit' ? 'Cập nhật thông tin đặt hàng' : 'Xác nhận đã đặt hàng',
-                orderedAt: timestamp,
-                orderedBy: order.orderedBy,
+                message: mode === 'edit' ? 'Cập nhật thông tin đặt hàng' : 'Xác nhận đã đặt hàng', orderedAt: timestamp, orderedBy: order.orderedBy,
                 old,
-                newData: {
-                    supplier: order.supplier,
-                    checkType: order.checkType,
-                    contractNo: order.contractNo,
-                    contractItemNo: order.contractItemNo,
-                    orderedAt: order.orderedAt,
-                    orderedBy: order.orderedBy,
-                    note: order.orderPlacementNote
-                }
+                newData: { supplier: order.supplier, checkType: order.checkType, contractNo: order.contractNo, contractItemNo: order.contractItemNo,
+                    orderedAt: order.orderedAt, orderedBy: order.orderedBy, note: order.orderPlacementNote, purchasePrice: order.purchasePrice,
+                    purchaseValue: order.purchaseValue, purchasePriceSource: order.purchasePriceSource, purchaseQuoteId: order.purchaseQuoteId }
             }, order.orderedBy, getNowISO());
 
             saveToStorage();
@@ -2325,6 +2735,8 @@
                                         <th class="py-3 px-4">Nhà Cung Cấp (NCC)</th>
                                         <th class="py-3 px-4">Số HĐ / ĐNMH</th>
                                         <th class="py-3 px-4">STT HĐ</th>
+                                        <th class="py-3 px-4 text-right">Đơn giá mua</th>
+                                        <th class="py-3 px-4 text-right">Thành tiền</th>
                                         <th class="py-3 px-4 text-center min-w-[190px]">Trạng thái đặt / Thời gian</th>
                                         <th class="py-3 px-4 text-center min-w-[190px]">Tình trạng giao hàng</th>
                                         <th class="py-3 px-4 text-right">Thao tác</th>
@@ -2364,6 +2776,8 @@
                             <td class="py-3 px-4 text-slate-700">${o.supplier ? escapeHTML(o.supplier) : '<span class="text-rose-500 italic text-xs">Chưa chọn NCC</span>'}</td>
                             <td class="py-3 px-4 text-indigo-600 font-medium">${escapeHTML(o.contractNo || '-')}</td>
                             <td class="py-3 px-4 text-slate-700 font-medium">${o.checkType === 'Hợp đồng' ? escapeHTML(o.contractItemNo || '-') : ''}</td>
+                            <td class="py-3 px-4 text-right font-semibold ${getPurchaseDisplay(o).priceNumber !== null ? 'text-slate-800' : 'text-slate-500'}">${escapeHTML(getPurchaseDisplay(o).price || '-')}</td>
+                            <td class="py-3 px-4 text-right font-semibold ${getPurchaseDisplay(o).valueNumber !== null ? 'text-indigo-700' : 'text-slate-500'}">${escapeHTML(getPurchaseDisplay(o).value || '-')}</td>
                             <td class="py-3 px-4 text-center align-middle">
                                 <button type="button" onclick="${placed ? `openOrderPlacementActions(${JSON.stringify(o.id)})` : `openOrderPlacementConfirmation(${JSON.stringify(o.id)})`}" class="w-full min-w-[175px] text-center rounded-lg border px-2.5 py-2 transition cursor-pointer hover:shadow-sm ${placed ? 'bg-emerald-50 hover:bg-emerald-100 border-emerald-200' : 'bg-slate-50 hover:bg-emerald-50 border-slate-200 hover:border-emerald-200'}" title="${placed ? 'Bấm để cập nhật / bỏ trạng thái Đã đặt' : 'Bấm để xác nhận Đã đặt'}">
                                     <div>${statusBadge}</div>
@@ -2902,112 +3316,16 @@
             buildAndDownloadFilteredOrderExcel(ordersToExport);
         }
 
-        function sanitizeOrderExportFilePart(value) {
-            return String(value ?? '')
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/đ/g, 'd').replace(/Đ/g, 'D')
-                .replace(/[\\/:*?"<>|]/g, '_')
-                .replace(/\s+/g, '_')
-                .replace(/_+/g, '_')
-                .replace(/^_+|_+$/g, '')
-                || 'DATA';
-        }
-
-        function downloadWorkbookSafely(wb, fileName) {
-            if (typeof XLSX === 'undefined') {
-                const err = new Error('Thư viện XLSX chưa được tải.');
-                console.error('TAB 2 EXPORT ERROR:', err);
-                console.error('XLSX AVAILABLE:', false);
-                throw err;
-            }
-            if (!wb) {
-                const err = new Error('Workbook không hợp lệ.');
-                console.error('TAB 2 EXPORT ERROR:', err);
-                console.error('XLSX AVAILABLE:', true);
-                throw err;
-            }
-
-            // Primary route: SheetJS browser download helper.
-            try {
-                if (typeof XLSX.writeFile === 'function') {
-                    XLSX.writeFile(wb, fileName, { compression: true });
-                    return { method: 'writeFile' };
-                }
-                console.warn('TAB 2 EXPORT: XLSX.writeFile không tồn tại, chuyển sang fallback.');
-            } catch (writeFileErr) {
-                console.error('TAB 2 EXPORT writeFile ERROR:', writeFileErr);
-                console.error('XLSX AVAILABLE:', true);
-            }
-
-            // Fallback route: generate ArrayBuffer/Uint8Array and trigger browser download.
-            try {
-                if (typeof XLSX.write !== 'function') {
-                    throw new Error('XLSX.write không tồn tại để thực hiện fallback download.');
-                }
-
-                const buffer = XLSX.write(wb, {
-                    bookType: 'xlsx',
-                    type: 'array',
-                    compression: true
-                });
-
-                if (!buffer || (buffer.byteLength !== undefined && buffer.byteLength === 0)) {
-                    throw new Error('XLSX.write trả về dữ liệu rỗng.');
-                }
-
-                const blob = new Blob([buffer], {
-                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-                });
-
-                if (!blob.size) {
-                    throw new Error('Không tạo được file Excel từ dữ liệu workbook.');
-                }
-
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = fileName;
-                a.style.display = 'none';
-                document.body.appendChild(a);
-                a.click();
-                a.remove();
-                setTimeout(() => URL.revokeObjectURL(url), 1000);
-
-                return { method: 'blob-fallback' };
-            } catch (fallbackErr) {
-                console.error('TAB 2 EXPORT fallback ERROR:', fallbackErr);
-                console.error('XLSX AVAILABLE:', typeof XLSX !== 'undefined');
-                throw fallbackErr;
-            }
-        }
-
         function buildAndDownloadFilteredOrderExcel(groupOrders) {
-            if (typeof XLSX === 'undefined') {
-                const err = new Error('Thư viện XLSX chưa được tải.');
-                console.error('TAB 2 EXPORT ERROR:', err);
-                console.error('XLSX AVAILABLE:', false);
-                alert('Không thể xuất Excel vì thư viện XLSX chưa được tải.\nVui lòng kiểm tra kết nối Internet và tải lại trang.');
-                return false;
-            }
-
             if (!Array.isArray(groupOrders) || groupOrders.length === 0) {
-                alert('Không có dữ liệu phù hợp với điều kiện xuất.');
-                return false;
+                alert('Không có order nào phù hợp với điều kiện đã chọn.');
+                return;
             }
 
             const from = document.getElementById('export-filter-from')?.value || '';
             const type = document.getElementById('export-filter-type')?.value || 'Tất cả';
             const supplierValue = document.getElementById('export-filter-supplier')?.value || '';
             const date = document.getElementById('export-filter-date')?.value || '';
-
-            console.log('TAB 2 EXPORT DATA:', {
-                total: groupOrders.length,
-                from,
-                type,
-                supplier: supplierValue,
-                date
-            });
 
             let wsData;
             let filePrefix;
@@ -3016,7 +3334,7 @@
                 wsData = [[
                     'STT', 'Tên hàng', 'ĐVT', 'Số lượng', 'Khu vực',
                     'Hình thức mua hàng', 'Nhà Cung Cấp', 'Số Hợp đồng',
-                    'STT mặt hàng trong Hợp đồng', 'Trạng thái đặt', 'Ngày đặt'
+                    'STT mặt hàng trong Hợp đồng'
                 ]];
                 groupOrders.forEach((o, i) => {
                     wsData.push([
@@ -3028,17 +3346,14 @@
                         'Hợp đồng',
                         o.supplier || '',
                         o.contractNo || '',
-                        isValidContractItemNo(o.contractItemNo) ? Number(o.contractItemNo) : (o.contractItemNo || ''),
-                        o.orderPlaced === true ? 'Đã đặt' : 'Chưa đặt',
-                        o.orderPlaced === true && o.orderedAt ? formatDateTimeVN(o.orderedAt) : ''
+                        isValidContractItemNo(o.contractItemNo) ? Number(o.contractItemNo) : (o.contractItemNo || '')
                     ]);
                 });
                 filePrefix = 'HD';
             } else if (type === 'ĐNMH') {
                 wsData = [[
                     'STT', 'Tên hàng', 'ĐVT', 'Số lượng', 'Khu vực',
-                    'Hình thức mua hàng', 'Nhà Cung Cấp', 'Số ĐNMH',
-                    'Trạng thái đặt', 'Ngày đặt'
+                    'Hình thức mua hàng', 'Nhà Cung Cấp', 'Số ĐNMH'
                 ]];
                 groupOrders.forEach((o, i) => {
                     wsData.push([
@@ -3049,79 +3364,51 @@
                         o.area || '',
                         'ĐNMH',
                         o.supplier || '',
-                        o.contractNo || '',
-                        o.orderPlaced === true ? 'Đã đặt' : 'Chưa đặt',
-                        o.orderPlaced === true && o.orderedAt ? formatDateTimeVN(o.orderedAt) : ''
+                        o.contractNo || ''
                     ]);
                 });
                 filePrefix = 'DNMH';
             } else {
-                wsData = [[
-                    'STT', 'Tên hàng', 'ĐVT', 'Số lượng', 'Khu vực',
-                    'Hình thức mua hàng', 'Nhà Cung Cấp', 'Số HĐ / ĐNMH',
-                    'STT mặt hàng trong HĐ', 'Trạng thái đặt', 'Ngày đặt'
-                ]];
-                groupOrders.forEach((o, i) => {
+                // Preserve current generic export behavior for "Tất cả".
+                wsData = [['Tên hàng', 'ĐVT', 'Số lượng']];
+                groupOrders.forEach(o => {
                     wsData.push([
-                        i + 1,
                         o.item || '',
                         o.unit || '',
-                        Number.isFinite(Number(o.qty)) ? Number(o.qty) : '',
-                        o.area || '',
-                        o.checkType || 'ĐNMH',
-                        o.supplier || '',
-                        o.contractNo || '',
-                        o.checkType === 'Hợp đồng' && isValidContractItemNo(o.contractItemNo) ? Number(o.contractItemNo) : '',
-                        o.orderPlaced === true ? 'Đã đặt' : 'Chưa đặt',
-                        o.orderPlaced === true && o.orderedAt ? formatDateTimeVN(o.orderedAt) : ''
+                        Number.isFinite(Number(o.qty)) ? Number(o.qty) : ''
                     ]);
                 });
-                filePrefix = 'KiemTra';
+                filePrefix = 'Order';
             }
 
-            if (!Array.isArray(wsData) || wsData.length < 2) {
-                throw new Error('Không có dữ liệu để tạo worksheet.');
-            }
-
+            const wb = XLSX.utils.book_new();
             const ws = XLSX.utils.aoa_to_sheet(wsData);
-            if (!ws) throw new Error('Không thể tạo worksheet từ dữ liệu đã lọc.');
 
             if (type === 'Hợp đồng') {
                 ws['!cols'] = [
                     { wch: 8 }, { wch: 42 }, { wch: 12 }, { wch: 12 }, { wch: 18 },
-                    { wch: 20 }, { wch: 24 }, { wch: 24 }, { wch: 24 }, { wch: 16 }, { wch: 20 }
+                    { wch: 20 }, { wch: 24 }, { wch: 24 }, { wch: 24 }
                 ];
             } else if (type === 'ĐNMH') {
                 ws['!cols'] = [
                     { wch: 8 }, { wch: 42 }, { wch: 12 }, { wch: 12 }, { wch: 18 },
-                    { wch: 20 }, { wch: 24 }, { wch: 20 }, { wch: 16 }, { wch: 20 }
+                    { wch: 20 }, { wch: 24 }, { wch: 20 }
                 ];
             } else {
-                ws['!cols'] = [
-                    { wch: 8 }, { wch: 42 }, { wch: 12 }, { wch: 12 }, { wch: 18 },
-                    { wch: 20 }, { wch: 24 }, { wch: 24 }, { wch: 20 }, { wch: 16 }, { wch: 20 }
-                ];
+                ws['!cols'] = [{ wch: 42 }, { wch: 12 }, { wch: 14 }];
             }
 
-            ws['!freeze'] = { xSplit: 0, ySplit: 1 };
-            ws['!autofilter'] = {
-                ref: `A1:${XLSX.utils.encode_col(wsData[0].length - 1)}${wsData.length}`
-            };
+            ws['!autofilter'] = { ref: `A1:${XLSX.utils.encode_col(wsData[0].length - 1)}${wsData.length}` };
 
-            // Keep formatting lightweight and compatible with XLSX 0.18.5.
-            for (let r = 0; r < wsData.length; r++) {
-                for (let c = 0; c < wsData[0].length; c++) {
-                    const addr = XLSX.utils.encode_cell({ r, c });
-                    const cell = ws[addr];
-                    if (!cell) continue;
-                    cell.s = {
-                        font: r === 0 ? { bold: true } : {},
-                        alignment: {
-                            horizontal: r === 0 ? 'center' : (c === 1 || c === 4 || c === 6 ? 'left' : 'center'),
-                            vertical: 'center',
-                            wrapText: true
-                        },
-                        fill: r === 0 ? { fgColor: { rgb: 'E2E8F0' } } : undefined,
+            // Basic spreadsheet formatting compatible with current XLSX build.
+            const headerCols = wsData[0].length;
+            for (let c = 0; c < headerCols; c++) {
+                const addr = XLSX.utils.encode_cell({ r: 0, c });
+                if (ws[addr]) {
+                    ws[addr].s = {
+                        font: { bold: true },
+                        alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+                        fill: { fgColor: { rgb: 'E2E8F0' } },
                         border: {
                             top: { style: 'thin', color: { rgb: 'CBD5E1' } },
                             bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
@@ -3129,85 +3416,51 @@
                             right: { style: 'thin', color: { rgb: 'CBD5E1' } }
                         }
                     };
-                    if (r > 0 && c === 3 && typeof cell.v === 'number') cell.z = '#,##0.##';
-                    if (r > 0 && c >= 0 && c < wsData[0].length && typeof cell.v === 'string' && /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/.test(cell.v)) {
-                        cell.s.alignment.horizontal = 'center';
-                    }
                 }
             }
 
-            const wb = XLSX.utils.book_new();
-            if (!wb) throw new Error('Không thể tạo workbook Excel.');
-            XLSX.utils.book_append_sheet(wb, ws, 'KiemTra_HD_DNMH');
-
             const fromLabel = from || 'TatCaFrom';
             const supplierLabel = supplierValue === '__NO_SUPPLIER__' ? 'ChuaChonNCC' : (supplierValue || 'TatCaNCC');
-            const dateLabel = date ? formatDateVN(date).replace(/\//g, '') : 'TatCaNgay';
+            const dateLabel = date || 'TatCaNgay';
             const typeLabel = type === 'Hợp đồng' ? 'HopDong' : type === 'ĐNMH' ? 'DNMH' : 'TatCaHinhThuc';
+            const safe = v => String(v)
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+                .replace(/[\\/:*?"<>|]/g, '_')
+                .replace(/\s+/g, '_')
+                .replace(/_+/g, '_')
+                .replace(/^_+|_+$/g, '');
 
             let fileName;
-            if ((type === 'Hợp đồng' || type === 'ĐNMH') && from && date) {
-                fileName = `${filePrefix}_${sanitizeOrderExportFilePart(from)}_${sanitizeOrderExportFilePart(dateLabel)}.xlsx`;
+            if (type === 'Hợp đồng' && date && from) {
+                fileName = `HD_${safe(from)}_${safe(formatDateVN(date).replace(/\//g, ''))}.xlsx`;
+            } else if (type === 'ĐNMH' && date && from) {
+                fileName = `DNMH_${safe(from)}_${safe(formatDateVN(date).replace(/\//g, ''))}.xlsx`;
             } else {
-                fileName = `${filePrefix}_${sanitizeOrderExportFilePart(fromLabel)}_${sanitizeOrderExportFilePart(typeLabel)}_${sanitizeOrderExportFilePart(supplierLabel)}_${sanitizeOrderExportFilePart(dateLabel)}_${groupOrders.length}_mat_hang.xlsx`;
+                fileName = `${filePrefix}_${safe(fromLabel)}_${safe(typeLabel)}_${safe(supplierLabel)}_${safe(dateLabel)}_${groupOrders.length}_mat_hang.xlsx`;
             }
 
-            const result = downloadWorkbookSafely(wb, fileName);
-            console.log('TAB 2 EXPORT SUCCESS:', { fileName, method: result.method, count: groupOrders.length });
-
+            XLSX.writeFile(wb, fileName);
             closeModal('modal-export-order');
-
-            const contractCount = groupOrders.filter(o => String(o.checkType || 'ĐNMH') === 'Hợp đồng').length;
-            const dnmhCount = groupOrders.filter(o => String(o.checkType || 'ĐNMH') === 'ĐNMH').length;
-            alert(
-                `Xuất Excel thành công!\n\n` +
-                `Số mặt hàng: ${groupOrders.length}\n` +
-                `Số Hợp đồng: ${contractCount}\n` +
-                `Số ĐNMH: ${dnmhCount}\n\n` +
-                `File: ${fileName}`
-            );
-            return true;
+            alert(`Xuất Excel thành công!\nĐã xuất: ${groupOrders.length} order.`);
         }
 
         function exportFilteredOrders() {
             try {
-                console.log('XLSX AVAILABLE:', typeof XLSX !== 'undefined');
                 if (typeof XLSX === 'undefined') {
-                    const err = new Error('Thư viện XLSX chưa được tải.');
-                    console.error('TAB 2 EXPORT ERROR:', err);
-                    console.error('XLSX AVAILABLE:', false);
-                    alert('Không thể xuất Excel vì thư viện XLSX chưa được tải.\nVui lòng kiểm tra kết nối Internet và tải lại trang.');
+                    alert('Thư viện Excel chưa được tải. Vui lòng kiểm tra kết nối Internet và tải lại trang.');
                     return;
                 }
 
                 const groupOrders = getExportFilteredOrders();
-                const selectedFrom = document.getElementById('export-filter-from')?.value || '';
-                const selectedType = document.getElementById('export-filter-type')?.value || 'Tất cả';
-                const selectedSupplier = document.getElementById('export-filter-supplier')?.value || '';
-                const selectedDate = document.getElementById('export-filter-date')?.value || '';
-
-                if (!groupOrders.length) {
-                    const err = new Error('Không có dữ liệu phù hợp với điều kiện xuất.');
-                    console.warn('TAB 2 EXPORT NO DATA:', {
-                        total: 0,
-                        from: selectedFrom,
-                        type: selectedType,
-                        supplier: selectedSupplier,
-                        date: selectedDate
-                    });
-                    alert(err.message);
+                if (groupOrders.length === 0) {
+                    alert('Không có order nào phù hợp với điều kiện đã chọn.');
                     return;
                 }
 
-                console.log('TAB 2 EXPORT FILTERED:', {
-                    total: groupOrders.length,
-                    from: selectedFrom,
-                    type: selectedType,
-                    supplier: selectedSupplier,
-                    date: selectedDate
-                });
-
-                if (selectedType === 'Hợp đồng') {
+                const type = document.getElementById('export-filter-type')?.value || 'Tất cả';
+                if (type === 'Hợp đồng') {
                     const missingRows = validateContractOrdersForExport(groupOrders);
                     if (missingRows.length) {
                         openContractExportValidation(missingRows, groupOrders);
@@ -3218,12 +3471,8 @@
 
                 buildAndDownloadFilteredOrderExcel(groupOrders);
             } catch (err) {
-                console.error('TAB 2 EXPORT ERROR:', err);
-                console.error('XLSX AVAILABLE:', typeof XLSX !== 'undefined');
-                alert(
-                    'Không thể xuất Excel.\n\n' +
-                    'Chi tiết: ' + (err?.message || String(err))
-                );
+                console.error('Filtered Order Excel export error:', err);
+                alert('Không thể xuất file Excel. Vui lòng thử lại.');
             }
         }
 
@@ -5234,52 +5483,156 @@
         }
 
         // --- TAB 5: WEEKLY REPORT ---
+        function getReportFilteredOrders() {
+            const typeFilter = document.getElementById('report-filter-type')?.value || 'Tất cả';
+            const priceFilter = document.getElementById('report-filter-price')?.value || 'Tất cả';
+
+            return getSortedOrders('desc').filter(o => {
+                const type = getOrderPurchaseType(o);
+                if (typeFilter !== 'Tất cả' && type !== typeFilter) return false;
+
+                if (priceFilter === 'Đã có giá mua') {
+                    if (type !== 'ĐNMH' || getPurchasePrice(o) === null) return false;
+                } else if (priceFilter === 'Chưa có giá mua') {
+                    if (type !== 'ĐNMH' || getPurchasePrice(o) !== null) return false;
+                }
+
+                return true;
+            });
+        }
+
         function renderReport() {
-            document.getElementById('rep-total-orders').innerText = orders.length;
-            document.getElementById('rep-processing').innerText = orders.filter(o => o.stage === 'SSG' || o.stage === 'Đặt hàng').length;
-            document.getElementById('rep-delivered').innerText = orders.filter(o => o.stage === 'Đã giao hàng').length;
-            document.getElementById('rep-invoiced').innerText = orders.filter(o => o.stage === 'Phát hành Hóa đơn' || o.stage === 'Làm ĐNTT').length;
+            const filteredList = getReportFilteredOrders();
+            const dnmhItems = filteredList.filter(o => getOrderPurchaseType(o) === 'ĐNMH');
+            const contractItems = filteredList.filter(o => getOrderPurchaseType(o) === 'Hợp đồng');
+            const pricedItems = dnmhItems.filter(o => getPurchasePrice(o) !== null);
+            const totalPurchaseValue = dnmhItems.reduce((sum, order) => {
+                const value = getPurchaseValue(order);
+                return value === null ? sum : sum + value;
+            }, 0);
+
+            const ids = {
+                total: document.getElementById('rep-total-orders'),
+                processing: document.getElementById('rep-processing'),
+                delivered: document.getElementById('rep-delivered'),
+                invoiced: document.getElementById('rep-invoiced'),
+                purchaseValue: document.getElementById('rep-purchase-value'),
+                pricedCount: document.getElementById('rep-priced-count'),
+                contractCount: document.getElementById('rep-contract-count')
+            };
+            if (ids.total) ids.total.innerText = filteredList.length;
+            if (ids.processing) ids.processing.innerText = filteredList.filter(o => o.stage === 'SSG' || o.stage === 'Đặt hàng').length;
+            if (ids.delivered) ids.delivered.innerText = filteredList.filter(o => o.stage === 'Đã giao hàng').length;
+            if (ids.invoiced) ids.invoiced.innerText = filteredList.filter(o => o.stage === 'Phát hành Hóa đơn' || o.stage === 'Làm ĐNTT').length;
+            if (ids.purchaseValue) ids.purchaseValue.innerText = formatPurchaseMoney(totalPurchaseValue) || '0 VNĐ';
+            if (ids.pricedCount) ids.pricedCount.innerText = `${pricedItems.length} / ${dnmhItems.length}`;
+            if (ids.contractCount) ids.contractCount.innerText = contractItems.length;
+
+            const summaryEl = document.getElementById('report-filter-summary');
+            if (summaryEl) {
+                const typeFilter = document.getElementById('report-filter-type')?.value || 'Tất cả';
+                const priceFilter = document.getElementById('report-filter-price')?.value || 'Tất cả';
+                summaryEl.innerText = `Đang hiển thị ${filteredList.length} order${typeFilter !== 'Tất cả' ? ` • ${typeFilter}` : ''}${priceFilter !== 'Tất cả' ? ` • ${priceFilter}` : ''}`;
+            }
 
             const tbody = document.getElementById('report-table-body');
+            if (!tbody) return;
             tbody.innerHTML = '';
 
-            const sortedList = getSortedOrders('desc');
-
-            if (sortedList.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="9" class="text-center py-8 text-slate-400">Chưa có dữ liệu báo cáo.</td></tr>`;
+            if (filteredList.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="12" class="text-center py-8 text-slate-400">Không có dữ liệu báo cáo phù hợp.</td></tr>`;
                 return;
             }
 
-            sortedList.forEach((o, index) => {
+            filteredList.forEach((o, index) => {
+                const purchase = getPurchaseDisplay(o);
+                const supplierText = o.supplier || 'Chưa chọn NCC';
+                const type = getOrderPurchaseType(o);
                 tbody.innerHTML += `
                     <tr>
                         <td class="py-3 px-3 font-medium text-slate-500 text-xs">${index + 1}</td>
                         <td class="py-3 px-3 text-xs font-semibold text-indigo-700 whitespace-nowrap">${formatDateVN(o.date)}</td>
-                        <td class="py-3 px-3 font-medium text-slate-800">${o.restaurant}</td>
-                        <td class="py-3 px-3 font-semibold text-slate-900">${o.item}</td>
-                        <td class="py-3 px-3 text-slate-600">${o.qty} ${o.unit}</td>
-                        <td class="py-3 px-3 text-slate-600">${o.area}</td>
-                        <td class="py-3 px-3 text-slate-700">${o.supplier || 'Chưa chọn'}</td>
-                        <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700">${o.stage}</span></td>
-                        <td class="py-3 px-3 text-xs text-slate-600">${o.invoiceNo ? `${o.invoiceNo} (${formatDateVN(o.invoiceDate)})` : 'Chưa có'}</td>
+                        <td class="py-3 px-3 font-medium text-slate-800">${escapeHTML(o.restaurant || '-')}</td>
+                        <td class="py-3 px-3 font-semibold text-slate-900">${escapeHTML(o.item || '-')}</td>
+                        <td class="py-3 px-3 text-slate-600">${escapeHTML(String(o.qty ?? ''))} ${escapeHTML(o.unit || '')}</td>
+                        <td class="py-3 px-3 text-slate-600">${escapeHTML(o.area || '-')}</td>
+                        <td class="py-3 px-3">
+                            <span class="px-2 py-0.5 rounded text-xs font-semibold ${type === 'Hợp đồng' ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}">${escapeHTML(type)}</span>
+                        </td>
+                        <td class="py-3 px-3 text-slate-700">${escapeHTML(supplierText)}</td>
+                        <td class="py-3 px-3 text-right font-semibold ${purchase.priceNumber !== null ? 'text-slate-800' : 'text-slate-500'}">${escapeHTML(purchase.price || '-')}</td>
+                        <td class="py-3 px-3 text-right font-semibold ${purchase.valueNumber !== null ? 'text-indigo-700' : 'text-slate-500'}">${escapeHTML(purchase.value || '-')}</td>
+                        <td class="py-3 px-3"><span class="px-2 py-0.5 rounded text-xs font-semibold bg-indigo-50 text-indigo-700">${escapeHTML(o.stage || '-')}</span></td>
+                        <td class="py-3 px-3 text-xs text-slate-600">${o.invoiceNo ? `${escapeHTML(o.invoiceNo)} (${formatDateVN(o.invoiceDate)})` : 'Chưa có'}</td>
                     </tr>
                 `;
             });
         }
 
         function exportReportExcel() {
-            const sortedList = getSortedOrders('desc');
-            const wsData = [
-                ["STT", "Ngày Order", "From (Bộ phận)", "Tên mặt hàng", "Số lượng", "ĐVT", "Khu vực", "Nhà Cung Cấp", "Giai đoạn", "Số Hóa Đơn", "Ngày Hóa Đơn"]
-            ];
-            sortedList.forEach((o, i) => {
-                wsData.push([i + 1, formatDateVN(o.date), o.restaurant, o.item, o.qty, o.unit, o.area, o.supplier || '', o.stage, o.invoiceNo || '', formatDateVN(o.invoiceDate)]);
-            });
+            try {
+                if (typeof XLSX === 'undefined') {
+                    console.error('TAB 5 EXPORT ERROR: XLSX library is not available.');
+                    alert('Không thể xuất Excel vì thư viện XLSX chưa được tải. Vui lòng kiểm tra kết nối Internet và tải lại trang.');
+                    return;
+                }
 
-            const wb = XLSX.utils.book_new();
-            const ws = XLSX.utils.aoa_to_sheet(wsData);
-            XLSX.utils.book_append_sheet(wb, ws, "BaoCaoCuoiTuan");
-            XLSX.writeFile(wb, `Bao_Cao_Mua_Hang_Cuoi_Tuan_${new Date().toISOString().slice(0,10)}.xlsx`);
+                const filteredList = getReportFilteredOrders();
+                if (!filteredList.length) {
+                    alert('Không có dữ liệu phù hợp với bộ lọc báo cáo.');
+                    return;
+                }
+
+                const wsData = [[
+                    'Ngày Order', 'From (Bộ phận)', 'Tên mặt hàng', 'SL & ĐVT', 'Khu vực',
+                    'Hình thức', 'Nhà Cung Cấp', 'Đơn giá mua', 'Giá trị mua', 'Giai đoạn', 'Hóa đơn'
+                ]];
+
+                filteredList.forEach(o => {
+                    const type = getOrderPurchaseType(o);
+                    const price = getPurchasePrice(o);
+                    const value = getPurchaseValue(o);
+                    const invoice = o.invoiceNo ? `${o.invoiceNo}${o.invoiceDate ? ` (${formatDateVN(o.invoiceDate)})` : ''}` : '';
+                    wsData.push([
+                        formatDateVN(o.date),
+                        o.restaurant || '',
+                        o.item || '',
+                        `${o.qty ?? ''} ${o.unit || ''}`.trim(),
+                        o.area || '',
+                        type,
+                        o.supplier || '',
+                        type === 'Hợp đồng' ? 'Hợp đồng' : price === null ? (o.supplier ? 'Chưa có báo giá' : 'Chưa chọn NCC') : price,
+                        type === 'Hợp đồng' ? 'Hợp đồng' : value === null ? 'Chưa xác định' : value,
+                        o.stage || '',
+                        invoice
+                    ]);
+                });
+
+                const wb = XLSX.utils.book_new();
+                const ws = XLSX.utils.aoa_to_sheet(wsData);
+                ws['!cols'] = [
+                    { wch: 14 }, { wch: 24 }, { wch: 42 }, { wch: 16 }, { wch: 18 },
+                    { wch: 16 }, { wch: 28 }, { wch: 18 }, { wch: 20 }, { wch: 22 }, { wch: 26 }
+                ];
+                ws['!autofilter'] = { ref: `A1:K${wsData.length}` };
+                ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+
+                XLSX.utils.book_append_sheet(wb, ws, 'BaoCaoCuoiTuan');
+
+                const typeFilter = document.getElementById('report-filter-type')?.value || 'Tất cả';
+                const priceFilter = document.getElementById('report-filter-price')?.value || 'Tất cả';
+                const safe = value => String(value || '')
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/đ/g, 'd').replace(/Đ/g, 'D')
+                    .replace(/[\\/:*?"<>|]/g, '_').replace(/\s+/g, '_').replace(/_+/g, '_').replace(/^_+|_+$/g, '');
+                const fileName = `Bao_Cao_Cuoi_Tuan_${safe(typeFilter)}_${safe(priceFilter)}_${new Date().toISOString().slice(0,10)}.xlsx`;
+
+                XLSX.writeFile(wb, fileName);
+                alert(`Xuất Excel thành công!\nĐã xuất: ${filteredList.length} order.\nFile: ${fileName}`);
+            } catch (err) {
+                console.error('TAB 5 EXPORT ERROR:', err);
+                console.error('XLSX AVAILABLE:', typeof XLSX !== 'undefined');
+                alert('Không thể xuất Excel.\n\nChi tiết: ' + (err?.message || err));
+            }
         }
 
         function printReport() {
