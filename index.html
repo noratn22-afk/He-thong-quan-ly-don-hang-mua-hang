@@ -2902,16 +2902,112 @@
             buildAndDownloadFilteredOrderExcel(ordersToExport);
         }
 
+        function sanitizeOrderExportFilePart(value) {
+            return String(value ?? '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+                .replace(/[\\/:*?"<>|]/g, '_')
+                .replace(/\s+/g, '_')
+                .replace(/_+/g, '_')
+                .replace(/^_+|_+$/g, '')
+                || 'DATA';
+        }
+
+        function downloadWorkbookSafely(wb, fileName) {
+            if (typeof XLSX === 'undefined') {
+                const err = new Error('Thư viện XLSX chưa được tải.');
+                console.error('TAB 2 EXPORT ERROR:', err);
+                console.error('XLSX AVAILABLE:', false);
+                throw err;
+            }
+            if (!wb) {
+                const err = new Error('Workbook không hợp lệ.');
+                console.error('TAB 2 EXPORT ERROR:', err);
+                console.error('XLSX AVAILABLE:', true);
+                throw err;
+            }
+
+            // Primary route: SheetJS browser download helper.
+            try {
+                if (typeof XLSX.writeFile === 'function') {
+                    XLSX.writeFile(wb, fileName, { compression: true });
+                    return { method: 'writeFile' };
+                }
+                console.warn('TAB 2 EXPORT: XLSX.writeFile không tồn tại, chuyển sang fallback.');
+            } catch (writeFileErr) {
+                console.error('TAB 2 EXPORT writeFile ERROR:', writeFileErr);
+                console.error('XLSX AVAILABLE:', true);
+            }
+
+            // Fallback route: generate ArrayBuffer/Uint8Array and trigger browser download.
+            try {
+                if (typeof XLSX.write !== 'function') {
+                    throw new Error('XLSX.write không tồn tại để thực hiện fallback download.');
+                }
+
+                const buffer = XLSX.write(wb, {
+                    bookType: 'xlsx',
+                    type: 'array',
+                    compression: true
+                });
+
+                if (!buffer || (buffer.byteLength !== undefined && buffer.byteLength === 0)) {
+                    throw new Error('XLSX.write trả về dữ liệu rỗng.');
+                }
+
+                const blob = new Blob([buffer], {
+                    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                });
+
+                if (!blob.size) {
+                    throw new Error('Không tạo được file Excel từ dữ liệu workbook.');
+                }
+
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                a.style.display = 'none';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+                return { method: 'blob-fallback' };
+            } catch (fallbackErr) {
+                console.error('TAB 2 EXPORT fallback ERROR:', fallbackErr);
+                console.error('XLSX AVAILABLE:', typeof XLSX !== 'undefined');
+                throw fallbackErr;
+            }
+        }
+
         function buildAndDownloadFilteredOrderExcel(groupOrders) {
+            if (typeof XLSX === 'undefined') {
+                const err = new Error('Thư viện XLSX chưa được tải.');
+                console.error('TAB 2 EXPORT ERROR:', err);
+                console.error('XLSX AVAILABLE:', false);
+                alert('Không thể xuất Excel vì thư viện XLSX chưa được tải.\nVui lòng kiểm tra kết nối Internet và tải lại trang.');
+                return false;
+            }
+
             if (!Array.isArray(groupOrders) || groupOrders.length === 0) {
-                alert('Không có order nào phù hợp với điều kiện đã chọn.');
-                return;
+                alert('Không có dữ liệu phù hợp với điều kiện xuất.');
+                return false;
             }
 
             const from = document.getElementById('export-filter-from')?.value || '';
             const type = document.getElementById('export-filter-type')?.value || 'Tất cả';
             const supplierValue = document.getElementById('export-filter-supplier')?.value || '';
             const date = document.getElementById('export-filter-date')?.value || '';
+
+            console.log('TAB 2 EXPORT DATA:', {
+                total: groupOrders.length,
+                from,
+                type,
+                supplier: supplierValue,
+                date
+            });
 
             let wsData;
             let filePrefix;
@@ -2920,7 +3016,7 @@
                 wsData = [[
                     'STT', 'Tên hàng', 'ĐVT', 'Số lượng', 'Khu vực',
                     'Hình thức mua hàng', 'Nhà Cung Cấp', 'Số Hợp đồng',
-                    'STT mặt hàng trong Hợp đồng'
+                    'STT mặt hàng trong Hợp đồng', 'Trạng thái đặt', 'Ngày đặt'
                 ]];
                 groupOrders.forEach((o, i) => {
                     wsData.push([
@@ -2932,14 +3028,17 @@
                         'Hợp đồng',
                         o.supplier || '',
                         o.contractNo || '',
-                        isValidContractItemNo(o.contractItemNo) ? Number(o.contractItemNo) : (o.contractItemNo || '')
+                        isValidContractItemNo(o.contractItemNo) ? Number(o.contractItemNo) : (o.contractItemNo || ''),
+                        o.orderPlaced === true ? 'Đã đặt' : 'Chưa đặt',
+                        o.orderPlaced === true && o.orderedAt ? formatDateTimeVN(o.orderedAt) : ''
                     ]);
                 });
                 filePrefix = 'HD';
             } else if (type === 'ĐNMH') {
                 wsData = [[
                     'STT', 'Tên hàng', 'ĐVT', 'Số lượng', 'Khu vực',
-                    'Hình thức mua hàng', 'Nhà Cung Cấp', 'Số ĐNMH'
+                    'Hình thức mua hàng', 'Nhà Cung Cấp', 'Số ĐNMH',
+                    'Trạng thái đặt', 'Ngày đặt'
                 ]];
                 groupOrders.forEach((o, i) => {
                     wsData.push([
@@ -2950,51 +3049,79 @@
                         o.area || '',
                         'ĐNMH',
                         o.supplier || '',
-                        o.contractNo || ''
+                        o.contractNo || '',
+                        o.orderPlaced === true ? 'Đã đặt' : 'Chưa đặt',
+                        o.orderPlaced === true && o.orderedAt ? formatDateTimeVN(o.orderedAt) : ''
                     ]);
                 });
                 filePrefix = 'DNMH';
             } else {
-                // Preserve current generic export behavior for "Tất cả".
-                wsData = [['Tên hàng', 'ĐVT', 'Số lượng']];
-                groupOrders.forEach(o => {
+                wsData = [[
+                    'STT', 'Tên hàng', 'ĐVT', 'Số lượng', 'Khu vực',
+                    'Hình thức mua hàng', 'Nhà Cung Cấp', 'Số HĐ / ĐNMH',
+                    'STT mặt hàng trong HĐ', 'Trạng thái đặt', 'Ngày đặt'
+                ]];
+                groupOrders.forEach((o, i) => {
                     wsData.push([
+                        i + 1,
                         o.item || '',
                         o.unit || '',
-                        Number.isFinite(Number(o.qty)) ? Number(o.qty) : ''
+                        Number.isFinite(Number(o.qty)) ? Number(o.qty) : '',
+                        o.area || '',
+                        o.checkType || 'ĐNMH',
+                        o.supplier || '',
+                        o.contractNo || '',
+                        o.checkType === 'Hợp đồng' && isValidContractItemNo(o.contractItemNo) ? Number(o.contractItemNo) : '',
+                        o.orderPlaced === true ? 'Đã đặt' : 'Chưa đặt',
+                        o.orderPlaced === true && o.orderedAt ? formatDateTimeVN(o.orderedAt) : ''
                     ]);
                 });
-                filePrefix = 'Order';
+                filePrefix = 'KiemTra';
             }
 
-            const wb = XLSX.utils.book_new();
+            if (!Array.isArray(wsData) || wsData.length < 2) {
+                throw new Error('Không có dữ liệu để tạo worksheet.');
+            }
+
             const ws = XLSX.utils.aoa_to_sheet(wsData);
+            if (!ws) throw new Error('Không thể tạo worksheet từ dữ liệu đã lọc.');
 
             if (type === 'Hợp đồng') {
                 ws['!cols'] = [
                     { wch: 8 }, { wch: 42 }, { wch: 12 }, { wch: 12 }, { wch: 18 },
-                    { wch: 20 }, { wch: 24 }, { wch: 24 }, { wch: 24 }
+                    { wch: 20 }, { wch: 24 }, { wch: 24 }, { wch: 24 }, { wch: 16 }, { wch: 20 }
                 ];
             } else if (type === 'ĐNMH') {
                 ws['!cols'] = [
                     { wch: 8 }, { wch: 42 }, { wch: 12 }, { wch: 12 }, { wch: 18 },
-                    { wch: 20 }, { wch: 24 }, { wch: 20 }
+                    { wch: 20 }, { wch: 24 }, { wch: 20 }, { wch: 16 }, { wch: 20 }
                 ];
             } else {
-                ws['!cols'] = [{ wch: 42 }, { wch: 12 }, { wch: 14 }];
+                ws['!cols'] = [
+                    { wch: 8 }, { wch: 42 }, { wch: 12 }, { wch: 12 }, { wch: 18 },
+                    { wch: 20 }, { wch: 24 }, { wch: 24 }, { wch: 20 }, { wch: 16 }, { wch: 20 }
+                ];
             }
 
-            ws['!autofilter'] = { ref: `A1:${XLSX.utils.encode_col(wsData[0].length - 1)}${wsData.length}` };
+            ws['!freeze'] = { xSplit: 0, ySplit: 1 };
+            ws['!autofilter'] = {
+                ref: `A1:${XLSX.utils.encode_col(wsData[0].length - 1)}${wsData.length}`
+            };
 
-            // Basic spreadsheet formatting compatible with current XLSX build.
-            const headerCols = wsData[0].length;
-            for (let c = 0; c < headerCols; c++) {
-                const addr = XLSX.utils.encode_cell({ r: 0, c });
-                if (ws[addr]) {
-                    ws[addr].s = {
-                        font: { bold: true },
-                        alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
-                        fill: { fgColor: { rgb: 'E2E8F0' } },
+            // Keep formatting lightweight and compatible with XLSX 0.18.5.
+            for (let r = 0; r < wsData.length; r++) {
+                for (let c = 0; c < wsData[0].length; c++) {
+                    const addr = XLSX.utils.encode_cell({ r, c });
+                    const cell = ws[addr];
+                    if (!cell) continue;
+                    cell.s = {
+                        font: r === 0 ? { bold: true } : {},
+                        alignment: {
+                            horizontal: r === 0 ? 'center' : (c === 1 || c === 4 || c === 6 ? 'left' : 'center'),
+                            vertical: 'center',
+                            wrapText: true
+                        },
+                        fill: r === 0 ? { fgColor: { rgb: 'E2E8F0' } } : undefined,
                         border: {
                             top: { style: 'thin', color: { rgb: 'CBD5E1' } },
                             bottom: { style: 'thin', color: { rgb: 'CBD5E1' } },
@@ -3002,51 +3129,85 @@
                             right: { style: 'thin', color: { rgb: 'CBD5E1' } }
                         }
                     };
+                    if (r > 0 && c === 3 && typeof cell.v === 'number') cell.z = '#,##0.##';
+                    if (r > 0 && c >= 0 && c < wsData[0].length && typeof cell.v === 'string' && /^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/.test(cell.v)) {
+                        cell.s.alignment.horizontal = 'center';
+                    }
                 }
             }
 
+            const wb = XLSX.utils.book_new();
+            if (!wb) throw new Error('Không thể tạo workbook Excel.');
+            XLSX.utils.book_append_sheet(wb, ws, 'KiemTra_HD_DNMH');
+
             const fromLabel = from || 'TatCaFrom';
             const supplierLabel = supplierValue === '__NO_SUPPLIER__' ? 'ChuaChonNCC' : (supplierValue || 'TatCaNCC');
-            const dateLabel = date || 'TatCaNgay';
+            const dateLabel = date ? formatDateVN(date).replace(/\//g, '') : 'TatCaNgay';
             const typeLabel = type === 'Hợp đồng' ? 'HopDong' : type === 'ĐNMH' ? 'DNMH' : 'TatCaHinhThuc';
-            const safe = v => String(v)
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/đ/g, 'd').replace(/Đ/g, 'D')
-                .replace(/[\\/:*?"<>|]/g, '_')
-                .replace(/\s+/g, '_')
-                .replace(/_+/g, '_')
-                .replace(/^_+|_+$/g, '');
 
             let fileName;
-            if (type === 'Hợp đồng' && date && from) {
-                fileName = `HD_${safe(from)}_${safe(formatDateVN(date).replace(/\//g, ''))}.xlsx`;
-            } else if (type === 'ĐNMH' && date && from) {
-                fileName = `DNMH_${safe(from)}_${safe(formatDateVN(date).replace(/\//g, ''))}.xlsx`;
+            if ((type === 'Hợp đồng' || type === 'ĐNMH') && from && date) {
+                fileName = `${filePrefix}_${sanitizeOrderExportFilePart(from)}_${sanitizeOrderExportFilePart(dateLabel)}.xlsx`;
             } else {
-                fileName = `${filePrefix}_${safe(fromLabel)}_${safe(typeLabel)}_${safe(supplierLabel)}_${safe(dateLabel)}_${groupOrders.length}_mat_hang.xlsx`;
+                fileName = `${filePrefix}_${sanitizeOrderExportFilePart(fromLabel)}_${sanitizeOrderExportFilePart(typeLabel)}_${sanitizeOrderExportFilePart(supplierLabel)}_${sanitizeOrderExportFilePart(dateLabel)}_${groupOrders.length}_mat_hang.xlsx`;
             }
 
-            XLSX.writeFile(wb, fileName);
+            const result = downloadWorkbookSafely(wb, fileName);
+            console.log('TAB 2 EXPORT SUCCESS:', { fileName, method: result.method, count: groupOrders.length });
+
             closeModal('modal-export-order');
-            alert(`Xuất Excel thành công!\nĐã xuất: ${groupOrders.length} order.`);
+
+            const contractCount = groupOrders.filter(o => String(o.checkType || 'ĐNMH') === 'Hợp đồng').length;
+            const dnmhCount = groupOrders.filter(o => String(o.checkType || 'ĐNMH') === 'ĐNMH').length;
+            alert(
+                `Xuất Excel thành công!\n\n` +
+                `Số mặt hàng: ${groupOrders.length}\n` +
+                `Số Hợp đồng: ${contractCount}\n` +
+                `Số ĐNMH: ${dnmhCount}\n\n` +
+                `File: ${fileName}`
+            );
+            return true;
         }
 
         function exportFilteredOrders() {
             try {
+                console.log('XLSX AVAILABLE:', typeof XLSX !== 'undefined');
                 if (typeof XLSX === 'undefined') {
-                    alert('Thư viện Excel chưa được tải. Vui lòng kiểm tra kết nối Internet và tải lại trang.');
+                    const err = new Error('Thư viện XLSX chưa được tải.');
+                    console.error('TAB 2 EXPORT ERROR:', err);
+                    console.error('XLSX AVAILABLE:', false);
+                    alert('Không thể xuất Excel vì thư viện XLSX chưa được tải.\nVui lòng kiểm tra kết nối Internet và tải lại trang.');
                     return;
                 }
 
                 const groupOrders = getExportFilteredOrders();
-                if (groupOrders.length === 0) {
-                    alert('Không có order nào phù hợp với điều kiện đã chọn.');
+                const selectedFrom = document.getElementById('export-filter-from')?.value || '';
+                const selectedType = document.getElementById('export-filter-type')?.value || 'Tất cả';
+                const selectedSupplier = document.getElementById('export-filter-supplier')?.value || '';
+                const selectedDate = document.getElementById('export-filter-date')?.value || '';
+
+                if (!groupOrders.length) {
+                    const err = new Error('Không có dữ liệu phù hợp với điều kiện xuất.');
+                    console.warn('TAB 2 EXPORT NO DATA:', {
+                        total: 0,
+                        from: selectedFrom,
+                        type: selectedType,
+                        supplier: selectedSupplier,
+                        date: selectedDate
+                    });
+                    alert(err.message);
                     return;
                 }
 
-                const type = document.getElementById('export-filter-type')?.value || 'Tất cả';
-                if (type === 'Hợp đồng') {
+                console.log('TAB 2 EXPORT FILTERED:', {
+                    total: groupOrders.length,
+                    from: selectedFrom,
+                    type: selectedType,
+                    supplier: selectedSupplier,
+                    date: selectedDate
+                });
+
+                if (selectedType === 'Hợp đồng') {
                     const missingRows = validateContractOrdersForExport(groupOrders);
                     if (missingRows.length) {
                         openContractExportValidation(missingRows, groupOrders);
@@ -3057,8 +3218,12 @@
 
                 buildAndDownloadFilteredOrderExcel(groupOrders);
             } catch (err) {
-                console.error('Filtered Order Excel export error:', err);
-                alert('Không thể xuất file Excel. Vui lòng thử lại.');
+                console.error('TAB 2 EXPORT ERROR:', err);
+                console.error('XLSX AVAILABLE:', typeof XLSX !== 'undefined');
+                alert(
+                    'Không thể xuất Excel.\n\n' +
+                    'Chi tiết: ' + (err?.message || String(err))
+                );
             }
         }
 
