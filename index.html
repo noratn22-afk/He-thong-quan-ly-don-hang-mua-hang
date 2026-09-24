@@ -168,11 +168,12 @@
                         <option value="ĐNMH">ĐNMH</option>
                         <option value="Chưa kiểm tra">Chưa kiểm tra (Chưa chọn NCC)</option>
                     </select>
-                    <select id="filter-order-status" onchange="renderCheckTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                    <select id="filter-check-order-status" onchange="renderCheckTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <option value="Tất cả">Tất cả trạng thái đặt</option>
                         <option value="Chưa đặt">Chưa đặt</option>
                         <option value="Đã đặt">Đã đặt</option>
                         <option value="Đã đặt – Chưa giao">Đã đặt – Chưa giao</option>
+                        <option value="Chưa giao">Chưa giao</option>
                         <option value="Đã giao">Đã giao</option>
                     </select>
                     <select id="sort-order-placement" onchange="renderCheckTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
@@ -2678,11 +2679,15 @@
         }
 
         function getOrderPlacementFilterMatch(order, filter) {
-            const placed = order?.orderPlaced === true && !!order?.orderedAt;
+            // Filter "Đã đặt" dùng đúng cờ orderPlaced, không phụ thuộc orderedAt.
+            const placed = order?.orderPlaced === true;
+            // Filter "Đã giao" / "Chưa giao" chỉ dựa trên stage.
             const delivered = order?.stage === 'Đã giao hàng';
+
             if (filter === 'Chưa đặt') return !placed;
             if (filter === 'Đã đặt') return placed;
             if (filter === 'Đã đặt – Chưa giao') return placed && !delivered;
+            if (filter === 'Chưa giao') return !delivered;
             if (filter === 'Đã giao') return delivered;
             return true;
         }
@@ -3016,7 +3021,7 @@
             const container = document.getElementById('check-table-container');
             const search = String(document.getElementById('search-check')?.value || '').trim().toLowerCase();
             const filterType = document.getElementById('filter-check-type')?.value || 'Tất cả';
-            const placementFilter = document.getElementById('filter-order-status')?.value || 'Tất cả';
+            const placementFilter = document.getElementById('filter-check-order-status')?.value || 'Tất cả';
             const placementSort = document.getElementById('sort-order-placement')?.value || 'default';
             container.innerHTML = '';
 
@@ -3071,9 +3076,13 @@
                     ].filter(Boolean).join(' ').toLowerCase();
                     const matchSearch = !search || haystack.includes(search);
                     if (!matchSearch) return false;
-                    if (filterType === 'Hợp đồng') return o.checkType === 'Hợp đồng';
-                    if (filterType === 'ĐNMH') return (o.checkType || 'ĐNMH') === 'ĐNMH';
-                    if (filterType === 'Chưa kiểm tra') return !o.supplier;
+
+                    // Filter Hình thức trước, nhưng không được return sớm để bỏ qua Filter Trạng thái đặt.
+                    if (filterType === 'Hợp đồng' && o.checkType !== 'Hợp đồng') return false;
+                    if (filterType === 'ĐNMH' && (o.checkType || 'ĐNMH') !== 'ĐNMH') return false;
+                    if (filterType === 'Chưa kiểm tra' && o.supplier) return false;
+
+                    // Filter trạng thái đặt / giao hàng áp dụng sau Search + Hình thức.
                     if (!getOrderPlacementFilterMatch(o, placementFilter)) return false;
                     return true;
                 });
