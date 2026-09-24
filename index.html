@@ -42,7 +42,7 @@
             <div class="flex items-center space-x-3">
                 <div id="sync-status-indicator" class="hidden sm:flex items-center space-x-1.5 px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-full text-xs font-medium border border-emerald-200">
                     <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                    <span id="sync-text">Lưu trữ cục bộ (Active)</span>
+                    <span id="sync-text">Đang khởi tạo lưu trữ...</span>
                 </div>
                 <button onclick="openNewOrderModal()" class="inline-flex items-center px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-medium rounded-lg shadow-sm transition">
                     <i data-lucide="plus" class="w-4 h-4 mr-2"></i> Thêm Order mới
@@ -1489,12 +1489,22 @@
 
         // App Initialization
         document.addEventListener('DOMContentLoaded', () => {
-            loadFromStorage();
-            document.getElementById('order-date').valueAsDate = new Date();
-            document.getElementById('print-date').innerText = formatDateVN(new Date().toISOString().slice(0, 10));
-            renderAll();
-            ensureOrderPlacementTimer();
-            lucide.createIcons();
+            try {
+                loadFromStorage();
+                document.getElementById('order-date').valueAsDate = new Date();
+                document.getElementById('print-date').innerText = formatDateVN(new Date().toISOString().slice(0, 10));
+                renderAll();
+                ensureOrderPlacementTimer();
+                lucide.createIcons();
+                console.log('[ProcureFlow] Storage initialized');
+                console.log(`[ProcureFlow] Orders loaded: ${orders.length}`);
+                console.log(`[ProcureFlow] Quotes loaded: ${quotes.length}`);
+                setStorageStatus('saved');
+                void initIndexedDBStorage();
+            } catch (err) {
+                console.error('[ProcureFlow] Initialization failed:', err);
+                setStorageStatus('error', 'Lỗi khởi tạo lưu trữ');
+            }
         });
 
         // Helper: Format date safely -> DD/MM/YYYY
@@ -1544,20 +1554,39 @@
             return /^\d+$/.test(raw) && Number(raw) > 0 && Number.isInteger(Number(raw));
         }
 
-        function normalizeOrderRecord(order, fallbackIndex = 0) {
-            const source = order || {};
-            const rawDate = source.date;
-            let normalizedDate = '';
-
+        function createStableOrderId(existingIds = new Set()) {
+            let id = '';
             try {
-                const parsed = rawDate ? parseExcelDate(rawDate) : { valid: true, value: getTodayISO() };
+                if (window.crypto && typeof window.crypto.randomUUID === 'function') {
+                    id = window.crypto.randomUUID();
+                }
+            } catch (e) {}
+            if (!id) id = `order_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+            while (existingIds.has(String(id))) {
+                id = `order_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+            }
+            return id;
+        }
+
+        function normalizeOrderRecord(order, fallbackIndex = 0, existingIds = new Set()) {
+            const source = (order && typeof order === 'object') ? order : {};
+            let normalizedDate = '';
+            try {
+                const parsed = source.date ? parseExcelDate(source.date) : { valid: true, value: getTodayISO() };
                 normalizedDate = parsed.valid ? parsed.value : getTodayISO();
             } catch (e) {
                 normalizedDate = getTodayISO();
             }
 
+            let stableId = source.id;
+            if (stableId === null || stableId === undefined || String(stableId).trim() === '' || existingIds.has(String(stableId))) {
+                stableId = createStableOrderId(existingIds);
+            }
+            existingIds.add(String(stableId));
+
             return {
-                id: source.id ?? (fallbackIndex + 1),
+                ...source,
+                id: stableId,
                 restaurant: String(source.restaurant ?? 'Chưa xác định').trim() || 'Chưa xác định',
                 item: String(source.item ?? '').trim(),
                 unit: String(source.unit ?? 'Cái').trim() || 'Cái',
@@ -1566,11 +1595,11 @@
                 note: String(source.note ?? '').trim(),
                 by: String(source.by ?? 'Ngọc').trim() || 'Ngọc',
                 date: normalizedDate,
-                checkType: source.checkType || 'ĐNMH',
-                supplier: String(source.supplier ?? ''),
-                contractNo: String(source.contractNo ?? ''),
+                checkType: String(source.checkType || 'ĐNMH').trim() || 'ĐNMH',
+                supplier: String(source.supplier ?? '').trim(),
+                contractNo: String(source.contractNo ?? '').trim(),
                 contractItemNo: normalizeContractItemNoValue(source.contractItemNo, source.checkType || 'ĐNMH'),
-                stage: source.stage || 'SSG',
+                stage: String(source.stage || 'SSG').trim() || 'SSG',
                 invoiceNo: String(source.invoiceNo ?? ''),
                 invoiceDate: source.invoiceDate ? (function(){ try { const r=parseExcelDate(source.invoiceDate); return r.valid ? r.value : ''; } catch(e){ return ''; } })() : '',
                 stageTimes: (source.stageTimes && typeof source.stageTimes === 'object' && !Array.isArray(source.stageTimes)) ? source.stageTimes : {},
@@ -1593,120 +1622,342 @@
             };
         }
 
-        function saveToStorage() {
-            try {
-                localStorage.setItem('procure_orders', JSON.stringify(orders));
-                localStorage.setItem('procure_suppliers', JSON.stringify(suppliers));
-                localStorage.setItem('procure_quotes', JSON.stringify(quotes));
-                localStorage.setItem('procure_tracking_history', JSON.stringify(trackingHistory));
-                localStorage.setItem('procure_supplier_contracts', JSON.stringify(supplierContracts));
-                localStorage.setItem('procure_quote_requests', JSON.stringify(quoteRequests));
-            } catch (err) {
-                console.warn('Lưu trữ localStorage đầy hoặc không hỗ trợ:', err);
+        function setStorageStatus(mode, message = '') {
+            const indicator = document.getElementById('sync-status-indicator');
+            const text = document.getElementById('sync-text');
+            if (!indicator || !text) return;
+            const dot = indicator.querySelector('span.w-2.h-2');
+            const states = {
+                saving: { label: 'Đang lưu...', wrap: ['bg-amber-50','text-amber-700','border-amber-200'], dot: 'bg-amber-500', pulse: true },
+                saved: { label: 'Đã lưu', wrap: ['bg-emerald-50','text-emerald-700','border-emerald-200'], dot: 'bg-emerald-500', pulse: true },
+                error: { label: message || 'Lỗi lưu dữ liệu', wrap: ['bg-rose-50','text-rose-700','border-rose-200'], dot: 'bg-rose-500', pulse: false }
+            };
+            const state = states[mode] || states.error;
+            indicator.classList.remove('bg-emerald-50','text-emerald-700','border-emerald-200','bg-amber-50','text-amber-700','border-amber-200','bg-rose-50','text-rose-700','border-rose-200');
+            indicator.classList.add(...state.wrap);
+            text.textContent = state.label;
+            if (dot) {
+                dot.classList.remove('bg-emerald-500','bg-amber-500','bg-rose-500');
+                dot.classList.add(state.dot);
+                dot.classList.toggle('animate-pulse', state.pulse);
             }
         }
 
+        const PROCURE_STORAGE_KEYS = ['procure_orders','procure_suppliers','procure_quotes','procure_tracking_history','procure_supplier_contracts','procure_quote_requests'];
+        let storageSaveQueue = Promise.resolve(true);
+        let quoteFileDBPromise = null;
+
+        function sanitizeQuotesForStorage(sourceQuotes) {
+            return (Array.isArray(sourceQuotes) ? sourceQuotes : []).map(q => {
+                const copy = { ...(q || {}) };
+                if (copy.fileData) copy.fileStorage = 'indexeddb';
+                delete copy.fileData;
+                return copy;
+            });
+        }
+
+        function getStorageSnapshot() {
+            return {
+                procure_orders: JSON.stringify(Array.isArray(orders) ? orders : []),
+                procure_suppliers: JSON.stringify(Array.isArray(suppliers) ? suppliers : []),
+                procure_quotes: JSON.stringify(sanitizeQuotesForStorage(quotes)),
+                procure_tracking_history: JSON.stringify(Array.isArray(trackingHistory) ? trackingHistory : []),
+                procure_supplier_contracts: JSON.stringify(supplierContracts && typeof supplierContracts === 'object' ? supplierContracts : {}),
+                procure_quote_requests: JSON.stringify(Array.isArray(quoteRequests) ? quoteRequests : []),
+                quoteFiles: (Array.isArray(quotes) ? quotes : []).filter(q => q && q.fileData).map(q => ({
+                    quoteId: q.quoteId,
+                    fileName: q.fileName || '',
+                    fileType: q.fileType || 'application/octet-stream',
+                    fileSize: Number(q.fileSize) || 0,
+                    fileData: String(q.fileData)
+                })),
+                quoteIds: (Array.isArray(quotes) ? quotes : []).map(q => q?.quoteId).filter(v => v !== null && v !== undefined)
+            };
+        }
+
+        function verifyStorageIntegrity(expected) {
+            const expectedTypes = {
+                procure_orders: 'array', procure_suppliers: 'array', procure_quotes: 'array',
+                procure_tracking_history: 'array', procure_supplier_contracts: 'object', procure_quote_requests: 'array'
+            };
+            for (const key of PROCURE_STORAGE_KEYS) {
+                const actual = localStorage.getItem(key);
+                if (actual === null) throw new Error(`Không thể đọc lại khóa ${key} sau khi lưu.`);
+                if (actual !== expected[key]) throw new Error(`Dữ liệu ${key} không khớp sau khi lưu.`);
+                const parsed = JSON.parse(actual);
+                const type = Array.isArray(parsed) ? 'array' : (parsed && typeof parsed === 'object' ? 'object' : typeof parsed);
+                if (type !== expectedTypes[key]) throw new Error(`Dữ liệu ${key} không đúng cấu trúc.`);
+            }
+            return true;
+        }
+
+        function restoreLocalStorageBackup(backup) {
+            PROCURE_STORAGE_KEYS.forEach(key => {
+                try {
+                    const oldValue = backup.get(key);
+                    if (oldValue === null || oldValue === undefined) localStorage.removeItem(key);
+                    else localStorage.setItem(key, oldValue);
+                } catch (err) {
+                    console.error('[ProcureFlow] Storage rollback failed:', err);
+                }
+            });
+        }
+
+        function dataUrlToBlob(dataUrl, fallbackType = 'application/octet-stream') {
+            const raw = String(dataUrl || '');
+            if (!raw.startsWith('data:')) throw new Error('Định dạng file nội bộ không hợp lệ.');
+            const commaIndex = raw.indexOf(',');
+            if (commaIndex < 0) throw new Error('File Base64 không hợp lệ.');
+            const meta = raw.slice(5, commaIndex);
+            const data = raw.slice(commaIndex + 1);
+            const mime = (meta.match(/^([^;]+)/)?.[1]) || fallbackType;
+            if (!/;base64/i.test(meta)) return new Blob([decodeURIComponent(data)], { type: mime });
+            const binary = atob(data);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            return new Blob([bytes], { type: mime });
+        }
+
+        function openQuoteFileDB() {
+            if (quoteFileDBPromise) return quoteFileDBPromise;
+            if (typeof indexedDB === 'undefined') {
+                quoteFileDBPromise = Promise.reject(new Error('IndexedDB không được trình duyệt hỗ trợ.'));
+                return quoteFileDBPromise;
+            }
+            quoteFileDBPromise = new Promise((resolve, reject) => {
+                const request = indexedDB.open('ProcureFlowDB', 1);
+                request.onupgradeneeded = () => {
+                    const db = request.result;
+                    if (!db.objectStoreNames.contains('quoteFiles')) db.createObjectStore('quoteFiles', { keyPath: 'quoteId' });
+                };
+                request.onsuccess = () => resolve(request.result);
+                request.onerror = () => reject(request.error || new Error('Không thể mở IndexedDB.'));
+            });
+            return quoteFileDBPromise;
+        }
+
+        function idbGetAllKeys() {
+            return openQuoteFileDB().then(db => new Promise((resolve, reject) => {
+                const tx = db.transaction('quoteFiles', 'readonly');
+                const req = tx.objectStore('quoteFiles').getAllKeys();
+                req.onsuccess = () => resolve(req.result || []);
+                req.onerror = () => reject(req.error || new Error('Không thể đọc danh sách file.'));
+            }));
+        }
+
+        async function syncQuoteFilesToIndexedDB(snapshot) {
+            // If IndexedDB is supported, clean up orphaned file blobs even when no new file is uploaded.
+            if (typeof indexedDB === 'undefined') {
+                if (snapshot.quoteFiles.length) throw new Error('IndexedDB không được trình duyệt hỗ trợ nên không thể lưu file báo giá an toàn.');
+                return true;
+            }
+            const db = await openQuoteFileDB();
+            const existingKeys = await idbGetAllKeys();
+            const currentIdSet = new Set(snapshot.quoteIds.map(id => String(id)));
+            await new Promise((resolve, reject) => {
+                const tx = db.transaction('quoteFiles', 'readwrite');
+                const store = tx.objectStore('quoteFiles');
+                for (const file of snapshot.quoteFiles) {
+                    const blob = dataUrlToBlob(file.fileData, file.fileType);
+                    store.put({ quoteId: file.quoteId, fileName: file.fileName, fileType: file.fileType, fileSize: file.fileSize || blob.size, fileBlob: blob });
+                }
+                for (const key of existingKeys) if (!currentIdSet.has(String(key))) store.delete(key);
+                tx.oncomplete = () => resolve();
+                tx.onerror = () => reject(tx.error || new Error('Không thể lưu file báo giá vào IndexedDB.'));
+                tx.onabort = () => reject(tx.error || new Error('Giao dịch IndexedDB đã bị hủy.'));
+            });
+            return true;
+        }
+
+        function getQuoteFileFromIndexedDB(quoteId) {
+            return openQuoteFileDB().then(db => new Promise((resolve, reject) => {
+                const tx = db.transaction('quoteFiles', 'readonly');
+                const req = tx.objectStore('quoteFiles').get(quoteId);
+                req.onsuccess = () => resolve(req.result || null);
+                req.onerror = () => reject(req.error || new Error('Không thể đọc file báo giá.'));
+            }));
+        }
+
+        async function migrateLegacyQuoteFilesToIndexedDB() {
+            const legacyQuotes = (Array.isArray(quotes) ? quotes : []).filter(q => q && q.fileData);
+            if (!legacyQuotes.length) return { migrated: 0 };
+            const db = await openQuoteFileDB();
+            const originals = legacyQuotes.map(q => ({ quoteId: q.quoteId, fileData: q.fileData }));
+            try {
+                for (const q of legacyQuotes) {
+                    const blob = dataUrlToBlob(q.fileData, q.fileType);
+                    await new Promise((resolve, reject) => {
+                        const tx = db.transaction('quoteFiles', 'readwrite');
+                        tx.objectStore('quoteFiles').put({ quoteId: q.quoteId, fileName: q.fileName || '', fileType: q.fileType || 'application/octet-stream', fileSize: Number(q.fileSize) || blob.size, fileBlob: blob });
+                        tx.oncomplete = resolve;
+                        tx.onerror = () => reject(tx.error || new Error('Không thể migrate file báo giá.'));
+                        tx.onabort = () => reject(tx.error || new Error('Migration file đã bị hủy.'));
+                    });
+                }
+                for (const item of originals) {
+                    const q = quotes.find(x => String(x?.quoteId) === String(item.quoteId));
+                    if (q && q.fileData === item.fileData) { delete q.fileData; q.fileStorage = 'indexeddb'; }
+                }
+                const ok = await saveToStorage({ skipQuoteFileSync: true, suppressAlert: true });
+                if (!ok) throw new Error('Không thể cập nhật metadata sau khi migrate file.');
+                console.log(`[ProcureFlow] Migrated legacy quote files: ${originals.length}`);
+                return { migrated: originals.length };
+            } catch (err) {
+                console.error('[ProcureFlow] Legacy file migration failed:', err);
+                originals.forEach(item => {
+                    const q = quotes.find(x => String(x?.quoteId) === String(item.quoteId));
+                    if (q && !q.fileData) q.fileData = item.fileData;
+                });
+                return { migrated: 0, error: err };
+            }
+        }
+
+        async function initIndexedDBStorage() {
+            try {
+                await openQuoteFileDB();
+                const result = await migrateLegacyQuoteFilesToIndexedDB();
+                if (result.error) {
+                    setStorageStatus('error', 'Lỗi migrate file báo giá');
+                    return false;
+                }
+                setStorageStatus('saved');
+                return true;
+            } catch (err) {
+                console.error('[ProcureFlow] IndexedDB initialization failed:', err);
+                setStorageStatus('error', 'Lỗi IndexedDB');
+                return false;
+            }
+        }
+
+        async function performStorageSave(snapshot, options = {}) {
+            const backup = new Map(PROCURE_STORAGE_KEYS.map(key => [key, localStorage.getItem(key)]));
+            setStorageStatus('saving');
+            try {
+                // Large file data is intentionally excluded from localStorage. If a new file exists,
+                // the browser must provide IndexedDB before we report success.
+                if (!options.skipQuoteFileSync && snapshot.quoteFiles.length > 0 && typeof indexedDB === 'undefined') {
+                    throw new Error('IndexedDB không được trình duyệt hỗ trợ nên không thể lưu file báo giá an toàn.');
+                }
+
+                for (const key of PROCURE_STORAGE_KEYS) localStorage.setItem(key, snapshot[key]);
+                verifyStorageIntegrity(snapshot);
+
+                if (!options.skipQuoteFileSync) {
+                    await syncQuoteFilesToIndexedDB(snapshot);
+                    snapshot.quoteFiles.forEach(file => {
+                        const q = quotes.find(x => String(x?.quoteId) === String(file.quoteId));
+                        if (q && q.fileData === file.fileData) { delete q.fileData; q.fileStorage = 'indexeddb'; }
+                    });
+                }
+
+                setStorageStatus('saved');
+                console.log('[ProcureFlow] Save successful');
+                return true;
+            } catch (err) {
+                restoreLocalStorageBackup(backup);
+                setStorageStatus('error', 'Lỗi lưu dữ liệu');
+                console.error('[ProcureFlow] Save failed', err);
+                const msg = /quota|exceeded|storage/i.test(String(err?.name || '') + String(err?.message || ''))
+                    ? 'Bộ nhớ trình duyệt đã đầy. Dữ liệu nghiệp vụ chưa được lưu.'
+                    : `Không thể lưu dữ liệu. ${err?.message || err}`;
+                if (!options.suppressAlert) alert(msg);
+                return false;
+            }
+        }
+
+        function saveToStorage(options = {}) {
+            let snapshot;
+            try {
+                snapshot = getStorageSnapshot();
+            } catch (err) {
+                setStorageStatus('error', 'Lỗi lưu dữ liệu');
+                console.error('[ProcureFlow] Save failed', err);
+                if (!options.suppressAlert) alert(`Không thể chuẩn bị dữ liệu để lưu.\n\nChi tiết: ${err?.message || err}`);
+                return Promise.resolve(false);
+            }
+            setStorageStatus('saving');
+            storageSaveQueue = storageSaveQueue.catch(() => true).then(() => performStorageSave(snapshot, options));
+            return storageSaveQueue;
+        }
+
+        function updateOrder(id, patch = {}, options = {}) {
+            const order = orders.find(x => String(x.id) === String(id));
+            if (!order) return Promise.resolve(false);
+            Object.assign(order, patch || {});
+            return saveToStorage(options).then(ok => { if (ok && options.render !== false) renderAll(); return ok; });
+        }
+
         function loadFromStorage() {
-            const savedOrders = localStorage.getItem('procure_orders');
-            const savedSuppliers = localStorage.getItem('procure_suppliers');
-            const savedQuotes = localStorage.getItem('procure_quotes');
-            const savedHistory = localStorage.getItem('procure_tracking_history');
-            const savedSupplierContracts = localStorage.getItem('procure_supplier_contracts');
-            const savedQuoteRequests = localStorage.getItem('procure_quote_requests');
+            const raw = {};
+            PROCURE_STORAGE_KEYS.forEach(key => {
+                try { raw[key] = localStorage.getItem(key); }
+                catch (err) { console.error(`[ProcureFlow] Cannot read ${key}:`, err); raw[key] = null; }
+            });
 
-            if (savedOrders) {
+            if (raw.procure_orders !== null) {
                 try {
-                    const parsedOrders = JSON.parse(savedOrders);
-                    if (Array.isArray(parsedOrders)) {
-                        orders = parsedOrders.map((order, index) => normalizeOrderRecord(order, index));
-                    }
-                } catch (err) {
-                    console.error('Lỗi đọc procure_orders:', err);
-                }
-            }
-            if (savedSuppliers) {
-                try {
-                    const parsedSuppliers = JSON.parse(savedSuppliers);
-                    if (Array.isArray(parsedSuppliers)) suppliers = parsedSuppliers;
-                } catch (err) {
-                    console.error('Lỗi đọc procure_suppliers:', err);
-                }
-            }
-            if (savedQuotes) {
-                try {
-                    const parsedQuotes = JSON.parse(savedQuotes);
-                    if (Array.isArray(parsedQuotes)) quotes = parsedQuotes;
-                } catch (err) {
-                    console.error('Lỗi đọc procure_quotes:', err);
-                }
-            }
-            if (savedHistory) {
-                try {
-                    const parsedHistory = JSON.parse(savedHistory);
-                    if (Array.isArray(parsedHistory)) trackingHistory = parsedHistory;
-                } catch (err) {
-                    console.error('Lỗi đọc procure_tracking_history:', err);
-                    trackingHistory = [];
-                }
-            } else {
-                trackingHistory = [];
+                    const parsed = JSON.parse(raw.procure_orders);
+                    if (!Array.isArray(parsed)) throw new Error('procure_orders không phải Array.');
+                    const ids = new Set();
+                    orders = parsed.map((o, i) => normalizeOrderRecord(o, i, ids));
+                } catch (err) { console.error('[ProcureFlow] Invalid procure_orders:', err); orders = []; }
             }
 
-            if (savedQuoteRequests) {
-                try {
-                    const parsedQuoteRequests = JSON.parse(savedQuoteRequests);
-                    if (Array.isArray(parsedQuoteRequests)) {
-                        const seen = new Set();
-                        quoteRequests = parsedQuoteRequests.filter(r => {
-                            const itemId = String(r?.itemId ?? r?.orderId ?? '').trim();
-                            const supplierName = String(r?.supplierName || '').trim();
-                            if (!itemId || !supplierName) return false;
-                            const key = `${itemId}||${supplierName.toLowerCase()}`;
-                            if (seen.has(key)) return false;
-                            seen.add(key);
-                            return true;
-                        }).map(r => {
-                            const rawStatus = String(r?.status || '').trim().toLowerCase();
-                            const status = (rawStatus === 'rejected' || rawStatus === 'từ chối báo giá')
-                                ? 'Từ chối báo giá'
-                                : (rawStatus === 'đã báo giá' ? 'Đã báo giá' : 'Đã hỏi');
-                            return {
-                                ...r,
-                                status,
-                                rejectedDate: String(r?.rejectedDate || ''),
-                                rejectedBy: String(r?.rejectedBy || ''),
-                                rejectReason: String(r?.rejectReason || '')
-                            };
-                        });
-                    }
-                } catch (err) {
-                    console.error('Lỗi đọc procure_quote_requests:', err);
-                    quoteRequests = [];
-                }
-            } else {
-                quoteRequests = [];
+            const hasStoredOrders = raw.procure_orders !== null;
+            if (raw.procure_suppliers !== null) {
+                try { const parsed = JSON.parse(raw.procure_suppliers); suppliers = Array.isArray(parsed) ? parsed : []; }
+                catch (err) { console.error('[ProcureFlow] Invalid procure_suppliers:', err); suppliers = []; }
+            } else if (hasStoredOrders) {
+                suppliers = [];
             }
+            if (raw.procure_quotes !== null) {
+                try { const parsed = JSON.parse(raw.procure_quotes); quotes = Array.isArray(parsed) ? parsed : []; }
+                catch (err) { console.error('[ProcureFlow] Invalid procure_quotes:', err); quotes = []; }
+            } else if (hasStoredOrders) {
+                quotes = [];
+            }
+            if (raw.procure_tracking_history !== null) {
+                try { const parsed = JSON.parse(raw.procure_tracking_history); trackingHistory = Array.isArray(parsed) ? parsed : []; }
+                catch (err) { console.error('[ProcureFlow] Invalid procure_tracking_history:', err); trackingHistory = []; }
+            } else trackingHistory = [];
 
-            // Load supplier -> contracts master. Existing contract numbers on orders are also
-            // backfilled so existing localStorage data remains selectable in Tab 2.
-            if (savedSupplierContracts) {
+            if (raw.procure_quote_requests !== null) {
                 try {
-                    const parsedContracts = JSON.parse(savedSupplierContracts);
-                    if (parsedContracts && typeof parsedContracts === 'object' && !Array.isArray(parsedContracts)) {
+                    const parsed = JSON.parse(raw.procure_quote_requests);
+                    if (!Array.isArray(parsed)) throw new Error('procure_quote_requests không phải Array.');
+                    const seen = new Set();
+                    quoteRequests = parsed.filter(r => {
+                        const itemId = String(r?.itemId ?? r?.orderId ?? '').trim();
+                        const supplierName = String(r?.supplierName || '').trim();
+                        if (!itemId || !supplierName) return false;
+                        const key = `${itemId}||${supplierName.toLowerCase()}`;
+                        if (seen.has(key)) return false;
+                        seen.add(key); return true;
+                    }).map(r => {
+                        const rawStatus = String(r?.status || '').trim().toLowerCase();
+                        return { ...r, status: (rawStatus === 'rejected' || rawStatus === 'từ chối báo giá') ? 'Từ chối báo giá' : (rawStatus === 'đã báo giá' ? 'Đã báo giá' : 'Đã hỏi'), rejectedDate: String(r?.rejectedDate || ''), rejectedBy: String(r?.rejectedBy || ''), rejectReason: String(r?.rejectReason || '') };
+                    });
+                } catch (err) { console.error('[ProcureFlow] Invalid procure_quote_requests:', err); quoteRequests = []; }
+            } else quoteRequests = [];
+
+            if (raw.procure_supplier_contracts !== null) {
+                try {
+                    const parsed = JSON.parse(raw.procure_supplier_contracts);
+                    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
                         supplierContracts = {};
-                        Object.entries(parsedContracts).forEach(([supplierName, contractList]) => {
-                            if (Array.isArray(contractList)) {
-                                supplierContracts[supplierName] = uniqueSorted(contractList);
-                            }
-                        });
-                    }
-                } catch (err) {
-                    console.error('Lỗi đọc procure_supplier_contracts:', err);
-                    supplierContracts = {};
-                }
-            }
+                        Object.entries(parsed).forEach(([name, list]) => { supplierContracts[name] = Array.isArray(list) ? uniqueSorted(list) : []; });
+                    } else supplierContracts = {};
+                } catch (err) { console.error('[ProcureFlow] Invalid procure_supplier_contracts:', err); supplierContracts = {}; }
+            } else supplierContracts = {};
+
+            orders.forEach(order => {
+                ensureOrderTrackingFields(order);
+                if (!Object.prototype.hasOwnProperty.call(order, 'purchasePrice')) order.purchasePrice = null;
+                if (!Object.prototype.hasOwnProperty.call(order, 'purchaseValue')) order.purchaseValue = null;
+                if (!Object.prototype.hasOwnProperty.call(order, 'purchasePriceSource')) order.purchasePriceSource = '';
+                if (!Object.prototype.hasOwnProperty.call(order, 'purchaseQuoteId')) order.purchaseQuoteId = null;
+            });
             ensureSupplierContractsFromOrders();
-            orders.forEach(ensureOrderTrackingFields);
         }
 
         function switchTab(tabId) {
@@ -3700,10 +3951,12 @@
                 }
             });
 
-            saveToStorage();
-            closeUploadQuoteModal();
-            renderQuotes();
-            alert(`Tải lên báo giá cho "${order.item}" từ NCC "${supplierName}" thành công!`);
+            saveToStorage().then(ok => {
+                if (!ok) return;
+                closeUploadQuoteModal();
+                renderQuotes();
+                alert(`Tải lên báo giá cho "${order.item}" từ NCC "${supplierName}" thành công!`);
+            });
         }
 
         function getQuoteRequestRecordsForOrder(order) {
@@ -4184,7 +4437,7 @@
                                                         ${quote ? `${Number(quote.quotedPrice).toLocaleString('vi-VN')} VNĐ${isLowest ? ' <span class="text-[10px] ml-1">⭐ Thấp nhất</span>' : ''}` : '-'}
                                                     </td>
                                                     <td class="py-3 px-3">
-                                                        ${quote && quote.fileData ? `<button onclick="viewQuoteFile('${escapeHTMLAttribute(quote.quoteId)}')" class="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md transition font-medium max-w-[220px]" title="${escapeHTML(fileName)}"><i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-600 shrink-0"></i><span class="truncate">📄 ${escapeHTML(shortName)}</span></button>` : (fileName ? `<span class="text-xs text-slate-500">📄 ${escapeHTML(shortName)}</span>` : '-')}
+                                                        ${quote && (quote.fileData || quote.fileStorage === 'indexeddb') ? `<button onclick="viewQuoteFile('${escapeHTMLAttribute(quote.quoteId)}')" class="inline-flex items-center space-x-1.5 px-2.5 py-1 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md transition font-medium max-w-[220px]" title="${escapeHTML(fileName)}"><i data-lucide="file-text" class="w-3.5 h-3.5 text-indigo-600 shrink-0"></i><span class="truncate">📄 ${escapeHTML(shortName)}</span></button>` : (fileName ? `<span class="text-xs text-slate-500">📄 ${escapeHTML(shortName)}</span>` : '-')}
                                                     </td>
                                                     <td class="py-3 px-3 text-center">
                                                         ${status.label === 'Đã báo giá'
@@ -4651,29 +4904,35 @@
             }
         }
 
-        function viewQuoteFile(quoteId) {
+        async function viewQuoteFile(quoteId) {
             const q = quotes.find(x => x.quoteId == quoteId);
-            if (!q) {
-                alert('Không tìm thấy thông tin báo giá.');
-                return;
-            }
-
-            if (!q.fileData) {
-                alert(`File báo giá: ${q.fileName}\n(Lưu ý: File mẫu cần sử dụng chức năng "+ Tải lên Báo Giá" để có dữ liệu mở đính kèm thực tế).`);
-                return;
-            }
-
-            const win = window.open();
-            if (q.fileType && (q.fileType.includes('pdf') || q.fileType.includes('image'))) {
-                win.document.write(`<iframe src="${q.fileData}" frameborder="0" style="border:0; top:0; left:0; bottom:0; right:0; width:100%; height:100%;" allowfullscreen></iframe>`);
-            } else {
-                win.document.write(`
-                    <div style="font-family:sans-serif; text-align:center; padding:50px;">
-                        <h2>Tải xuống file Báo Giá: ${q.fileName}</h2>
-                        <p>Kích thước: ${(q.fileSize / 1024).toFixed(1)} KB</p>
-                        <a href="${q.fileData}" download="${q.fileName}" style="background:#4f46e5; color:white; padding:10px 20px; border-radius:6px; text-decoration:none; display:inline-block; margin-top:20px;">Tải xuống file ngay</a>
-                    </div>
-                `);
+            if (!q) { alert('Không tìm thấy thông tin báo giá.'); return; }
+            try {
+                let blob = q.fileData ? dataUrlToBlob(q.fileData, q.fileType) : null;
+                if (!blob) {
+                    const record = await getQuoteFileFromIndexedDB(q.quoteId);
+                    blob = record?.fileBlob || null;
+                }
+                if (!blob) { alert(`Không tìm thấy file báo giá "${q.fileName || ''}". Metadata của báo giá vẫn còn.`); return; }
+                const url = URL.createObjectURL(blob);
+                if (q.fileType && (q.fileType.includes('pdf') || q.fileType.includes('image'))) {
+                    const win = window.open();
+                    if (!win) { URL.revokeObjectURL(url); alert('Trình duyệt đã chặn popup.'); return; }
+                    win.document.write(`<iframe src="${url}" frameborder="0" style="border:0;width:100%;height:100vh" allowfullscreen></iframe>`);
+                    win.document.close();
+                } else {
+                    const win = window.open();
+                    if (win) {
+                        win.document.write(`<div style="font-family:sans-serif;text-align:center;padding:50px"><h2>File Báo Giá: ${escapeHTML(q.fileName || '')}</h2><p>Kích thước: ${(Number(q.fileSize || blob.size)/1024).toFixed(1)} KB</p><a href="${url}" download="${escapeHTMLAttribute(q.fileName || 'bao-gia')}" style="background:#4f46e5;color:#fff;padding:10px 20px;border-radius:6px;text-decoration:none;display:inline-block;margin-top:20px">Tải xuống file ngay</a></div>`);
+                        win.document.close();
+                    } else {
+                        const a = document.createElement('a'); a.href = url; a.download = q.fileName || 'bao-gia'; document.body.appendChild(a); a.click(); a.remove();
+                    }
+                }
+                setTimeout(() => URL.revokeObjectURL(url), 60000);
+            } catch (err) {
+                console.error('[ProcureFlow] View quote file failed:', err);
+                alert(`Không thể mở file báo giá.\n\nChi tiết: ${err?.message || err}`);
             }
         }
 
@@ -4697,8 +4956,7 @@
                     }
                 }
 
-                saveToStorage();
-                renderQuotes();
+                saveToStorage().then(ok => { if (ok) renderQuotes(); });
             }
         }
 
@@ -5336,12 +5594,8 @@
         }
 
         function updateInvoice(id, field, val) {
-            const o = orders.find(x => x.id == id);
-            if (o) {
-                o[field] = field === 'invoiceDate' && val ? String(val).slice(0, 10) : val;
-                saveToStorage();
-                renderAll();
-            }
+            const normalized = field === 'invoiceDate' && val ? String(val).slice(0, 10) : val;
+            updateOrder(id, { [field]: normalized });
         }
 
         function getDeliveryStatusCellClass(status) {
