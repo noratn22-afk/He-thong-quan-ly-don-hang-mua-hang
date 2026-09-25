@@ -16,6 +16,49 @@
         body { font-family: 'Inter', sans-serif; }
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+        /* TAB 2 — search/filter layout: keep search readable and prevent flex shrink */
+        #tab-check #search-check {
+            width: 280px;
+            min-width: 240px;
+            flex: 0 0 280px;
+        }
+
+        #tab-check #filter-check-type,
+        #tab-check #filter-check-order-status {
+            min-width: 180px;
+            flex: 0 0 auto;
+        }
+
+        #tab-check #sort-order-placement {
+            min-width: 200px;
+            flex: 0 0 auto;
+        }
+
+        @media (max-width: 1023px) {
+            #tab-check #search-check {
+                width: 100%;
+                min-width: 240px;
+                flex-basis: 100%;
+            }
+        }
+
+        @media (max-width: 639px) {
+            #tab-check #search-check,
+            #tab-check #filter-check-type,
+            #tab-check #filter-check-order-status,
+            #tab-check #sort-order-placement {
+                width: 100%;
+                min-width: 0;
+                flex-basis: 100%;
+            }
+
+            #tab-check .tab2-action-btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
         @media print {
             header, nav, .no-print, button, input, select { display: none !important; }
             main { padding: 0 !important; max-width: 100% !important; }
@@ -152,23 +195,32 @@
 
         <!-- TAB 2: CHECK CONTRACTS & REQUISITIONS -->
         <div id="tab-check" class="tab-content hidden flex-1 flex flex-col space-y-4">
-            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
+            <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-col gap-4">
                 <div>
                     <h2 class="text-base font-bold text-slate-900">Kiểm tra Hợp đồng & Đề nghị mua hàng (ĐNMH)</h2>
                     <p class="text-xs text-slate-500">Dữ liệu được nhóm theo đợt order từ mỗi bộ phận: <code class="bg-slate-100 px-1 py-0.5 rounded text-indigo-700 font-semibold text-xs">From: [Tên Bộ phận] — [DD/MM/YYYY] — [X] mặt hàng</code>.</p>
                 </div>
-                <div class="flex flex-wrap items-center gap-3 w-full lg:w-auto">
-                    <div class="relative flex-1 sm:w-64">
-                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
-                        <input type="text" id="search-check" oninput="renderCheckTable()" placeholder="Tìm mặt hàng, HĐ, ngày..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+
+                <div class="flex flex-wrap items-center gap-2 w-full">
+                    <div class="relative w-full lg:w-72 min-w-[240px] flex-none">
+                        <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none"></i>
+                        <input
+                            type="text"
+                            id="search-check"
+                            oninput="renderCheckTable()"
+                            placeholder="Tìm mặt hàng, HĐ, ngày..."
+                            class="w-full pl-9 pr-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        >
                     </div>
-                    <select id="filter-check-type" onchange="renderCheckTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+
+                    <select id="filter-check-type" onchange="renderCheckTable()" class="w-full sm:w-auto min-w-[180px] px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <option value="Tất cả">Tất cả hình thức</option>
                         <option value="Hợp đồng">Hợp đồng</option>
                         <option value="ĐNMH">ĐNMH</option>
                         <option value="Chưa kiểm tra">Chưa kiểm tra (Chưa chọn NCC)</option>
                     </select>
-                    <select id="filter-check-order-status" onchange="renderCheckTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+
+                    <select id="filter-check-order-status" onchange="renderCheckTable()" class="w-full sm:w-auto min-w-[180px] px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <option value="Tất cả">Tất cả trạng thái đặt</option>
                         <option value="Chưa đặt">Chưa đặt</option>
                         <option value="Đã đặt">Đã đặt</option>
@@ -176,17 +228,20 @@
                         <option value="Chưa giao">Chưa giao</option>
                         <option value="Đã giao">Đã giao</option>
                     </select>
-                    <select id="sort-order-placement" onchange="renderCheckTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
+
+                    <select id="sort-order-placement" onchange="renderCheckTable()" class="w-full sm:w-auto min-w-[200px] px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <option value="default">Mặc định: From + Ngày Order</option>
                         <option value="newest">Mới đặt nhất</option>
                         <option value="oldest">Đặt lâu nhất</option>
                         <option value="unplacedFirst">Chưa đặt trước</option>
                     </select>
-                    <button type="button" onclick="openExportOrderModal()" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition flex items-center space-x-1 whitespace-nowrap shadow-sm" title="Chọn From, hình thức, NCC và ngày để xuất Excel">
+
+                    <button type="button" onclick="openExportOrderModal()" class="tab2-action-btn w-full sm:w-auto px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg transition flex items-center space-x-1 whitespace-nowrap shadow-sm" title="Chọn From, hình thức, NCC và ngày để xuất Excel">
                         <i data-lucide="file-spreadsheet" class="w-4 h-4"></i>
                         <span>Xuất Excel</span>
                     </button>
-                    <button onclick="openSupplierModal()" class="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition flex items-center space-x-1 whitespace-nowrap">
+
+                    <button onclick="openSupplierModal()" class="tab2-action-btn w-full sm:w-auto px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition flex items-center space-x-1 whitespace-nowrap">
                         <i data-lucide="plus-circle" class="w-4 h-4"></i>
                         <span>Quản lý NCC</span>
                     </button>
