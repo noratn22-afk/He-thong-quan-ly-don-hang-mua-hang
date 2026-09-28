@@ -341,7 +341,7 @@
                 <div class="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                     <div class="relative flex-1 sm:w-64">
                         <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3"></i>
-                        <input type="text" id="search-status" oninput="renderStatusTable()" placeholder="Tìm kiếm mặt hàng, Ngày order..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <input type="text" id="search-status" oninput="renderStatusTable()" placeholder="Tìm mặt hàng, hóa đơn, NCC, From, ngày..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                     </div>
                     <select id="filter-status-stage" onchange="renderStatusTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         <option value="Tất cả">Tất cả giai đoạn</option>
@@ -5721,7 +5721,9 @@
         }
 
         function renderStatusTable() {
-            const search = document.getElementById('search-status').value.toLowerCase();
+            const search = normalizeSearchText(
+                document.getElementById('search-status').value
+            );
             const filterStage = document.getElementById('filter-status-stage').value;
             const tbody = document.getElementById('status-table-body');
             tbody.innerHTML = '';
@@ -5729,12 +5731,31 @@
             const sortedList = getSortedOrders('desc');
 
             const filtered = sortedList.filter(o => {
-                const matchSearch = o.item.toLowerCase().includes(search) || 
-                                    (o.invoiceNo && o.invoiceNo.toLowerCase().includes(search)) ||
-                                    (o.date && o.date.includes(search)) ||
-                                    formatDateVN(o.date).includes(search);
-                if (filterStage !== 'Tất cả' && o.stage !== filterStage) return false;
-                return matchSearch;
+                // Tab 4 Search: tìm theo tên mặt hàng, số/ngày hóa đơn,
+                // ngày Order, From (restaurant) và Nhà cung cấp.
+                // normalizeSearchText giúp không phân biệt hoa thường,
+                // dấu tiếng Việt và khoảng trắng/ký tự phân cách.
+                const searchableText = normalizeSearchText([
+                    o?.item,
+                    o?.invoiceNo,
+                    o?.invoiceDate,
+                    formatDateVN(o?.invoiceDate),
+                    o?.date,
+                    formatDateVN(o?.date),
+                    o?.restaurant,
+                    o?.supplier
+                ].filter(Boolean).join(' '));
+
+                // Tìm nhiều từ theo kiểu AND: tất cả token phải xuất hiện
+                // trong searchableText. Ví dụ: "Hoàng Hà 5840".
+                const tokens = search.split(/\s+/).filter(Boolean);
+                const matchSearch = !tokens.length || tokens.every(token => searchableText.includes(token));
+
+                if (!matchSearch) return false;
+
+                // Giữ nguyên filter Giai đoạn sau Search.
+                if (filterStage !== 'Tất cả' && o?.stage !== filterStage) return false;
+                return true;
             });
 
             if (filtered.length === 0) {
