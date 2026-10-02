@@ -5626,6 +5626,224 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             renderAll();
         }
 
+        // --- TAB 2: SEARCH ENGINE ------------------------------------------------
+        // Search is resolved BEFORE grouping.  The group is presentation-only.
+        function normalizeTab2ItemSearchText(value) {
+            return normalizeSearchText(value)
+                .replace(/(\d),(\d)/g, '$1.$2')
+                .replace(/(\d+(?:\.\d+)?)\s+(?=[a-zA-Z])/g, '$1')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function getTab2ItemTokens(value) {
+            return normalizeTab2ItemSearchText(value).split(' ').filter(Boolean);
+        }
+
+        function tab2ItemTokenMatches(itemToken, queryToken) {
+            if (!itemToken || !queryToken) return false;
+            const item = String(itemToken);
+            const query = String(queryToken);
+
+            // Plain words use whole-token matching so "gas" does not match "gasket".
+            if (!/^\d+(?:\.\d+)?$/.test(query)) {
+                return item === query;
+            }
+
+            // Numeric search is intentionally conservative:
+            // 1 matches 1m / 1.2m / 1.5m, but 110 does not match 1100.
+            const match = item.match(/^(\d+(?:\.\d+)?)([a-z]+)?$/i);
+            if (!match) return item === query;
+            const numericPart = match[1];
+            const unitPart = match[2] || '';
+            if (numericPart === query) return true;
+            return !!unitPart && numericPart.startsWith(query + '.');
+        }
+
+        function matchesTab2ItemName(order, query) {
+            const itemName = normalizeTab2ItemSearchText(order?.item || '');
+            const q = normalizeTab2ItemSearchText(query || '');
+            if (!q) return true;
+            if (itemName === q) return true;
+
+            const itemTokens = itemName.split(' ').filter(Boolean);
+            const queryTokens = q.split(' ').filter(Boolean);
+            return queryTokens.length > 0 && queryTokens.every(token =>
+                itemTokens.some(itemToken => tab2ItemTokenMatches(itemToken, token))
+            );
+        }
+
+        function tab2FieldMatchesQuery(value, query, options = {}) {
+            const field = normalizeSearchText(value || '');
+            const q = normalizeSearchText(query || '');
+            if (!field || !q) return false;
+
+            if (field === q) return true;
+            if (options.includes === true && field.includes(q)) return true;
+
+            const tokens = q.split(' ').filter(Boolean);
+            if (!tokens.length) return false;
+            const fieldTokens = field.split(' ').filter(Boolean);
+            return tokens.every(token => fieldTokens.includes(token));
+        }
+
+        function getTab2DocumentFields(order) {
+            return [
+                order?.contractNo,
+                order?.orderNumber,
+                order?.orderNo,
+                order?.requestNo,
+                order?.requisitionNo,
+                order?.code,
+                order?.dnmh,
+                order?.itemCode
+            ].map(v => String(v ?? '').trim()).filter(Boolean);
+        }
+
+        function getTab2PurchaseOrdersForItem(order) {
+            const id = String(order?.id ?? '').trim();
+            if (!id) return [];
+            const seen = new Set();
+            const result = [];
+
+            (Array.isArray(purchaseOrders) ? purchaseOrders : []).forEach(po => {
+                const poId = String(po?.poId ?? '').trim();
+                const linked = String(order?.purchaseOrderId ?? '').trim();
+                const containsItem = getPurchaseOrderItemIds(po).includes(id);
+                if (!containsItem && (!poId || poId !== linked)) return;
+                if (seen.has(poId || po?.poNumber)) return;
+                seen.add(poId || po?.poNumber);
+                result.push(po);
+            });
+            return result;
+        }
+
+        function getTab2POFields(po) {
+            return [
+                po?.poId,
+                po?.poNumber,
+                po?.supplier,
+                po?.poDate,
+                formatDateVN(po?.poDate),
+                po?.purchaseType,
+                po?.status,
+                po?.orderGroupId
+            ].map(v => String(v ?? '').trim()).filter(Boolean);
+        }
+
+        function getTab2DateQueryKey(rawQuery) {
+            const raw = String(rawQuery ?? '').trim();
+            if (!raw) return '';
+
+            if (/^\d{4}[-\/]\d{1,2}[-\/]\d{1,2}$/.test(raw)) {
+                const [y, m, d] = raw.split(/[-\/]/);
+                return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            }
+            if (/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}$/.test(raw)) {
+                const [d, m, y] = raw.split(/[\/-]/);
+                return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+            }
+            return normalizeQuoteDateFilterKey(raw);
+        }
+
+        function getTab2SearchMode(query, source) {
+            const q = normalizeSearchText(query || '');
+            const list = Array.isArray(source) ? source : [];
+            if (!q) return 'NONE';
+
+            // Explicit PO identifiers always use PO-level search.
+            if (/^po(?:\s|[-_:]|\d|$)/i.test(q)) return 'PO';
+
+            // Explicit HĐ / ĐNMH identifiers always use document-level search.
+            if (/^(?:dnmh|hd)(?:\s|[-_:]|\d|$)/i.test(q)) return 'DOCUMENT';
+
+            // Exact item match has priority over any fuzzy field match.
+            const exactItemExists = list.some(o =>
+                normalizeTab2ItemSearchText(o?.item || '') === normalizeTab2ItemSearchText(query || '')
+            );
+            if (exactItemExists) return 'ITEM';
+
+            // Exact date / supplier / From are field-specific searches.
+            const dateKey = getTab2DateQueryKey(String(query || '').trim());
+            if (dateKey && list.some(o => normalizeQuoteDateFilterKey(o?.date) === dateKey)) return 'DATE';
+
+            if (list.some(o => tab2FieldMatchesQuery(o?.supplier, query))) return 'SUPPLIER';
+            if (list.some(o => tab2FieldMatchesQuery(o?.restaurant, query))) return 'FROM';
+
+            // A PO can also be searched by an exact/contained identifier without a "PO" prefix.
+            const poExactOrTokenMatch = list.some(o =>
+                getTab2PurchaseOrdersForItem(o).some(po =>
+                    getTab2POFields(po).some(value => tab2FieldMatchesQuery(value, query, { includes: true }))
+                )
+            );
+            if (poExactOrTokenMatch) return 'PO';
+
+            const documentExactOrTokenMatch = list.some(o =>
+                getTab2DocumentFields(o).some(value => tab2FieldMatchesQuery(value, query, { includes: true }))
+            );
+            if (documentExactOrTokenMatch) return 'DOCUMENT';
+
+            // Fuzzy item search comes before supplier / From so a numeric query such as "110"
+            // still searches item names rather than arbitrary metadata fields.
+            const itemTokenMatch = list.some(o => matchesTab2ItemName(o, query));
+            if (itemTokenMatch) return 'ITEM';
+
+            if (list.some(o => tab2FieldMatchesQuery(o?.supplier, query, { includes: true }))) return 'SUPPLIER';
+            if (list.some(o => tab2FieldMatchesQuery(o?.restaurant, query, { includes: true }))) return 'FROM';
+            if (list.some(o => getTab2DocumentFields(o).some(value => tab2FieldMatchesQuery(value, query, { includes: true })))) return 'DOCUMENT';
+            if (list.some(o => getTab2PurchaseOrdersForItem(o).some(po => getTab2POFields(po).some(value => tab2FieldMatchesQuery(value, query, { includes: true }))))) return 'PO';
+
+            // A non-classified query is still an item search; it must never fall back to a
+            // whole-object OR search.
+            return 'ITEM';
+        }
+
+        function applyTab2Search(source, query) {
+            const list = Array.isArray(source) ? source : [];
+            const rawQuery = String(query ?? '').trim();
+            if (!rawQuery) return { items: [...list], mode: 'NONE' };
+
+            const mode = getTab2SearchMode(rawQuery, list);
+
+            if (mode === 'ITEM') {
+                const exactQuery = normalizeTab2ItemSearchText(rawQuery);
+                const exactMatches = list.filter(o => normalizeTab2ItemSearchText(o?.item || '') === exactQuery);
+                if (exactMatches.length) return { items: exactMatches, mode: 'ITEM' };
+                return { items: list.filter(o => matchesTab2ItemName(o, rawQuery)), mode: 'ITEM' };
+            }
+
+            if (mode === 'SUPPLIER') {
+                return { items: list.filter(o => tab2FieldMatchesQuery(o?.supplier, rawQuery, { includes: true })), mode };
+            }
+
+            if (mode === 'FROM') {
+                return { items: list.filter(o => tab2FieldMatchesQuery(o?.restaurant, rawQuery, { includes: true })), mode };
+            }
+
+            if (mode === 'DATE') {
+                const dateKey = getTab2DateQueryKey(rawQuery);
+                return { items: list.filter(o => normalizeQuoteDateFilterKey(o?.date) === dateKey), mode };
+            }
+
+            if (mode === 'DOCUMENT') {
+                return {
+                    items: list.filter(o => getTab2DocumentFields(o).some(value => tab2FieldMatchesQuery(value, rawQuery, { includes: true }))),
+                    mode
+                };
+            }
+
+            if (mode === 'PO') {
+                return {
+                    items: list.filter(o => getTab2PurchaseOrdersForItem(o).some(po =>
+                        getTab2POFields(po).some(value => tab2FieldMatchesQuery(value, rawQuery, { includes: true }))
+                    )),
+                    mode
+                };
+            }
+
+            return { items: [...list], mode };
+        }
+
         // --- TAB 2: CHECK CONTRACTS & REQUISITIONS ---
         function renderCheckTable() {
             const container = document.getElementById('check-table-container');
@@ -5636,52 +5854,63 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             if (!container) return;
             container.innerHTML = '';
 
+            // IMPORTANT: search is resolved at ITEM / FIELD level BEFORE grouping.
+            // Grouping below is presentation-only and can never widen the search result.
             let sortedList = getSortedOrders('desc');
             sortedList.forEach(ensureOrderTrackingFields);
+            const searchResult = applyTab2Search(sortedList, search);
+            let filteredOrders = searchResult.items.filter(o => {
+                if (filterType === 'Hợp đồng' && o.checkType !== 'Hợp đồng') return false;
+                if (filterType === 'ĐNMH' && (o.checkType || 'ĐNMH') !== 'ĐNMH') return false;
+                if (filterType === 'Chưa kiểm tra' && o.supplier) return false;
+                if (!getOrderPlacementFilterMatch(o, placementFilter)) return false;
+                return true;
+            });
 
             if (placementSort === 'newest') {
-                sortedList.sort((a, b) => {
+                filteredOrders.sort((a, b) => {
                     const ta = a.orderedAt ? new Date(a.orderedAt).getTime() : -Infinity;
                     const tb = b.orderedAt ? new Date(b.orderedAt).getTime() : -Infinity;
                     return tb - ta;
                 });
             } else if (placementSort === 'oldest') {
-                sortedList.sort((a, b) => {
+                filteredOrders.sort((a, b) => {
                     const ta = a.orderedAt ? new Date(a.orderedAt).getTime() : Infinity;
                     const tb = b.orderedAt ? new Date(b.orderedAt).getTime() : Infinity;
                     return ta - tb;
                 });
             } else if (placementSort === 'unplacedFirst') {
-                sortedList.sort((a, b) => Number(a.orderPlaced === true) - Number(b.orderPlaced === true));
+                filteredOrders.sort((a, b) => Number(a.orderPlaced === true) - Number(b.orderPlaced === true));
+            } else {
+                // Preserve the common date sort from getSortedOrders('desc').
+                filteredOrders = getSortedOrders('desc').filter(o => filteredOrders.includes(o));
             }
 
-            const groups = getOrderGroups(sortedList);
-            const tokens = search.split(/\s+/).filter(Boolean);
+            console.log({
+                query: search,
+                searchMode: searchResult.mode,
+                totalBefore: sortedList.length,
+                totalAfter: filteredOrders.length
+            });
+
+            const groups = getOrderGroups(filteredOrders);
             let hasResult = false;
 
+            if (search) {
+                container.innerHTML += `<div class="mb-3 px-4 py-2.5 rounded-lg border border-indigo-100 bg-indigo-50 text-sm text-indigo-800 font-semibold">Tìm thấy: ${filteredOrders.length} mặt hàng <span class="ml-2 text-[11px] font-medium text-indigo-600">Search mode: ${escapeHTML(searchResult.mode)}</span></div>`;
+            }
+
             groups.forEach(group => {
-                const groupSearchText = getOrderGroupSearchText(group);
-                const groupMatchesSearch = !tokens.length || tokens.every(token => groupSearchText.includes(token));
-
-                // Search selects the group. Hình thức/trạng thái then filter items inside it.
-                if (!groupMatchesSearch) return;
-
-                const filteredItems = group.items.filter(o => {
-                    if (filterType === 'Hợp đồng' && o.checkType !== 'Hợp đồng') return false;
-                    if (filterType === 'ĐNMH' && (o.checkType || 'ĐNMH') !== 'ĐNMH') return false;
-                    if (filterType === 'Chưa kiểm tra' && o.supplier) return false;
-                    if (!getOrderPlacementFilterMatch(o, placementFilter)) return false;
-                    return true;
-                });
-
+                const filteredItems = group.items;
                 if (!filteredItems.length) return;
                 hasResult = true;
 
                 const formattedDate = formatDateVN(group.date);
                 const placedCount = filteredItems.filter(o => o.orderPlaced === true).length;
                 const unplacedCount = filteredItems.length - placedCount;
-                const totalCount = group.items.length;
-                const placedGroup = getGroupPlacedSummary(group.items);
+                const searchActive = !!search;
+                const totalCount = searchActive ? filteredItems.length : getOrderGroupItems(group.orderGroupId).length;
+                const placedGroup = getGroupPlacedSummary(filteredItems);
 
                 let html = `
                     <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden mb-4">
@@ -5691,13 +5920,13 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                                     <i data-lucide="package" class="w-4 h-4 text-indigo-600"></i>
                                     <span>PO: ${escapeHTML(group.orderGroupId)}</span>
                                     <span class="font-medium text-slate-700">• From: ${escapeHTML(group.restaurant)} — ${formattedDate}</span>
-                                    <span class="text-xs text-slate-500">— ${filteredItems.length}/${totalCount} mặt hàng phù hợp</span>
+                                    <span class="text-xs text-slate-500">— ${searchActive ? `${filteredItems.length} mặt hàng phù hợp` : `${filteredItems.length}/${totalCount} mặt hàng`}</span>
                                 </h3>
                                 <div class="flex flex-wrap gap-2 mt-2">
-                                    <span class="text-[11px] font-semibold px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100">${filteredItems.length}/${totalCount} mặt hàng phù hợp</span>
+                                    <span class="text-[11px] font-semibold px-2 py-1 bg-indigo-50 text-indigo-700 rounded-full border border-indigo-100">${searchActive ? `${filteredItems.length} mặt hàng phù hợp` : `${filteredItems.length}/${totalCount} mặt hàng`}</span>
                                     <span class="text-[11px] font-semibold px-2 py-1 bg-emerald-50 text-emerald-700 rounded-full border border-emerald-100">${placedCount} Đã đặt trong kết quả</span>
                                     <span class="text-[11px] font-semibold px-2 py-1 bg-slate-50 text-slate-600 rounded-full border border-slate-200">${unplacedCount} Chưa đặt trong kết quả</span>
-                                    <span class="text-[11px] font-semibold px-2 py-1 bg-violet-50 text-violet-700 rounded-full border border-violet-100">Toàn PO: ${placedGroup.label}</span>
+                                    <span class="text-[11px] font-semibold px-2 py-1 bg-violet-50 text-violet-700 rounded-full border border-violet-100">${searchActive ? `Trong kết quả: ${placedGroup.label}` : `Toàn PO: ${placedGroup.label}`}</span>
                                     ${group.contractNo ? `<span class="text-[11px] font-semibold px-2 py-1 bg-white text-indigo-700 rounded-full border border-indigo-100">${escapeHTML(group.contractNo)}</span>` : ''}
                                 </div>
                             </div>
