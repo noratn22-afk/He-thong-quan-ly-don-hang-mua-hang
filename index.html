@@ -2013,8 +2013,52 @@
             return [...map.values()];
         }
 
+        function getOrderGroupPurchaseOrders(groupOrId, options = {}) {
+            const groupId = normalizeOrderGroupId(
+                groupOrId && typeof groupOrId === 'object' && !Array.isArray(groupOrId)
+                    ? groupOrId.orderGroupId
+                    : groupOrId
+            );
+            if (!groupId) return [];
+            const groupItems = groupOrId && Array.isArray(groupOrId.items)
+                ? groupOrId.items
+                : getOrderGroupItems(groupId, orders);
+            const groupItemIds = new Set(groupItems.map(o => String(o.id)));
+            const includeInvalid = options.includeInvalid === true;
+            const result = [];
+            (Array.isArray(purchaseOrders) ? purchaseOrders : []).forEach(po => {
+                const status = String(po?.status || 'Draft').trim();
+                if (!includeInvalid && ['Invalid', 'Đã hủy'].includes(status)) return;
+                const explicitGroupId = normalizeOrderGroupId(po?.orderGroupId);
+                if (explicitGroupId) {
+                    if (explicitGroupId === groupId) result.push(po);
+                    return;
+                }
+                const poItemIds = getPurchaseOrderItemIds(po).filter(id => groupItemIds.has(String(id)));
+                if (!poItemIds.length) return;
+                const allExistingItems = getPurchaseOrderItems(po);
+                const derivedGroups = new Set(allExistingItems.map(o => getOrderGroupId(o)).filter(Boolean));
+                if (derivedGroups.size === 1 && derivedGroups.has(groupId)) result.push(po);
+            });
+            return result.sort((a, b) => {
+                const da = new Date(a?.createdAt || a?.poDate || '1970-01-01');
+                const db = new Date(b?.createdAt || b?.poDate || '1970-01-01');
+                return db - da;
+            });
+        }
+
+        function getOrderGroupPONumbers(groupOrId) {
+            return [...new Set(getOrderGroupPurchaseOrders(groupOrId)
+                .map(po => String(po?.poNumber || po?.poId || '').trim())
+                .filter(Boolean))];
+        }
+
         function getOrderGroupSearchText(group) {
             const items = Array.isArray(group?.items) ? group.items : [];
+            const poText = getOrderGroupPurchaseOrders(group, { includeInvalid: true }).flatMap(po => [
+                po?.poId, po?.poNumber, po?.supplier, po?.poDate, formatDateVN(po?.poDate),
+                po?.purchaseType, po?.status, po?.orderGroupId
+            ]);
             const common = [
                 group?.orderGroupId, group?.restaurant, group?.date,
                 formatDateVN(group?.date), group?.supplier, group?.checkType,
@@ -2023,9 +2067,10 @@
             ];
             const itemText = items.flatMap(o => [
                 o?.id, o?.item, o?.area, o?.unit, o?.note,
-                o?.contractItemNo, o?.stage, o?.deliveryStatus
+                o?.contractItemNo, o?.stage, o?.deliveryStatus,
+                o?.purchaseOrderId
             ]);
-            return normalizeSearchText([...common, ...itemText].filter(Boolean).join(' '));
+            return normalizeSearchText([...common, ...poText, ...itemText].filter(Boolean).join(' '));
         }
 
         function syncOrderGroupSharedFields(groupId, patch = {}) {
@@ -2341,7 +2386,10 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const supplierKey = sanitizePOName(supplier);
             const dateKey = formatPODateKey(poDate);
             const base = `PO_${supplierKey}_${dateKey}`;
-            const existing = new Set(purchaseOrders.filter(po => isPurchaseOrderActive(po)).map(po => String(po?.poNumber || '').trim()));
+            const existing = new Set(purchaseOrders
+                .filter(po => !['Đã hủy', 'Invalid'].includes(String(po?.status || '').trim()))
+                .map(po => String(po?.poNumber || '').trim())
+                .filter(Boolean));
             if (!existing.has(base)) return base;
 
             let seq = 2;
@@ -3029,8 +3077,9 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             validSelected.forEach(o => {
                 const supplier = String(o.supplier || '').trim();
                 const type = selectedType || getOrderPlacementPurchaseType(o);
-                const key = `${supplier.toLowerCase()}||${poDate}||${type}`;
-                if (!byKey.has(key)) byKey.set(key, { supplier, type, items: [] });
+                const orderGroupId = getOrderGroupId(o);
+                const key = `${orderGroupId}||${supplier.toLowerCase()}||${poDate}||${type}`;
+                if (!byKey.has(key)) byKey.set(key, { orderGroupId, supplier, type, items: [] });
                 byKey.get(key).items.push(o);
             });
 
@@ -3614,8 +3663,9 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 const groups = new Map();
                 selected.forEach(o => {
                     const supplier = supplierFilter || String(o.supplier || '').trim() || 'Chưa có NCC';
-                    const key = `${supplier.toLowerCase()}||${poDate}||${type}`;
-                    if (!groups.has(key)) groups.set(key, { supplier, items: [] });
+                    const orderGroupId = getOrderGroupId(o);
+                    const key = `${orderGroupId}||${supplier.toLowerCase()}||${poDate}||${type}`;
+                    if (!groups.has(key)) groups.set(key, { orderGroupId, supplier, items: [] });
                     groups.get(key).items.push(o);
                 });
                 const used = new Set();
@@ -3769,8 +3819,11 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 const groups = new Map();
                 selected.forEach(o => {
                     const supplier = String(o.supplier || '').trim();
-                    const key = `${supplier.toLowerCase()}||${poDate}||${type}`;
-                    if (!groups.has(key)) groups.set(key, { supplier, purchaseType: type, items: [] });
+                    const orderGroupId = getOrderGroupId(o);
+                    const key = `${orderGroupId}||${supplier.toLowerCase()}||${poDate}||${type}`;
+                    if (!groups.has(key)) {
+                        groups.set(key, { orderGroupId, supplier, purchaseType: type, poDate, items: [] });
+                    }
                     groups.get(key).items.push(o);
                 });
 
@@ -3778,19 +3831,36 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 // 3) CREATE PO ONLY NOW
                 // ======================================================
                 for (const group of groups.values()) {
-                    const poId = createPurchaseOrderId();
-                    const poNumber = createUniquePONumber(group.supplier, poDate);
-                    const po = {
+                    const reusablePO = purchaseOrders.find(po => {
+                        const status = String(po?.status || 'Draft').trim();
+                        if (!['Draft', 'Đã gửi NCC', 'Đang giao'].includes(status)) return false;
+                        if (String(po?.supplier || '').trim().toLowerCase() !== group.supplier.toLowerCase()) return false;
+                        if (formatPODateKey(po?.poDate) !== formatPODateKey(group.poDate)) return false;
+                        if (String(po?.purchaseType || 'ĐNMH').trim() !== group.purchaseType) return false;
+                        const explicitGroupId = normalizeOrderGroupId(po?.orderGroupId);
+                        if (explicitGroupId) return explicitGroupId === group.orderGroupId;
+                        const poItems = getPurchaseOrderItems(po);
+                        const derivedGroups = new Set(poItems.map(item => getOrderGroupId(item)).filter(Boolean));
+                        return derivedGroups.size === 1 && derivedGroups.has(group.orderGroupId);
+                    });
+
+                    const poId = reusablePO?.poId || createPurchaseOrderId();
+                    const poNumber = reusablePO?.poNumber || createUniquePONumber(group.supplier, group.poDate);
+                    const po = reusablePO || {
                         poId,
                         poNumber,
+                        orderGroupId: group.orderGroupId,
                         supplier: group.supplier,
-                        poDate,
+                        poDate: group.poDate,
                         purchaseType: group.purchaseType,
                         createdAt: timestamp,
                         createdBy: orderedBy,
-                        itemIds: group.items.map(o => String(o.id)),
+                        itemIds: [],
                         status: 'Draft'
                     };
+                    po.orderGroupId = po.orderGroupId || group.orderGroupId;
+                    po.itemIds = [...new Set([...getPurchaseOrderItemIds(po), ...group.items.map(o => String(o.id))])];
+                    if (!po.createdBy) po.createdBy = orderedBy;
 
                     group.items.forEach(o => {
                         o.purchaseOrderId = poId;
@@ -3807,7 +3877,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                         }, orderedBy, timestamp);
                     });
 
-                    purchaseOrders.push(po);
+                    if (!reusablePO) purchaseOrders.push(po);
                     createdPOs.push(po);
                 }
 
@@ -4586,6 +4656,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             if (!tbody) return;
             tbody.innerHTML = '';
 
+            // Tab 1 is rendered by Order Group, with orders[] as the single source of truth.
             const sortedList = getSortedOrders(sortDir);
             const groups = getOrderGroups(sortedList);
             const tokens = search.split(/\s+/).filter(Boolean);
@@ -4593,10 +4664,9 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 const text = getOrderGroupSearchText(group);
                 return !tokens.length || tokens.every(token => text.includes(token));
             });
-            const filteredItemCount = matchedGroups.reduce((sum, group) => sum + group.items.length, 0);
 
             const countEl = document.getElementById('order-count');
-            if (countEl) countEl.innerText = filteredItemCount;
+            if (countEl) countEl.innerText = matchedGroups.length;
             const groupCountEl = document.getElementById('order-group-count');
             if (groupCountEl) groupCountEl.innerText = matchedGroups.length;
 
@@ -4608,25 +4678,36 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
             let stt = 0;
             matchedGroups.forEach(group => {
-                const rep = getOrderGroupRepresentative(group);
                 const placedSummary = getGroupPlacedSummary(group.items);
+                const placedPct = group.items.length ? Math.round((placedSummary.placed / group.items.length) * 100) : 0;
+                const groupPOs = getOrderGroupPurchaseOrders(group);
+                const poMap = new Map(groupPOs.map(po => [String(po?.poNumber || po?.poId || '').trim(), po]));
+                const groupPONumbers = [...poMap.keys()].filter(Boolean);
+                const poHtml = groupPONumbers.length
+                    ? groupPONumbers.map(poNumber => {
+                        const po = poMap.get(poNumber);
+                        return `<button type="button" onclick='openPODetailModal(${JSON.stringify(po?.poId || '')})' class="inline-flex items-center px-2.5 py-1 rounded-full bg-white text-indigo-700 border border-indigo-200 hover:bg-indigo-50 text-[11px] font-semibold">PO: ${escapeHTML(poNumber)}</button>`;
+                    }).join(' ')
+                    : '<span class="inline-flex items-center px-2.5 py-1 rounded-full bg-slate-100 text-slate-500 border border-slate-200 text-[11px] font-semibold">PO: Chưa có PO</span>';
+
                 tbody.innerHTML += `
-                    <tr class="bg-indigo-50/70 border-b border-indigo-100">
-                        <td colspan="11" class="py-3 px-4">
-                            <div class="flex flex-wrap items-center justify-between gap-2">
-                                <div class="flex flex-wrap items-center gap-2">
-                                    <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-600 text-white text-xs font-bold">
-                                        📦 ${escapeHTML(group.orderGroupId)}
-                                    </span>
-                                    <span class="text-xs font-semibold text-slate-800">From: ${escapeHTML(group.restaurant || '-')}</span>
-                                    <span class="text-xs text-slate-500">•</span>
-                                    <span class="text-xs text-slate-600">${escapeHTML(formatDateVN(group.date))}</span>
-                                    <span class="text-xs text-slate-500">•</span>
-                                    <span class="text-xs font-semibold text-slate-700">${group.items.length} mặt hàng</span>
-                                    <span class="text-[11px] px-2 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 font-semibold">${placedSummary.label}</span>
-                                    ${group.contractNo ? `<span class="text-[11px] px-2 py-1 rounded-full bg-white text-indigo-700 border border-indigo-100 font-semibold">${escapeHTML(group.contractNo)}</span>` : ''}
+                    <tr class="bg-indigo-50/80 border-b border-indigo-100">
+                        <td colspan="11" class="py-3.5 px-4">
+                            <div class="flex flex-wrap items-start justify-between gap-3">
+                                <div class="min-w-0">
+                                    <div class="flex flex-wrap items-center gap-2">
+                                        <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-indigo-600 text-white text-xs font-bold">📦 ${escapeHTML(group.orderGroupId)}</span>
+                                        <span class="text-sm font-bold text-slate-900">From: ${escapeHTML(group.restaurant || '-')}</span>
+                                        <span class="text-xs text-slate-500">• ${escapeHTML(formatDateVN(group.date))}</span>
+                                    </div>
+                                    <div class="flex flex-wrap items-center gap-2 mt-2">
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-white text-slate-700 border border-slate-200 text-[11px] font-semibold">${group.items.length} mặt hàng</span>
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 text-[11px] font-semibold">${placedSummary.placed} Đã đặt</span>
+                                        <span class="inline-flex items-center px-2.5 py-1 rounded-full bg-rose-50 text-rose-700 border border-rose-100 text-[11px] font-semibold">${placedSummary.total - placedSummary.placed} Chưa đặt</span>
+                                        <span class="text-[11px] font-semibold text-slate-400">${placedPct}% hoàn tất</span>
+                                        <div class="flex flex-wrap items-center gap-1.5">${poHtml}</div>
+                                    </div>
                                 </div>
-                                <span class="text-[11px] text-slate-500">${escapeHTML(group.supplier || 'Chưa chọn NCC')}</span>
                             </div>
                         </td>
                     </tr>
@@ -4634,33 +4715,37 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
                 group.items.forEach((o, idx) => {
                     stt += 1;
+                    const isPlaced = o?.orderPlaced === true;
+                    const rowClass = isPlaced
+                        ? `hover:bg-slate-50/80 transition ${idx === 0 ? 'border-t-2 border-indigo-100' : ''}`
+                        : `bg-rose-50/60 hover:bg-rose-50 transition border-l-4 border-rose-400 ${idx === 0 ? 'border-t-2 border-indigo-100' : ''}`;
                     const checked = selectedOrderItemIds.has(String(o.id)) ? 'checked' : '';
+                    const currentPO = getPurchaseOrderForItem(o);
+                    const poCell = currentPO
+                        ? `<button type="button" onclick='openPODetailModal(${JSON.stringify(currentPO.poId)})' class="inline-flex items-center px-2 py-1 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 hover:bg-indigo-100 text-[11px] font-semibold">${escapeHTML(currentPO.poNumber || currentPO.poId)}</button>`
+                        : '<span class="text-slate-400">Chưa có</span>';
+                    const statusBadge = isPlaced
+                        ? '<span class="inline-flex items-center px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100 text-[10px] font-semibold">🟢 Đã đặt</span>'
+                        : '<span class="inline-flex items-center px-2 py-0.5 rounded-full bg-rose-100 text-rose-700 border border-rose-200 text-[10px] font-bold">🔴 Chưa đặt</span>';
+
                     tbody.innerHTML += `
-                        <tr class="hover:bg-slate-50/80 transition ${idx === 0 ? 'border-t-2 border-indigo-100' : ''}">
+                        <tr class="${rowClass}">
                             <td class="py-3 px-4 text-center">
-                                <input type="checkbox" class="order-item-select w-4 h-4 accent-indigo-600" data-order-id="${escapeHTMLAttribute(o.id)}" ${checked}
-                                    onchange="toggleOrderItemSelection(this.dataset.orderId, this.checked)" title="Chọn mặt hàng">
+                                <input type="checkbox" class="order-item-select w-4 h-4 accent-indigo-600" data-order-id="${escapeHTMLAttribute(o.id)}" ${checked} onchange="toggleOrderItemSelection(this.dataset.orderId, this.checked)" title="Chọn mặt hàng">
                             </td>
                             <td class="py-3 px-4 font-medium text-slate-500 text-xs">${stt}</td>
-                            <td class="py-3 px-4 text-xs font-semibold text-indigo-700 whitespace-nowrap">
-                                <span class="inline-flex items-center space-x-1 bg-indigo-50 px-2 py-1 rounded border border-indigo-100">
-                                    <i data-lucide="calendar" class="w-3 h-3 text-indigo-500"></i>
-                                    <span>${formatDateVN(o.date)}</span>
-                                </span>
+                            <td class="py-3 px-4 text-xs font-semibold text-indigo-700 whitespace-nowrap"><span class="inline-flex items-center space-x-1 bg-indigo-50 px-2 py-1 rounded border border-indigo-100"><i data-lucide="calendar" class="w-3 h-3 text-indigo-500"></i><span>${escapeHTML(formatDateVN(o.date))}</span></span></td>
+                            <td class="py-3 px-4 font-semibold ${isPlaced ? 'text-slate-800' : 'text-rose-700'}">
+                                <div>${escapeHTML(o.item || '-')}</div>
+                                <div class="flex flex-wrap items-center gap-1.5 mt-1">${statusBadge}${o.orderNumber ? `<span class="text-[10px] text-slate-400">${escapeHTML(o.orderNumber)}</span>` : ''}</div>
                             </td>
-                            <td class="py-3 px-4 font-semibold text-slate-800">
-                                ${escapeHTML(o.item)}
-                                <div class="text-[11px] text-slate-400 font-normal">PO: ${escapeHTML(getOrderGroupId(o))}</div>
-                            </td>
-                            <td class="py-3 px-4 text-slate-600">${escapeHTML(o.unit)}</td>
-                            <td class="py-3 px-4 font-bold text-indigo-600">${o.qty}</td>
-                            <td class="py-3 px-4 text-slate-600">${escapeHTML(o.area)}</td>
+                            <td class="py-3 px-4 text-slate-600">${escapeHTML(o.unit || '-')}</td>
+                            <td class="py-3 px-4 font-bold text-indigo-600">${Number.isFinite(Number(o.qty)) ? escapeHTML(String(o.qty)) : '-'}</td>
+                            <td class="py-3 px-4 text-slate-600">${escapeHTML(o.area || '-')}</td>
                             <td class="py-3 px-4 text-slate-500 text-xs">${escapeHTML(o.note || '-')}</td>
                             <td class="py-3 px-4 text-slate-600">${escapeHTML(o.by || '-')}</td>
-                            <td class="py-3 px-4 text-right space-x-2 whitespace-nowrap">
-                                <button onclick="editOrder(${JSON.stringify(o.id)})" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Sửa</button>
-                                <button onclick="deleteOrder(${JSON.stringify(o.id)})" class="text-rose-600 hover:text-rose-800 text-xs font-medium">Xóa</button>
-                            </td>
+                            <td class="py-3 px-4 text-xs">${poCell}</td>
+                            <td class="py-3 px-4 text-right space-x-2 whitespace-nowrap"><button onclick="editOrder(${JSON.stringify(o.id)})" class="text-indigo-600 hover:text-indigo-800 text-xs font-medium">Sửa</button><button onclick="deleteOrder(${JSON.stringify(o.id)})" class="text-rose-600 hover:text-rose-800 text-xs font-medium">Xóa</button></td>
                         </tr>
                     `;
                 });
