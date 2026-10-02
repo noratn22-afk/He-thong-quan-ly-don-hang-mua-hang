@@ -365,13 +365,12 @@
                             <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-3 pointer-events-none"></i>
                             <input type="text" id="search-status" oninput="renderStatusTable()" placeholder="Tìm PO, mặt hàng, hóa đơn, NCC, From, ngày..." class="w-full pl-9 pr-4 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500">
                         </div>
-                        <select id="filter-status-stage" onchange="renderStatusTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[160px]">
+                        <select id="filter-status-stage" onchange="renderStatusTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[160px]" title="Lọc theo Giai đoạn của PO">
                             <option value="Tất cả">Tất cả giai đoạn</option>
                             <option value="SSG">SSG</option>
                             <option value="Đặt hàng">Đặt hàng</option>
                             <option value="Đã giao hàng">Đã giao hàng</option>
                             <option value="Phát hành Hóa đơn">Phát hành Hóa đơn</option>
-                            <option value="Làm ĐNTT">Làm ĐNTT</option>
                         </select>
                         <select id="filter-status-po" onchange="renderStatusTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[210px]">
                             <option value="Tất cả PO">Tất cả PO</option>
@@ -2203,6 +2202,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
         // order.id remains the item ID; purchaseOrderId links item -> PO.
         // ==========================================================
         const PURCHASE_ORDER_STATUSES = ['Draft', 'Đã gửi NCC', 'Đang giao', 'Hoàn thành', 'Đã hủy', 'Invalid'];
+        const PURCHASE_ORDER_STAGES = ['SSG', 'Đặt hàng', 'Đã giao hàng', 'Phát hành Hóa đơn'];
         let orderPlacementSelectedIds = new Set();
         // UI-only state for the multi-item confirmation modal. The business source of truth remains orders[].
         let orderPlacementConfirmState = {
@@ -2230,6 +2230,8 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const normalizedStatus = ['test', 'cancelled', 'canceled', 'invalid'].includes(statusKey)
                 ? 'Invalid'
                 : (PURCHASE_ORDER_STATUSES.includes(rawStatus) ? rawStatus : 'Draft');
+            const rawStage = String(source.stage || '').trim();
+            const normalizedStage = PURCHASE_ORDER_STAGES.includes(rawStage) ? rawStage : 'SSG';
             return {
                 ...source,
                 poId,
@@ -2243,6 +2245,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 invoiceNo: String(source.invoiceNo ?? '').trim(),
                 invoiceDate: source.invoiceDate ? (function(){ try { const r=parseExcelDate(source.invoiceDate); return r.valid ? r.value : ''; } catch(e){ return ''; } })() : '',
                 status: normalizedStatus,
+                stage: normalizedStage,
                 sentAt: String(source.sentAt || ''),
                 sentBy: String(source.sentBy || '')
             };
@@ -2711,6 +2714,43 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             openPODetailModal(poId);
         }
 
+        function getPurchaseOrderStage(po) {
+            if (!po) return 'SSG';
+            const raw = String(po.stage || '').trim();
+            return PURCHASE_ORDER_STAGES.includes(raw) ? raw : 'SSG';
+        }
+
+        function renderPurchaseOrderStageControl(po) {
+            if (!po) return '';
+            const poId = String(po.poId || '');
+            const current = getPurchaseOrderStage(po);
+            return `
+                <label class="inline-flex items-center gap-2 px-2.5 py-1.5 rounded-lg bg-white border border-slate-200">
+                    <span class="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Giai đoạn</span>
+                    <select class="px-2 py-1.5 border border-slate-300 rounded-lg text-xs font-semibold bg-white text-slate-800 focus:outline-none focus:ring-2 focus:ring-indigo-500" data-po-stage-id="${escapeHTMLAttribute(poId)}" onchange='updatePurchaseOrderStage(${JSON.stringify(poId)}, this.value)'>
+                        ${PURCHASE_ORDER_STAGES.map(stage => `<option value="${escapeHTMLAttribute(stage)}" ${stage === current ? 'selected' : ''}>${escapeHTML(stage)}</option>`).join('')}
+                    </select>
+                </label>
+            `;
+        }
+
+        function updatePurchaseOrderStage(poId, stage) {
+            const po = getPurchaseOrderById(poId);
+            if (!po) return;
+            const requested = String(stage || '').trim();
+            const nextStage = PURCHASE_ORDER_STAGES.includes(requested) ? requested : 'SSG';
+            const currentStage = getPurchaseOrderStage(po);
+            if (currentStage === nextStage && po.stage === nextStage) return;
+            po.stage = nextStage;
+            po.stageChangedAt = getNowISO();
+            syncPurchaseOrderReferences();
+            syncAllPurchaseOrderStatuses();
+            saveToStorage().then(saved => {
+                if (saved === false) return;
+                renderAll();
+            });
+        }
+
         function sendPurchaseOrderToSupplier(poId) {
             const po = getPurchaseOrderById(poId);
             if (!po) return;
@@ -2905,9 +2945,6 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             if (!['ĐNMH', 'Hợp đồng'].includes(selectedType)) {
                 return { ok: false, reason: 'Chưa chọn Hình thức mua hàng' };
             }
-            if (item.stage === 'Đã giao hàng') {
-                return { ok: false, reason: 'Đã giao hàng' };
-            }
 
             const actualPO = getStatusPOForItem(item);
             const actuallyPlaced = isOrderActuallyPlaced(item);
@@ -2925,6 +2962,10 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                     return { ok: false, reason: `Hình thức hiện tại là ${storedType}` };
                 }
                 return { ok: true, reason: 'Đã mua • chưa có PO' };
+            }
+
+            if (item.stage === 'Đã giao hàng') {
+                return { ok: false, reason: 'Đã giao hàng' };
             }
 
             const base = canItemJoinPurchaseOrder(item);
@@ -3279,7 +3320,9 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const selected = [...orderPlacementSelectedIds].map(id => String(id));
             const usable = selected.filter(id => {
                 const item = orders.find(o => String(o.id) === id);
-                return !!item && !getStatusPOForItem(item) && item.stage !== 'Đã giao hàng';
+                // This action is only for the recovery path: already-purchased items
+                // without a PO are being grouped into a PO, not bought again.
+                return !!item && !getStatusPOForItem(item) && (item.orderPlaced === true || item.stage !== 'Đã giao hàng');
             });
             if (!usable.length) {
                 alert('Vui lòng tick ít nhất một mặt hàng Chưa có PO.');
@@ -4038,7 +4081,8 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                         itemIds: [],
                         invoiceNo: '',
                         invoiceDate: '',
-                        status: 'Draft'
+                        status: 'Draft',
+                        stage: 'Đặt hàng'
                     };
                     po.orderGroupId = po.orderGroupId || group.orderGroupId;
                     po.itemIds = [...new Set([...getPurchaseOrderItemIds(po), ...group.items.map(o => String(o.id))])];
@@ -8698,7 +8742,21 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
         let statusPOInvoiceEditState = new Set();
 
         function normalizeStatusItemSearchText(value) {
-            let text = normalizeSearchText(value);
+            let text = String(value ?? '')
+                .replace(/\u00A0/g, ' ')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/[–—−]/g, '-')
+                .replace(/\s*[-–—−]\s*/g, ' - ')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            // Ignore accidental surrounding quotation marks in the search box.
+            text = text.replace(/^[\"'“”‘’]+|[\"'“”‘’]+$/g, '').trim();
+
+            // Keep common unit/decimal variants equivalent without collapsing
+            // otherwise different item names. Examples: 1 m = 1m, 1,5m = 1.5m.
             return text
                 .replace(/(\d)\s+(?=[a-z])/g, '$1')
                 .replace(/(\d),(?=\d)/g, '$1.')
@@ -8742,26 +8800,107 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             return tokens.length > 0 && tokens.every(token => statusItemTokenMatches(itemName, token));
         }
 
-        function getStatusPOForItem(item) {
-            if (!item) return null;
-            const direct = getPurchaseOrderForItem(item);
-            if (direct && !['Invalid', 'Đã hủy'].includes(String(direct.status || '').trim())) return direct;
+        function getStatusPOItemIdSet(po) {
+            const ids = new Set();
+            const rawIds = Array.isArray(po?.itemIds) ? po.itemIds : [];
+            rawIds.forEach(value => {
+                if (value && typeof value === 'object') {
+                    [value.id, value.itemId, value.orderId, value.orderItemId].forEach(candidate => {
+                        const key = String(candidate ?? '').trim();
+                        if (key) ids.add(key);
+                    });
+                } else {
+                    const key = String(value ?? '').trim();
+                    if (key) ids.add(key);
+                }
+            });
+            return ids;
+        }
 
-            // Legacy-safe read-only recovery from PO.itemIds when item-level link is absent.
-            const itemId = String(item.id);
-            return (Array.isArray(purchaseOrders) ? purchaseOrders : []).find(po =>
-                !['Invalid', 'Đã hủy'].includes(String(po?.status || '').trim()) &&
-                getPurchaseOrderItemIds(po).includes(itemId)
-            ) || null;
+        function getStatusPOsForItem(item) {
+            if (!item) return [];
+            const found = [];
+            const seen = new Set();
+            const add = (po) => {
+                if (!po) return;
+                if (['Invalid', 'Đã hủy'].includes(String(po.status || '').trim())) return;
+                const id = String(po.poId ?? '').trim();
+                if (!id || seen.has(id)) return;
+                seen.add(id);
+                found.push(po);
+            };
+
+            // 1) Canonical item -> PO relation. In legacy data the stored
+            // purchaseOrderId may point to either poId or poNumber, so resolve
+            // both without mutating any data.
+            const linkedRef = String(item?.purchaseOrderId ?? '').trim();
+            if (linkedRef) {
+                add(getPurchaseOrderById(linkedRef));
+                const byNumber = (Array.isArray(purchaseOrders) ? purchaseOrders : [])
+                    .find(po => String(po?.poNumber ?? '').trim() === linkedRef);
+                add(byNumber || null);
+            }
+
+            // 2) Existing helper, when available, remains the canonical lookup.
+            add(getPurchaseOrderForItem(item));
+
+            // 3) Reverse relationship fallback: PO.itemIds may be the only valid
+            // relationship in old/inconsistent data. Scan all POs so an item can
+            // resolve to every PO that references its id.
+            const itemId = String(item?.id ?? '').trim();
+            if (itemId) {
+                (Array.isArray(purchaseOrders) ? purchaseOrders : []).forEach(po => {
+                    if (getStatusPOItemIdSet(po).has(itemId)) add(po);
+                });
+            }
+
+            return found;
+        }
+
+        function getStatusPOForItem(item) {
+            return getStatusPOsForItem(item)[0] || null;
         }
 
         function getStatusPOIdsForMatchingItems(items) {
             const ids = new Set();
             (Array.isArray(items) ? items : []).forEach(item => {
-                const po = getStatusPOForItem(item);
-                if (po?.poId) ids.add(String(po.poId));
+                getStatusPOsForItem(item).forEach(po => {
+                    if (po?.poId) ids.add(String(po.poId));
+                });
             });
             return ids;
+        }
+
+        function getStatusPOItemsForDisplay(po) {
+            if (!po) return [];
+            const poId = String(po.poId ?? '').trim();
+            const rawIds = getStatusPOItemIdSet(po);
+            const result = [];
+            const seen = new Set();
+
+            // Primary helper remains the existing canonical source.
+            getPurchaseOrderItems(po).forEach(item => {
+                const key = String(item?.id ?? '').trim();
+                if (key && !seen.has(key)) {
+                    seen.add(key);
+                    result.push(item);
+                }
+            });
+
+            // Add items that are linked from the item side even when PO.itemIds is
+            // stale/incomplete. This is read-only display recovery for Tab 4.
+            (Array.isArray(orders) ? orders : []).forEach(item => {
+                const key = String(item?.id ?? '').trim();
+                if (!key || seen.has(key)) return;
+                const directLinked = poId && String(item?.purchaseOrderId ?? '').trim() === poId;
+                const reverseLinked = rawIds.has(key);
+                if (directLinked || reverseLinked) {
+                    seen.add(key);
+                    result.push(item);
+                }
+            });
+
+            return result;
         }
 
         function hasStatusPOQueryMatch(po, query) {
@@ -8779,12 +8918,14 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const fields = [
                 po?.invoiceNo,
                 po?.invoiceDate,
-                formatDateVN(po?.invoiceDate),
-                order?.invoiceNo,
-                order?.invoiceDate,
-                formatDateVN(order?.invoiceDate)
-            ].map(normalizeStatusItemSearchText).filter(Boolean);
-            return fields.some(field => field === q || (q.length >= 3 && field.includes(q)));
+                formatDateVN(po?.invoiceDate)
+            ];
+            // Legacy fallback is limited to items without a resolved PO.
+            if (!po) {
+                fields.push(order?.invoiceNo, order?.invoiceDate, formatDateVN(order?.invoiceDate));
+            }
+            return fields.map(normalizeStatusItemSearchText).filter(Boolean)
+                .some(field => field === q || (q.length >= 3 && field.includes(q)));
         }
 
         function getStatusDocumentFields(order, po) {
@@ -8885,44 +9026,59 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
             if (!q) {
                 list.forEach(item => {
-                    const po = getStatusPOForItem(item);
-                    if (po?.poId) matchedPOIds.add(String(po.poId));
+                    const pos = getStatusPOsForItem(item);
+                    if (pos.length) pos.forEach(po => matchedPOIds.add(String(po.poId)));
                     else matchingItems.push(item);
                 });
                 return { matchingItems, matchedPOIds, matchedItemIds };
             }
 
             if (searchMode === 'ITEM') {
-                list.forEach(item => {
-                    if (!matchesStatusItemName(item, q)) return;
-                    matchedItemIds.add(String(item.id));
-                    const po = getStatusPOForItem(item);
-                    if (po?.poId) matchedPOIds.add(String(po.poId));
-                    else matchingItems.push(item);
+                // Exact-match priority is resolved BEFORE token matching. If one or
+                // more exact item names exist, only those exact items are eligible;
+                // near variants such as 1.2m / 1.5m are intentionally excluded.
+                const normalizedQuery = normalizeStatusItemSearchText(q);
+                const exactMatches = list.filter(item =>
+                    normalizeStatusItemSearchText(item?.item || '') === normalizedQuery
+                );
+                const candidates = exactMatches.length ? exactMatches : list.filter(item => matchesStatusItemName(item, q));
+
+                candidates.forEach(item => {
+                    matchedItemIds.add(String(item?.id ?? ''));
+                    const pos = getStatusPOsForItem(item);
+                    if (pos.length) {
+                        pos.forEach(po => matchedPOIds.add(String(po.poId)));
+                    } else {
+                        matchingItems.push(item);
+                    }
                 });
                 return { matchingItems, matchedPOIds, matchedItemIds };
             }
 
             list.forEach(item => {
-                const po = getStatusPOForItem(item);
+                const pos = getStatusPOsForItem(item);
+                const primaryPO = pos[0] || null;
                 let match = false;
                 switch (searchMode) {
-                    case 'PO': match = hasStatusPOQueryMatch(po, q); break;
-                    case 'SUPPLIER': match = hasStatusSupplierQueryMatch(item, po, q); break;
-                    case 'DOCUMENT': match = hasStatusDocumentQueryMatch(item, po, q) || hasStatusInvoiceQueryMatch(po, item, q); break;
+                    case 'PO': match = hasStatusPOQueryMatch(primaryPO, q); break;
+                    case 'SUPPLIER': match = hasStatusSupplierQueryMatch(item, primaryPO, q); break;
+                    case 'DOCUMENT': match = hasStatusDocumentQueryMatch(item, primaryPO, q) || hasStatusInvoiceQueryMatch(primaryPO, item, q); break;
                     case 'FROM': match = hasStatusFromQueryMatch(item, q); break;
-                    case 'DATE': match = hasStatusDateQueryMatch(item, po, q); break;
+                    case 'DATE': match = hasStatusDateQueryMatch(item, primaryPO, q); break;
                 }
                 if (!match) return;
                 matchedItemIds.add(String(item.id));
-                if (po?.poId) matchedPOIds.add(String(po.poId));
-                else matchingItems.push(item);
+                if (pos.length) {
+                    pos.forEach(po => matchedPOIds.add(String(po.poId)));
+                } else {
+                    matchingItems.push(item);
+                }
             });
 
             // Direct PO record matches are important when invoice / PO metadata exist
-            // independently of item-level fields.
+            // independently of item-level fields or when PO.itemIds are the only link.
             if (['PO', 'DOCUMENT', 'SUPPLIER', 'DATE'].includes(searchMode)) {
-                purchaseOrders.forEach(po => {
+                (Array.isArray(purchaseOrders) ? purchaseOrders : []).forEach(po => {
                     if (!po || ['Invalid', 'Đã hủy'].includes(String(po.status || '').trim())) return;
                     const rawQ = normalizeStatusItemSearchText(q);
                     let match = false;
@@ -8993,6 +9149,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 delivered,
                 invoiceNo,
                 invoiceDate,
+                stage: getPurchaseOrderStage(po),
                 invoiced: !!(invoiceNo || invoiceDate),
                 orderLabels,
                 allItems: all
@@ -9008,6 +9165,15 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 'Đã hủy': 'bg-rose-50 text-rose-700 border-rose-200',
                 'Invalid': 'bg-rose-50 text-rose-700 border-rose-200'
             }[String(status || '')] || 'bg-slate-50 text-slate-600 border-slate-200';
+        }
+
+        function getPurchaseOrderStageClass(stage) {
+            return {
+                'SSG': 'bg-slate-100 text-slate-700 border-slate-200',
+                'Đặt hàng': 'bg-indigo-50 text-indigo-700 border-indigo-200',
+                'Đã giao hàng': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+                'Phát hành Hóa đơn': 'bg-violet-50 text-violet-700 border-violet-200'
+            }[String(stage || '')] || 'bg-slate-50 text-slate-600 border-slate-200';
         }
 
         function editPOInvoice(poId) {
@@ -9079,16 +9245,9 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
         function renderStatusItemRow(o, index) {
             const placed = o.orderPlaced === true;
-            const delivered = o.stage === 'Đã giao hàng';
-            const elapsedStatus = placed ? getOrderElapsedStatus(o.orderedAt) : null;
             const value = Number.isFinite(Number(o.purchaseValue))
                 ? Number(o.purchaseValue)
                 : (Number.isFinite(Number(o.purchasePrice)) && Number.isFinite(Number(o.qty)) ? Number(o.purchasePrice) * Number(o.qty) : null);
-            const stageBadge = delivered
-                ? '<span class="inline-flex items-center px-2 py-1 rounded border text-[11px] font-semibold bg-indigo-50 text-indigo-700 border-indigo-200">✓ Đã giao</span>'
-                : placed
-                    ? `<span class="inline-flex items-center px-2 py-1 rounded border text-[11px] font-semibold ${elapsedStatus?.cls || 'bg-emerald-50 text-emerald-700 border-emerald-200'}">🟢 ${escapeHTML(o.stage || 'Đặt hàng')}</span>`
-                    : '<span class="inline-flex items-center px-2 py-1 rounded border text-[11px] font-semibold bg-slate-100 text-slate-600 border-slate-200">⚪ Chưa đặt</span>';
             return `
                 <tr class="${placed ? 'bg-white' : 'bg-rose-50/40'} border-b border-slate-100 hover:bg-slate-50/80 align-top">
                     <td class="py-3 px-3 text-xs font-semibold text-slate-500 text-center">${index + 1}</td>
@@ -9102,20 +9261,106 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                         <div class="font-semibold text-slate-800">${value !== null ? escapeHTML(formatPurchaseMoney(value)) : '-'}</div>
                         ${Number.isFinite(Number(o.purchasePrice)) ? `<div class="text-[10px] text-slate-400 mt-0.5">Đơn giá: ${escapeHTML(formatPurchaseMoney(o.purchasePrice))}</div>` : ''}
                     </td>
-                    <td class="py-3 px-3 min-w-[180px]">
-                        <div>${stageBadge}</div>
-                        ${o.stageTimes && o.stageTimes[o.stage] ? `<div class="mt-1 text-[10px] text-slate-500">Cập nhật: ${escapeHTML(formatDateTimeVN(o.stageTimes[o.stage]))}</div>` : ''}
-                        ${placed ? `<div class="text-[10px] text-indigo-600 font-medium mt-0.5">Đặt: ${o.orderedAt ? escapeHTML(formatDateTimeVN(o.orderedAt)) : 'Chưa ghi nhận'}</div>` : ''}
-                        ${delivered && o.deliveredAt ? `<div class="text-[10px] text-emerald-600 font-medium mt-0.5">Giao: ${escapeHTML(formatDateTimeVN(o.deliveredAt))}</div>` : ''}
-                    </td>
-                    <td class="py-3 px-3 text-right min-w-[120px]">
-                        <span class="text-[11px] text-emerald-600 font-medium">Đang theo dõi</span>
-                    </td>
                     <td class="py-3 px-3 text-right min-w-[150px]">
                         <button type="button" onclick="${placed ? `openOrderPlacementActions(${JSON.stringify(o.id)})` : `openOrderPlacementConfirmation(${JSON.stringify(o.id)})`}" class="inline-flex items-center px-2.5 py-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg">${placed ? 'Chi tiết' : 'Đặt hàng'}</button>
                         <button type="button" onclick="openDeliveryStatusModal(${JSON.stringify(o.id)})" class="inline-flex items-center px-2.5 py-1.5 mt-1 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg border border-slate-200">Giao hàng</button>
                     </td>
                 </tr>
+            `;
+        }
+
+        function renderStatusPOStageCell(po, info, itemCount) {
+            if (!po) return '';
+            const stage = getPurchaseOrderStage(po);
+            const placedPct = itemCount ? Math.round((info.placed / itemCount) * 100) : 0;
+            const deliveredPct = itemCount ? Math.round((info.delivered / itemCount) * 100) : 0;
+            return `
+                <td class="py-3 px-3 align-top min-w-[220px] bg-slate-50/60 border-l border-slate-100 border-r border-slate-100" rowspan="${Math.max(1, itemCount)}">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-slate-500 mb-2">Trạng thái (Giai đoạn)</div>
+                    ${renderPurchaseOrderStageControl(po)}
+                    <div class="mt-2">
+                        <span class="inline-flex items-center px-2 py-1 rounded-lg border text-[10px] font-bold ${getPurchaseOrderStageClass(stage)}">
+                            Giai đoạn hiện tại: ${escapeHTML(stage)}
+                        </span>
+                    </div>
+                    <div class="mt-3 space-y-1.5 text-[10px] text-slate-600">
+                        <div class="flex items-center justify-between gap-2"><span>Đặt hàng</span><strong class="text-indigo-700">${info.placed}/${itemCount}</strong></div>
+                        <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-indigo-500" style="width:${placedPct}%"></div></div>
+                        <div class="flex items-center justify-between gap-2"><span>Đã giao</span><strong class="text-emerald-700">${info.delivered}/${itemCount}</strong></div>
+                        <div class="w-full h-1.5 bg-slate-200 rounded-full overflow-hidden"><div class="h-full bg-emerald-500" style="width:${deliveredPct}%"></div></div>
+                    </div>
+                </td>
+            `;
+        }
+
+        function renderStatusPOInvoiceCell(po, items) {
+            if (!po) return '';
+            const poId = String(po.poId || '');
+            const safeId = poId.replace(/[^a-zA-Z0-9_-]/g, '_');
+            const invoiceNo = String(po.invoiceNo ?? '').trim();
+            const invoiceDate = normalizeInvoiceDateValue(po.invoiceDate);
+            const stage = getPurchaseOrderStage(po);
+            const hasInvoice = !!(invoiceNo || invoiceDate);
+            const legacyConsistency = getLegacyPOInvoiceConsistency(po, items);
+            const editing = statusPOInvoiceEditState.has(poId);
+            const warning = legacyConsistency.hasLegacy && !legacyConsistency.consistent && !invoiceNo && !invoiceDate
+                ? `<div class="mt-2 px-2.5 py-2 rounded-lg border border-amber-200 bg-amber-50 text-[10px] text-amber-800">Dữ liệu invoice cũ ở item không đồng nhất.</div>`
+                : '';
+
+            if (editing) {
+                return `
+                    <td class="py-3 px-3 align-top min-w-[270px] bg-violet-50/45 border-r border-slate-100" rowspan="${Math.max(1, items.length)}">
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-violet-800">Thông tin Hóa đơn</div>
+                        <div class="mt-1 text-[10px] text-violet-700 font-semibold">Chỉnh sửa thông tin ở cấp PO</div>
+                        <div class="mt-2 space-y-2">
+                            <label class="block text-[10px] text-slate-600">Số HĐ
+                                <input id="po-invoice-no-${safeId}" type="text" value="${escapeHTMLAttribute(invoiceNo)}" placeholder="Nhập số hóa đơn" class="mt-1 w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white">
+                            </label>
+                            <label class="block text-[10px] text-slate-600">Ngày HĐ
+                                <input id="po-invoice-date-${safeId}" type="date" value="${escapeHTMLAttribute(invoiceDate)}" class="mt-1 w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white">
+                            </label>
+                            <div class="flex flex-wrap gap-1.5">
+                                <button type="button" onclick='savePOInvoice(${JSON.stringify(poId)})' class="px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-semibold rounded-lg">Lưu hóa đơn</button>
+                                <button type="button" onclick='cancelPOInvoiceEdit(${JSON.stringify(poId)})' class="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-slate-700 text-[10px] font-semibold rounded-lg border border-slate-200">Hủy</button>
+                            </div>
+                        </div>
+                        ${warning}
+                    </td>
+                `;
+            }
+
+            if (!hasInvoice) {
+                const invoiceState = stage === 'Phát hành Hóa đơn'
+                    ? `<div class="inline-flex items-center px-2 py-1 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-bold">⚠ Chưa có thông tin hóa đơn</div>
+                       <button type="button" onclick='editPOInvoice(${JSON.stringify(poId)})' class="mt-2 px-2.5 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-semibold rounded-lg">+ Nhập Hóa đơn</button>`
+                    : `<div class="inline-flex items-center px-2 py-1 rounded-lg bg-slate-50 text-slate-600 border border-slate-200 text-[10px] font-semibold">Chưa phát hành</div>
+                       <div class="mt-2 text-[10px] text-slate-400">Khi PO chuyển sang “Phát hành Hóa đơn”, có thể nhập hóa đơn tại đây.</div>`;
+                return `
+                    <td class="py-3 px-3 align-top min-w-[270px] bg-violet-50/45 border-r border-slate-100" rowspan="${Math.max(1, items.length)}">
+                        <div class="text-[10px] font-bold uppercase tracking-wider text-violet-800">Thông tin Hóa đơn</div>
+                        <div class="mt-2">${invoiceState}</div>
+                        ${warning}
+                    </td>
+                `;
+            }
+
+            return `
+                <td class="py-3 px-3 align-top min-w-[270px] bg-violet-50/45 border-r border-slate-100" rowspan="${Math.max(1, items.length)}">
+                    <div class="text-[10px] font-bold uppercase tracking-wider text-violet-800">Thông tin Hóa đơn</div>
+                    <div class="mt-2 flex items-center gap-1.5">
+                        <span class="inline-flex items-center px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">✓ Đã có hóa đơn</span>
+                    </div>
+                    <div class="mt-2 rounded-lg bg-white border border-violet-100 p-2.5 space-y-1.5 text-xs text-slate-700">
+                        <div><span class="text-slate-500">Số HĐ:</span> <strong>${escapeHTML(invoiceNo || '-')}</strong></div>
+                        <div><span class="text-slate-500">Ngày HĐ:</span> <strong>${escapeHTML(invoiceDate ? formatDateVN(invoiceDate) : '-')}</strong></div>
+                    </div>
+                    <div class="flex flex-wrap gap-1.5 mt-2">
+                        <button type="button" onclick='viewPOInvoice(${JSON.stringify(poId)})' class="px-2.5 py-1.5 bg-white hover:bg-violet-50 text-violet-700 text-[10px] font-semibold rounded-lg border border-violet-200">Xem HĐ</button>
+                        <button type="button" onclick='editPOInvoice(${JSON.stringify(poId)})' class="px-2.5 py-1.5 bg-white hover:bg-slate-50 text-indigo-700 text-[10px] font-semibold rounded-lg border border-indigo-200">Sửa HĐ</button>
+                        <button type="button" onclick='deletePOInvoice(${JSON.stringify(poId)})' class="px-2.5 py-1.5 bg-white hover:bg-rose-50 text-rose-700 text-[10px] font-semibold rounded-lg border border-rose-200">Xóa</button>
+                    </div>
+                    ${warning}
+                </td>
             `;
         }
 
@@ -9168,13 +9413,25 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             `;
         }
 
+        function renderStatusPORows(po, visibleItems, info, allItems) {
+            const rows = Array.isArray(visibleItems) ? visibleItems : [];
+            if (!rows.length) return '';
+            return rows.map((o, idx) => {
+                const rowHtml = renderStatusItemRow(o, idx);
+                const rowOpen = rowHtml.replace(/\s*<\/tr>\s*$/, '');
+                if (idx !== 0 || !po) return `${rowOpen}</tr>`;
+                return `${rowOpen}${renderStatusPOStageCell(po, info, rows.length)}${renderStatusPOInvoiceCell(po, allItems)}<\/tr>`;
+            }).join('');
+        }
+
         function renderStatusPOBlock(po, visibleItems, options = {}) {
             const isNoPO = !po;
-            const allItems = isNoPO ? visibleItems : getPurchaseOrderItems(po);
+            const allItems = isNoPO ? visibleItems : getStatusPOItemsForDisplay(po);
             const info = getStatusPOHeaderInfo(po, visibleItems, allItems);
             const poNumber = po?.poNumber || po?.poId || 'Chưa có PO';
             const status = po?.status || 'Draft';
             const statusClass = getStatusPOStatusClass(status);
+            const stage = info.stage || 'SSG';
             const orderLabels = info.orderLabels;
             const visibleLabel = info.visibleCount === info.total ? `${info.total} mặt hàng` : `${info.total} mặt hàng • ${info.visibleCount} đang hiển thị`;
             const orderHtml = orderLabels.length ? `<div class="flex flex-wrap gap-1.5 mt-2">${orderLabels.map(label => `<span class="inline-flex items-center px-2 py-1 rounded-lg bg-white/80 border border-slate-200 text-[11px] text-slate-600"><span class="font-semibold text-slate-700 mr-1">Order:</span>${escapeHTML(label)}</span>`).join('')}</div>` : '';
@@ -9202,10 +9459,10 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                                 ${orderHtml}
                             </div>
                             <div class="flex flex-wrap items-center lg:justify-end gap-1.5 text-xs">
-                                ${!isNoPO ? `<span class="px-2.5 py-1 rounded-lg bg-white border border-indigo-100 text-[10px] font-bold text-indigo-700">Đặt hàng: ${info.placed}/${info.total}</span><span class="px-2.5 py-1 rounded-lg bg-white border border-emerald-100 text-[10px] font-bold text-emerald-700">Giao hàng: ${info.delivered}/${info.total}</span>` : ''}
+                                ${!isNoPO ? `<span class="px-2.5 py-1 rounded-lg ${getPurchaseOrderStageClass(stage)} text-[10px] font-bold">Giai đoạn: ${escapeHTML(stage)}</span><span class="px-2.5 py-1 rounded-lg bg-white border border-indigo-100 text-[10px] font-bold text-indigo-700">Đặt hàng: ${info.placed}/${info.total}</span><span class="px-2.5 py-1 rounded-lg bg-white border border-emerald-100 text-[10px] font-bold text-emerald-700">Giao hàng: ${info.delivered}/${info.total}</span>` : ''}
                             </div>
                         </div>
-                        ${!isNoPO ? renderPOInvoicePanel(po, allItems) : ''}
+                        ${!isNoPO ? `<div class="mt-3 text-[10px] text-slate-500">Hóa đơn được quản lý ở cấp PO và hiển thị trong cột <strong class="text-violet-700">Thông tin Hóa đơn</strong>.</div>` : ''}
                         ${actionHtml}
                     </div>
 
@@ -9221,12 +9478,13 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                                     <th class="py-2.5 px-3 text-right">SL</th>
                                     <th class="py-2.5 px-3">NCC</th>
                                     <th class="py-2.5 px-3 text-right">Giá mua</th>
-                                    <th class="py-2.5 px-3">Giai đoạn</th>
+                                    <th class="py-2.5 px-3">Trạng thái (Giai đoạn)</th>
+                                    <th class="py-2.5 px-3">Thông tin Hóa đơn</th>
                                     <th class="py-2.5 px-3 text-right">Thao tác</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100">
-                                ${visibleItems.map((o, idx) => renderStatusItemRow(o, idx)).join('')}
+                                ${renderStatusPORows(po, visibleItems, info, allItems)}
                             </tbody>
                         </table>
                     </div>
@@ -9285,8 +9543,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const subtitle = purchased
                 ? 'Các item đã đặt mua nhưng chưa có PO. Tick để gom vào PO mà không đặt mua lại.'
                 : 'Các item chưa đặt mua và chưa có PO.';
-            const selectableItems = items.filter(item => item.stage !== 'Đã giao hàng');
-            const selectedCount = selectableItems.filter(item => orderPlacementSelectedIds.has(String(item.id))).length;
+            const selectedCount = items.filter(item => orderPlacementSelectedIds.has(String(item.id))).length;
             return `
                 <section class="bg-white rounded-xl border ${purchased ? 'border-indigo-200' : 'border-amber-200'} shadow-sm overflow-hidden">
                     <div class="px-4 py-4 ${purchased ? 'bg-indigo-50/70' : 'bg-amber-50/70'} border-b border-slate-200">
@@ -9323,7 +9580,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                             <tbody class="divide-y divide-slate-100">
                                 ${items.map((o, idx) => {
                                     const checked = orderPlacementSelectedIds.has(String(o.id));
-                                    const disabled = o.stage === 'Đã giao hàng';
+                                    const disabled = o.orderPlaced !== true && o.stage === 'Đã giao hàng';
                                     const price = Number.isFinite(Number(o.purchasePrice)) ? formatPurchaseMoney(o.purchasePrice) : '-';
                                     const placedAt = o.orderedAt ? formatDateTimeVN(o.orderedAt) : '';
                                     return `
@@ -9378,12 +9635,40 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 });
 
             const hasSearch = !!search;
-            const isNoPOFilter = ['Chưa có PO', 'Chưa tạo PO'].includes(filterPO);
-            const isPurchasedNoPOFilter = filterPO === 'Đã mua – Chưa có PO';
-            const isNotPurchasedFilter = filterPO === 'Chưa mua';
-            const isHasPOFilter = ['Đã có PO', 'Đã tạo PO'].includes(filterPO);
-            const isStatusPOFilter = ['Đã gửi NCC', 'Đang giao', 'Hoàn thành'].includes(filterPO);
-            const isConcretePO = !['Tất cả PO', 'Đã có PO', 'Đã tạo PO', 'Chưa có PO', 'Chưa tạo PO', 'Đã mua – Chưa có PO', 'Chưa mua', 'Đã gửi NCC', 'Đang giao', 'Hoàn thành'].includes(filterPO);
+            let effectiveFilterPO = filterPO;
+            const isConcretePOValue = value => !['Tất cả PO', 'Đã có PO', 'Đã tạo PO', 'Chưa có PO', 'Chưa tạo PO', 'Đã mua – Chưa có PO', 'Chưa mua', 'Đã gửi NCC', 'Đang giao', 'Hoàn thành'].includes(value);
+            let isConcretePO = isConcretePOValue(effectiveFilterPO);
+
+            // A concrete PO filter should not silently suppress a newly-entered search
+            // when that search resolved to another PO (or to a no-PO item).
+            if (hasSearch && isConcretePO) {
+                const concreteKey = String(effectiveFilterPO || '').trim();
+                if (!matchedPOIds.has(concreteKey)) {
+                    const poSelect = document.getElementById('filter-status-po');
+                    if (poSelect) poSelect.value = 'Tất cả PO';
+                    effectiveFilterPO = 'Tất cả PO';
+                    isConcretePO = false;
+                }
+            }
+
+            const isNoPOFilter = ['Chưa có PO', 'Chưa tạo PO'].includes(effectiveFilterPO);
+            const isPurchasedNoPOFilter = effectiveFilterPO === 'Đã mua – Chưa có PO';
+            const isNotPurchasedFilter = effectiveFilterPO === 'Chưa mua';
+            const isHasPOFilter = ['Đã có PO', 'Đã tạo PO'].includes(effectiveFilterPO);
+            const isStatusPOFilter = ['Đã gửi NCC', 'Đang giao', 'Hoàn thành'].includes(effectiveFilterPO);
+
+            // When a new search resolves to a different PO (or to a no-PO item),
+            // do not let a stale concrete PO filter silently hide the search result.
+            // Normal non-search filtering remains unchanged.
+            if (hasSearch && isConcretePO) {
+                const concreteKey = String(effectiveFilterPO || '').trim();
+                if (!matchedPOIds.has(concreteKey)) {
+                    const poSelect = document.getElementById('filter-status-po');
+                    if (poSelect) poSelect.value = 'Tất cả PO';
+                    effectiveFilterPO = 'Tất cả PO';
+                    isConcretePO = false;
+                }
+            }
 
             const blocks = [];
             let renderedPOs = 0;
@@ -9392,8 +9677,8 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const isPOAllowedByFilter = (po) => {
                 if (!po) return false;
                 if (isNoPOFilter || isPurchasedNoPOFilter || isNotPurchasedFilter) return false;
-                if (isStatusPOFilter) return String(po.status || '') === filterPO;
-                if (isConcretePO) return getStatusPOFilterKey(po) === filterPO;
+                if (isStatusPOFilter) return String(po.status || '') === effectiveFilterPO;
+                if (isConcretePO) return getStatusPOFilterKey(po) === effectiveFilterPO;
                 return true;
             };
 
@@ -9401,23 +9686,15 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 if (hasSearch && !matchedPOIds.has(String(po.poId))) return;
                 if (!isPOAllowedByFilter(po)) return;
 
-                const allItems = getPurchaseOrderItems(po);
+                const allItems = getStatusPOItemsForDisplay(po);
                 if (!allItems.length) return;
 
-                // Stage filter is applied after the PO is identified. For ITEM search,
-                // the matched item itself must satisfy the stage filter; otherwise the
-                // search result must not manufacture a PO match from another item.
-                if (hasSearch && searchMode === 'ITEM' && filterStage !== 'Tất cả') {
-                    const hasMatchedItemAtStage = [...matchedItemIds].some(id => {
-                        const item = orders.find(o => String(o.id) === String(id));
-                        return item && getStatusPOForItem(item)?.poId === po.poId && String(item.stage || '') === filterStage;
-                    });
-                    if (!hasMatchedItemAtStage) return;
-                }
+                // Stage is managed at PO level in Tab 4. Once a PO is resolved
+                // (including ITEM search), render the whole PO instead of cutting
+                // its item list by item.stage.
+                if (filterStage !== 'Tất cả' && getPurchaseOrderStage(po) !== filterStage) return;
 
-                let visibleItems = filterStage === 'Tất cả'
-                    ? allItems
-                    : allItems.filter(item => String(item?.stage || '') === filterStage);
+                const visibleItems = allItems;
                 if (!visibleItems.length) return;
 
                 blocks.push({ type: 'PO', po, items: visibleItems });
@@ -9467,8 +9744,13 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
             if (!blocks.length) {
                 container.innerHTML = `<div class="text-center py-12 text-slate-400 text-sm">Không tìm thấy PO / mặt hàng phù hợp.</div>`;
-                console.debug('[ProcureFlow][Tab4 Search]', {
-                    query: search, searchMode, totalBefore: sortedList.length, totalAfter: 0, matchedPOs: 0
+                console.debug('[Tab4 Search]', {
+                    query: search,
+                    searchMode,
+                    matchedItems: [...matchedItemIds],
+                    matchedPOIds: [...matchedPOIds],
+                    totalBefore: sortedList.length,
+                    totalAfter: 0
                 });
                 return;
             }
@@ -9483,12 +9765,13 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 return renderStatusNoPOBlock(block.items, 'NOT_PURCHASED');
             }).join('');
 
-            console.debug('[ProcureFlow][Tab4 Search]', {
+            console.debug('[Tab4 Search]', {
                 query: search,
                 searchMode,
+                matchedItems: [...matchedItemIds],
+                matchedPOIds: [...matchedPOIds],
                 totalBefore: sortedList.length,
-                totalAfter: renderedItems,
-                matchedPOs: renderedPOs
+                totalAfter: renderedItems
             });
 
             ensureOrderPlacementTimer();
