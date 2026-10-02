@@ -8742,21 +8742,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
         let statusPOInvoiceEditState = new Set();
 
         function normalizeStatusItemSearchText(value) {
-            let text = String(value ?? '')
-                .replace(/\u00A0/g, ' ')
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .toLowerCase()
-                .replace(/[–—−]/g, '-')
-                .replace(/\s*[-–—−]\s*/g, ' - ')
-                .replace(/\s+/g, ' ')
-                .trim();
-
-            // Ignore accidental surrounding quotation marks in the search box.
-            text = text.replace(/^[\"'“”‘’]+|[\"'“”‘’]+$/g, '').trim();
-
-            // Keep common unit/decimal variants equivalent without collapsing
-            // otherwise different item names. Examples: 1 m = 1m, 1,5m = 1.5m.
+            let text = normalizeSearchText(value);
             return text
                 .replace(/(\d)\s+(?=[a-z])/g, '$1')
                 .replace(/(\d),(?=\d)/g, '$1.')
@@ -8800,107 +8786,26 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             return tokens.length > 0 && tokens.every(token => statusItemTokenMatches(itemName, token));
         }
 
-        function getStatusPOItemIdSet(po) {
-            const ids = new Set();
-            const rawIds = Array.isArray(po?.itemIds) ? po.itemIds : [];
-            rawIds.forEach(value => {
-                if (value && typeof value === 'object') {
-                    [value.id, value.itemId, value.orderId, value.orderItemId].forEach(candidate => {
-                        const key = String(candidate ?? '').trim();
-                        if (key) ids.add(key);
-                    });
-                } else {
-                    const key = String(value ?? '').trim();
-                    if (key) ids.add(key);
-                }
-            });
-            return ids;
-        }
-
-        function getStatusPOsForItem(item) {
-            if (!item) return [];
-            const found = [];
-            const seen = new Set();
-            const add = (po) => {
-                if (!po) return;
-                if (['Invalid', 'Đã hủy'].includes(String(po.status || '').trim())) return;
-                const id = String(po.poId ?? '').trim();
-                if (!id || seen.has(id)) return;
-                seen.add(id);
-                found.push(po);
-            };
-
-            // 1) Canonical item -> PO relation. In legacy data the stored
-            // purchaseOrderId may point to either poId or poNumber, so resolve
-            // both without mutating any data.
-            const linkedRef = String(item?.purchaseOrderId ?? '').trim();
-            if (linkedRef) {
-                add(getPurchaseOrderById(linkedRef));
-                const byNumber = (Array.isArray(purchaseOrders) ? purchaseOrders : [])
-                    .find(po => String(po?.poNumber ?? '').trim() === linkedRef);
-                add(byNumber || null);
-            }
-
-            // 2) Existing helper, when available, remains the canonical lookup.
-            add(getPurchaseOrderForItem(item));
-
-            // 3) Reverse relationship fallback: PO.itemIds may be the only valid
-            // relationship in old/inconsistent data. Scan all POs so an item can
-            // resolve to every PO that references its id.
-            const itemId = String(item?.id ?? '').trim();
-            if (itemId) {
-                (Array.isArray(purchaseOrders) ? purchaseOrders : []).forEach(po => {
-                    if (getStatusPOItemIdSet(po).has(itemId)) add(po);
-                });
-            }
-
-            return found;
-        }
-
         function getStatusPOForItem(item) {
-            return getStatusPOsForItem(item)[0] || null;
+            if (!item) return null;
+            const direct = getPurchaseOrderForItem(item);
+            if (direct && !['Invalid', 'Đã hủy'].includes(String(direct.status || '').trim())) return direct;
+
+            // Legacy-safe read-only recovery from PO.itemIds when item-level link is absent.
+            const itemId = String(item.id);
+            return (Array.isArray(purchaseOrders) ? purchaseOrders : []).find(po =>
+                !['Invalid', 'Đã hủy'].includes(String(po?.status || '').trim()) &&
+                getPurchaseOrderItemIds(po).includes(itemId)
+            ) || null;
         }
 
         function getStatusPOIdsForMatchingItems(items) {
             const ids = new Set();
             (Array.isArray(items) ? items : []).forEach(item => {
-                getStatusPOsForItem(item).forEach(po => {
-                    if (po?.poId) ids.add(String(po.poId));
-                });
+                const po = getStatusPOForItem(item);
+                if (po?.poId) ids.add(String(po.poId));
             });
             return ids;
-        }
-
-        function getStatusPOItemsForDisplay(po) {
-            if (!po) return [];
-            const poId = String(po.poId ?? '').trim();
-            const rawIds = getStatusPOItemIdSet(po);
-            const result = [];
-            const seen = new Set();
-
-            // Primary helper remains the existing canonical source.
-            getPurchaseOrderItems(po).forEach(item => {
-                const key = String(item?.id ?? '').trim();
-                if (key && !seen.has(key)) {
-                    seen.add(key);
-                    result.push(item);
-                }
-            });
-
-            // Add items that are linked from the item side even when PO.itemIds is
-            // stale/incomplete. This is read-only display recovery for Tab 4.
-            (Array.isArray(orders) ? orders : []).forEach(item => {
-                const key = String(item?.id ?? '').trim();
-                if (!key || seen.has(key)) return;
-                const directLinked = poId && String(item?.purchaseOrderId ?? '').trim() === poId;
-                const reverseLinked = rawIds.has(key);
-                if (directLinked || reverseLinked) {
-                    seen.add(key);
-                    result.push(item);
-                }
-            });
-
-            return result;
         }
 
         function hasStatusPOQueryMatch(po, query) {
@@ -9026,59 +8931,44 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
             if (!q) {
                 list.forEach(item => {
-                    const pos = getStatusPOsForItem(item);
-                    if (pos.length) pos.forEach(po => matchedPOIds.add(String(po.poId)));
+                    const po = getStatusPOForItem(item);
+                    if (po?.poId) matchedPOIds.add(String(po.poId));
                     else matchingItems.push(item);
                 });
                 return { matchingItems, matchedPOIds, matchedItemIds };
             }
 
             if (searchMode === 'ITEM') {
-                // Exact-match priority is resolved BEFORE token matching. If one or
-                // more exact item names exist, only those exact items are eligible;
-                // near variants such as 1.2m / 1.5m are intentionally excluded.
-                const normalizedQuery = normalizeStatusItemSearchText(q);
-                const exactMatches = list.filter(item =>
-                    normalizeStatusItemSearchText(item?.item || '') === normalizedQuery
-                );
-                const candidates = exactMatches.length ? exactMatches : list.filter(item => matchesStatusItemName(item, q));
-
-                candidates.forEach(item => {
-                    matchedItemIds.add(String(item?.id ?? ''));
-                    const pos = getStatusPOsForItem(item);
-                    if (pos.length) {
-                        pos.forEach(po => matchedPOIds.add(String(po.poId)));
-                    } else {
-                        matchingItems.push(item);
-                    }
+                list.forEach(item => {
+                    if (!matchesStatusItemName(item, q)) return;
+                    matchedItemIds.add(String(item.id));
+                    const po = getStatusPOForItem(item);
+                    if (po?.poId) matchedPOIds.add(String(po.poId));
+                    else matchingItems.push(item);
                 });
                 return { matchingItems, matchedPOIds, matchedItemIds };
             }
 
             list.forEach(item => {
-                const pos = getStatusPOsForItem(item);
-                const primaryPO = pos[0] || null;
+                const po = getStatusPOForItem(item);
                 let match = false;
                 switch (searchMode) {
-                    case 'PO': match = hasStatusPOQueryMatch(primaryPO, q); break;
-                    case 'SUPPLIER': match = hasStatusSupplierQueryMatch(item, primaryPO, q); break;
-                    case 'DOCUMENT': match = hasStatusDocumentQueryMatch(item, primaryPO, q) || hasStatusInvoiceQueryMatch(primaryPO, item, q); break;
+                    case 'PO': match = hasStatusPOQueryMatch(po, q); break;
+                    case 'SUPPLIER': match = hasStatusSupplierQueryMatch(item, po, q); break;
+                    case 'DOCUMENT': match = hasStatusDocumentQueryMatch(item, po, q) || hasStatusInvoiceQueryMatch(po, item, q); break;
                     case 'FROM': match = hasStatusFromQueryMatch(item, q); break;
-                    case 'DATE': match = hasStatusDateQueryMatch(item, primaryPO, q); break;
+                    case 'DATE': match = hasStatusDateQueryMatch(item, po, q); break;
                 }
                 if (!match) return;
                 matchedItemIds.add(String(item.id));
-                if (pos.length) {
-                    pos.forEach(po => matchedPOIds.add(String(po.poId)));
-                } else {
-                    matchingItems.push(item);
-                }
+                if (po?.poId) matchedPOIds.add(String(po.poId));
+                else matchingItems.push(item);
             });
 
             // Direct PO record matches are important when invoice / PO metadata exist
-            // independently of item-level fields or when PO.itemIds are the only link.
+            // independently of item-level fields.
             if (['PO', 'DOCUMENT', 'SUPPLIER', 'DATE'].includes(searchMode)) {
-                (Array.isArray(purchaseOrders) ? purchaseOrders : []).forEach(po => {
+                purchaseOrders.forEach(po => {
                     if (!po || ['Invalid', 'Đã hủy'].includes(String(po.status || '').trim())) return;
                     const rawQ = normalizeStatusItemSearchText(q);
                     let match = false;
@@ -9426,7 +9316,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
         function renderStatusPOBlock(po, visibleItems, options = {}) {
             const isNoPO = !po;
-            const allItems = isNoPO ? visibleItems : getStatusPOItemsForDisplay(po);
+            const allItems = isNoPO ? visibleItems : getPurchaseOrderItems(po);
             const info = getStatusPOHeaderInfo(po, visibleItems, allItems);
             const poNumber = po?.poNumber || po?.poId || 'Chưa có PO';
             const status = po?.status || 'Draft';
@@ -9635,40 +9525,12 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 });
 
             const hasSearch = !!search;
-            let effectiveFilterPO = filterPO;
-            const isConcretePOValue = value => !['Tất cả PO', 'Đã có PO', 'Đã tạo PO', 'Chưa có PO', 'Chưa tạo PO', 'Đã mua – Chưa có PO', 'Chưa mua', 'Đã gửi NCC', 'Đang giao', 'Hoàn thành'].includes(value);
-            let isConcretePO = isConcretePOValue(effectiveFilterPO);
-
-            // A concrete PO filter should not silently suppress a newly-entered search
-            // when that search resolved to another PO (or to a no-PO item).
-            if (hasSearch && isConcretePO) {
-                const concreteKey = String(effectiveFilterPO || '').trim();
-                if (!matchedPOIds.has(concreteKey)) {
-                    const poSelect = document.getElementById('filter-status-po');
-                    if (poSelect) poSelect.value = 'Tất cả PO';
-                    effectiveFilterPO = 'Tất cả PO';
-                    isConcretePO = false;
-                }
-            }
-
-            const isNoPOFilter = ['Chưa có PO', 'Chưa tạo PO'].includes(effectiveFilterPO);
-            const isPurchasedNoPOFilter = effectiveFilterPO === 'Đã mua – Chưa có PO';
-            const isNotPurchasedFilter = effectiveFilterPO === 'Chưa mua';
-            const isHasPOFilter = ['Đã có PO', 'Đã tạo PO'].includes(effectiveFilterPO);
-            const isStatusPOFilter = ['Đã gửi NCC', 'Đang giao', 'Hoàn thành'].includes(effectiveFilterPO);
-
-            // When a new search resolves to a different PO (or to a no-PO item),
-            // do not let a stale concrete PO filter silently hide the search result.
-            // Normal non-search filtering remains unchanged.
-            if (hasSearch && isConcretePO) {
-                const concreteKey = String(effectiveFilterPO || '').trim();
-                if (!matchedPOIds.has(concreteKey)) {
-                    const poSelect = document.getElementById('filter-status-po');
-                    if (poSelect) poSelect.value = 'Tất cả PO';
-                    effectiveFilterPO = 'Tất cả PO';
-                    isConcretePO = false;
-                }
-            }
+            const isNoPOFilter = ['Chưa có PO', 'Chưa tạo PO'].includes(filterPO);
+            const isPurchasedNoPOFilter = filterPO === 'Đã mua – Chưa có PO';
+            const isNotPurchasedFilter = filterPO === 'Chưa mua';
+            const isHasPOFilter = ['Đã có PO', 'Đã tạo PO'].includes(filterPO);
+            const isStatusPOFilter = ['Đã gửi NCC', 'Đang giao', 'Hoàn thành'].includes(filterPO);
+            const isConcretePO = !['Tất cả PO', 'Đã có PO', 'Đã tạo PO', 'Chưa có PO', 'Chưa tạo PO', 'Đã mua – Chưa có PO', 'Chưa mua', 'Đã gửi NCC', 'Đang giao', 'Hoàn thành'].includes(filterPO);
 
             const blocks = [];
             let renderedPOs = 0;
@@ -9677,8 +9539,8 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const isPOAllowedByFilter = (po) => {
                 if (!po) return false;
                 if (isNoPOFilter || isPurchasedNoPOFilter || isNotPurchasedFilter) return false;
-                if (isStatusPOFilter) return String(po.status || '') === effectiveFilterPO;
-                if (isConcretePO) return getStatusPOFilterKey(po) === effectiveFilterPO;
+                if (isStatusPOFilter) return String(po.status || '') === filterPO;
+                if (isConcretePO) return getStatusPOFilterKey(po) === filterPO;
                 return true;
             };
 
@@ -9686,7 +9548,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 if (hasSearch && !matchedPOIds.has(String(po.poId))) return;
                 if (!isPOAllowedByFilter(po)) return;
 
-                const allItems = getStatusPOItemsForDisplay(po);
+                const allItems = getPurchaseOrderItems(po);
                 if (!allItems.length) return;
 
                 // Stage is managed at PO level in Tab 4. Once a PO is resolved
@@ -9744,13 +9606,8 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
             if (!blocks.length) {
                 container.innerHTML = `<div class="text-center py-12 text-slate-400 text-sm">Không tìm thấy PO / mặt hàng phù hợp.</div>`;
-                console.debug('[Tab4 Search]', {
-                    query: search,
-                    searchMode,
-                    matchedItems: [...matchedItemIds],
-                    matchedPOIds: [...matchedPOIds],
-                    totalBefore: sortedList.length,
-                    totalAfter: 0
+                console.debug('[ProcureFlow][Tab4 Search]', {
+                    query: search, searchMode, totalBefore: sortedList.length, totalAfter: 0, matchedPOs: 0
                 });
                 return;
             }
@@ -9765,13 +9622,12 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 return renderStatusNoPOBlock(block.items, 'NOT_PURCHASED');
             }).join('');
 
-            console.debug('[Tab4 Search]', {
+            console.debug('[ProcureFlow][Tab4 Search]', {
                 query: search,
                 searchMode,
-                matchedItems: [...matchedItemIds],
-                matchedPOIds: [...matchedPOIds],
                 totalBefore: sortedList.length,
-                totalAfter: renderedItems
+                totalAfter: renderedItems,
+                matchedPOs: renderedPOs
             });
 
             ensureOrderPlacementTimer();
