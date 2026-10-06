@@ -1456,7 +1456,7 @@
                 </div>
                 <div class="flex justify-end gap-3">
                     <button type="button" onclick="closeModal('modal-create-po')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50">Hủy</button>
-                    <button type="button" id="order-placement-confirm-btn" onclick="confirmOrderPlacement()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg" title="Xác nhận Đặt hàng">
+                    <button type="button" id="order-placement-confirm-btn" onclick="confirmOrderPlacement()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg" title="Chọn ít nhất một mặt hàng đủ điều kiện.">
                         Xác nhận Đặt hàng
                     </button>
                 </div>
@@ -2953,11 +2953,6 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 return { ok: false, reason: 'Chưa chọn Hình thức mua hàng' };
             }
 
-            // Delivered items are never eligible, including the recovery path.
-            if (item.stage === 'Đã giao hàng') {
-                return { ok: false, reason: 'Đã giao hàng' };
-            }
-
             const actualPO = getStatusPOForItem(item);
             const actuallyPlaced = isOrderActuallyPlaced(item);
             const currentSupplier = String(item?.supplier || '').trim();
@@ -2974,6 +2969,10 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                     return { ok: false, reason: `Hình thức hiện tại là ${storedType}` };
                 }
                 return { ok: true, reason: 'Đã mua • chưa có PO' };
+            }
+
+            if (item.stage === 'Đã giao hàng') {
+                return { ok: false, reason: 'Đã giao hàng' };
             }
 
             const base = canItemJoinPurchaseOrder(item);
@@ -3598,6 +3597,12 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 ? existingDocNumbers[0]
                 : '';
 
+            // Keep one explicit contract value for the Hợp đồng branch.
+            // Older versions referenced `existingContract` without defining it,
+            // causing a ReferenceError exactly when the first confirmation step
+            // was opened for a contract purchase.
+            const existingContract = orderPlacementConfirmState.docNo;
+
             const selectedDate = document.getElementById('po-create-date')?.value || getTodayISO();
             const now = new Date();
             const pad = n => String(n).padStart(2, '0');
@@ -3624,9 +3629,9 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             }
 
             if (type === 'Hợp đồng') {
-                updateOrderPlacementContractOptions(orderPlacementConfirmState.docNo);
+                updateOrderPlacementContractOptions(existingContract);
                 const contractSelect = document.getElementById('order-place-confirm-contract-select');
-                if (contractSelect && orderPlacementConfirmState.docNo) contractSelect.value = orderPlacementConfirmState.docNo;
+                if (contractSelect && existingContract) contractSelect.value = existingContract;
                 // Only the valid Tab 7 selection can populate docNo.
                 orderPlacementConfirmState.docNo = String(contractSelect?.value || '').trim();
             } else {
@@ -3838,17 +3843,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             if (!['ĐNMH', 'Hợp đồng'].includes(type)) errors.push('Chưa chọn Hình thức mua hàng.');
             if (!dt || !parsed || Number.isNaN(parsed.getTime())) errors.push('Ngày / giờ đặt hàng không hợp lệ.');
             if (!by) errors.push('Vui lòng nhập Người đặt.');
-            const allSelectedPurchasedNoPO = selected.length > 0 && selected.every(o => isOrderActuallyPlaced(o) && !getStatusPOForItem(o));
-            const recoveryDocNumbers = allSelectedPurchasedNoPO
-                ? [...new Set(selected.map(o => String(o.contractNo || '').trim()).filter(Boolean))]
-                : [];
-            const effectivePreviewDoc = doc || (recoveryDocNumbers.length === 1 ? recoveryDocNumbers[0] : '');
-            if (!effectivePreviewDoc && !allSelectedPurchasedNoPO) {
-                errors.push(type === 'Hợp đồng' ? 'Vui lòng nhập Số Hợp đồng.' : 'Vui lòng nhập Số ĐNMH.');
-            }
-            if (type === 'Hợp đồng' && allSelectedPurchasedNoPO && !effectivePreviewDoc) {
-                errors.push('Item Đã mua – Chưa có PO cần giữ Số Hợp đồng hiện có hoặc chọn Số Hợp đồng từ Tab 7.');
-            }
+            if (!doc) errors.push(type === 'Hợp đồng' ? 'Vui lòng nhập Số Hợp đồng.' : 'Vui lòng nhập Số ĐNMH.');
 
             selected.forEach(o => {
                 const validation = canItemJoinCurrentOrderPlacementSession(o, type);
@@ -4050,15 +4045,10 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                     const existingPrice = Number(o.purchasePrice);
 
                     if (targetSupplier) o.supplier = targetSupplier;
-                    if (!wasActuallyPlaced) {
-                        o.checkType = type;
-                        o.purchaseType = type;
-                    } else {
-                        // Recovery path: preserve the already confirmed purchasing
-                        // type and only add the missing PO relationship.
-                        o.checkType = existingType || type;
-                        o.purchaseType = String(o.purchaseType || '').trim() || existingType || type;
-                    }
+                    if (!existingType) o.checkType = type;
+                    else o.checkType = existingType;
+                    if (!String(o.purchaseType || '').trim()) o.purchaseType = type;
+                    else o.purchaseType = String(o.purchaseType).trim() || type;
 
                     // Already purchased items are not purchased again here. This
                     // operation only attaches them to a PO.
@@ -4224,7 +4214,12 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
         // Backward-compatible handler name used by the existing Tab 4 button.
         function confirmOrderPlacement() {
-            openOrderPlacementConfirmationModal();
+            try {
+                openOrderPlacementConfirmationModal();
+            } catch (err) {
+                console.error('[TAB4 CONFIRMATION OPEN ERROR]', err);
+                alert(`Không thể mở bước Xác nhận Đặt hàng.\n\nChi tiết: ${err?.message || err}`);
+            }
         }
 
         function openPurchaseOrderManager() {
