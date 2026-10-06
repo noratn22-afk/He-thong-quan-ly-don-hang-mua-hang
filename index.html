@@ -1456,7 +1456,7 @@
                 </div>
                 <div class="flex justify-end gap-3">
                     <button type="button" onclick="closeModal('modal-create-po')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50">Hủy</button>
-                    <button type="button" id="order-placement-confirm-btn" onclick="confirmOrderPlacement()" disabled class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg opacity-50 cursor-not-allowed" title="Chọn ít nhất một mặt hàng đủ điều kiện.">
+                    <button type="button" id="order-placement-confirm-btn" onclick="confirmOrderPlacement()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg" title="Xác nhận Đặt hàng">
                         Xác nhận Đặt hàng
                     </button>
                 </div>
@@ -2670,21 +2670,28 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
         function canItemJoinPurchaseOrder(item) {
             const order = item;
             if (!order) return { ok: false, reason: 'Không tìm thấy item.' };
-            if (order.stage === 'Đã giao hàng') return { ok: false, reason: 'Đã giao hàng' };
+
+            // Delivered items are never selectable for another placement/PO action.
+            if (order.stage === 'Đã giao hàng') {
+                return { ok: false, reason: 'Đã giao hàng' };
+            }
 
             const actuallyPlaced = isOrderActuallyPlaced(order);
             const blockingPO = getBlockingPurchaseOrderForItem(order);
 
-            // This is the ONLY placement lock rule. A stale orderPlaced flag without
-            // orderedAt is not considered a real placement. purchaseOrderId alone is
-            // deliberately ignored unless it resolves to a truly blocking active PO.
-            if (actuallyPlaced || blockingPO) {
+            // IMPORTANT: orderPlaced=true without a real active PO is the recovery
+            // path "Đã mua – Chưa có PO" and MUST remain selectable.
+            // A purchaseOrderId by itself is NOT a hard lock. Only a real ACTIVE PO
+            // that actually contains this item blocks placing it into another PO.
+            if (blockingPO) {
                 return {
                     ok: false,
-                    reason: blockingPO
-                        ? `Đã đặt • thuộc ${blockingPO.poNumber || blockingPO.poId}`
-                        : 'Đã đặt'
+                    reason: `Đã đặt • thuộc ${blockingPO.poNumber || blockingPO.poId}`
                 };
+            }
+
+            if (actuallyPlaced) {
+                return { ok: true, reason: 'Đã mua • chưa có PO' };
             }
 
             return { ok: true, reason: '' };
@@ -2946,6 +2953,11 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 return { ok: false, reason: 'Chưa chọn Hình thức mua hàng' };
             }
 
+            // Delivered items are never eligible, including the recovery path.
+            if (item.stage === 'Đã giao hàng') {
+                return { ok: false, reason: 'Đã giao hàng' };
+            }
+
             const actualPO = getStatusPOForItem(item);
             const actuallyPlaced = isOrderActuallyPlaced(item);
             const currentSupplier = String(item?.supplier || '').trim();
@@ -2962,10 +2974,6 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                     return { ok: false, reason: `Hình thức hiện tại là ${storedType}` };
                 }
                 return { ok: true, reason: 'Đã mua • chưa có PO' };
-            }
-
-            if (item.stage === 'Đã giao hàng') {
-                return { ok: false, reason: 'Đã giao hàng' };
             }
 
             const base = canItemJoinPurchaseOrder(item);
@@ -3259,20 +3267,45 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
         function updateOrderPlacementConfirmButtonState() {
             const btn = document.getElementById('order-placement-confirm-btn');
+            const validationEl = document.getElementById('order-placement-validation');
             if (!btn) return;
 
             const selected = getOrderPlacementSelectedItems();
             const selectedType = getSelectedOrderPlacementPurchaseType();
-            const valid = !!selectedType && selected.length > 0 && selected.every(o => canItemJoinCurrentOrderPlacementSession(o, selectedType).ok);
+            const checks = selected.map(o => ({ o, validation: canItemJoinCurrentOrderPlacementSession(o, selectedType) }));
+            const invalid = checks.filter(x => !x.validation.ok);
+            const valid = !!selectedType && selected.length > 0 && invalid.length === 0;
 
             btn.disabled = !valid;
             btn.classList.toggle('opacity-50', !valid);
             btn.classList.toggle('cursor-not-allowed', !valid);
             btn.title = !selected.length
                 ? 'Chọn ít nhất một mặt hàng đủ điều kiện.'
-                : !valid
-                    ? 'Có mặt hàng đã chọn chưa đủ điều kiện đặt hàng.'
-                    : 'Xác nhận Đặt hàng';
+                : !selectedType
+                    ? 'Chọn Hình thức mua hàng.'
+                    : invalid.length
+                        ? invalid[0].validation.reason || 'Có item chưa đủ điều kiện.'
+                        : 'Xác nhận Đặt hàng';
+
+            if (validationEl) {
+                if (!selectedType && selected.length) {
+                    validationEl.classList.remove('hidden');
+                    validationEl.innerHTML = '<div class="font-bold mb-1">Chưa thể tiếp tục:</div><div>• Vui lòng chọn Hình thức mua hàng.</div>';
+                } else if (invalid.length) {
+                    validationEl.classList.remove('hidden');
+                    validationEl.innerHTML = `
+                        <div class="font-bold mb-1">Không thể Xác nhận Đặt hàng:</div>
+                        <div class="space-y-0.5">
+                            ${invalid.map(x => `<div>• ${escapeHTML(x.o.item || '-')} → ${escapeHTML(x.validation.reason || 'Chưa đủ điều kiện.')}</div>`).join('')}
+                        </div>`;
+                } else if (!selected.length) {
+                    validationEl.classList.add('hidden');
+                    validationEl.innerHTML = '';
+                } else {
+                    validationEl.classList.add('hidden');
+                    validationEl.innerHTML = '';
+                }
+            }
         }
 
         function openCreatePOModal(presetIds = null) {
@@ -3552,11 +3585,18 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 }
             });
 
-            // One concrete supplier in this contract workflow => one contract selector.
-            const existingContract = supplierFilter && selected.length
-                ? String(selected.find(o => String(o.contractNo || '').trim())?.contractNo || '').trim()
+            // Prefill an existing document number when all selected items already
+            // carry the same value. This is especially important for the recovery
+            // workflow "Đã mua – Chưa có PO": do not force users to re-enter a
+            // document they already confirmed.
+            const existingDocNumbers = [...new Set(
+                selected
+                    .map(o => String(o.contractNo || '').trim())
+                    .filter(Boolean)
+            )];
+            orderPlacementConfirmState.docNo = existingDocNumbers.length === 1
+                ? existingDocNumbers[0]
                 : '';
-            orderPlacementConfirmState.docNo = existingContract;
 
             const selectedDate = document.getElementById('po-create-date')?.value || getTodayISO();
             const now = new Date();
@@ -3584,9 +3624,9 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             }
 
             if (type === 'Hợp đồng') {
-                updateOrderPlacementContractOptions(existingContract);
+                updateOrderPlacementContractOptions(orderPlacementConfirmState.docNo);
                 const contractSelect = document.getElementById('order-place-confirm-contract-select');
-                if (contractSelect && existingContract) contractSelect.value = existingContract;
+                if (contractSelect && orderPlacementConfirmState.docNo) contractSelect.value = orderPlacementConfirmState.docNo;
                 // Only the valid Tab 7 selection can populate docNo.
                 orderPlacementConfirmState.docNo = String(contractSelect?.value || '').trim();
             } else {
@@ -3790,6 +3830,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const doc = String(orderPlacementConfirmState.docNo || '').trim();
             const parsed = dt ? new Date(dt) : null;
             const errors = [];
+            const contractItemNumbers = new Map();
             let totalValue = 0;
             let totalKnown = true;
 
@@ -3797,7 +3838,17 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             if (!['ĐNMH', 'Hợp đồng'].includes(type)) errors.push('Chưa chọn Hình thức mua hàng.');
             if (!dt || !parsed || Number.isNaN(parsed.getTime())) errors.push('Ngày / giờ đặt hàng không hợp lệ.');
             if (!by) errors.push('Vui lòng nhập Người đặt.');
-            if (!doc) errors.push(type === 'Hợp đồng' ? 'Vui lòng nhập Số Hợp đồng.' : 'Vui lòng nhập Số ĐNMH.');
+            const allSelectedPurchasedNoPO = selected.length > 0 && selected.every(o => isOrderActuallyPlaced(o) && !getStatusPOForItem(o));
+            const recoveryDocNumbers = allSelectedPurchasedNoPO
+                ? [...new Set(selected.map(o => String(o.contractNo || '').trim()).filter(Boolean))]
+                : [];
+            const effectivePreviewDoc = doc || (recoveryDocNumbers.length === 1 ? recoveryDocNumbers[0] : '');
+            if (!effectivePreviewDoc && !allSelectedPurchasedNoPO) {
+                errors.push(type === 'Hợp đồng' ? 'Vui lòng nhập Số Hợp đồng.' : 'Vui lòng nhập Số ĐNMH.');
+            }
+            if (type === 'Hợp đồng' && allSelectedPurchasedNoPO && !effectivePreviewDoc) {
+                errors.push('Item Đã mua – Chưa có PO cần giữ Số Hợp đồng hiện có hoặc chọn Số Hợp đồng từ Tab 7.');
+            }
 
             selected.forEach(o => {
                 const validation = canItemJoinCurrentOrderPlacementSession(o, type);
@@ -3896,17 +3947,35 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const note = String(document.getElementById('order-place-confirm-note')?.value || '').trim();
             const docNo = String(orderPlacementConfirmState.docNo || '').trim();
 
+            console.debug('[TAB4 FINALIZE]', {
+                selectedIds: selected.map(x => x.id),
+                selectedItems: selected.map(x => x.item),
+                type,
+                supplierFilter,
+                docNo
+            });
+
             if (!selected.length) { alert('Vui lòng chọn ít nhất một mặt hàng.'); return; }
             if (!['ĐNMH', 'Hợp đồng'].includes(type)) { alert('Vui lòng chọn Hình thức mua hàng trước.'); return; }
             if (!datetimeInput) { alert('Vui lòng chọn Ngày / giờ đặt hàng.'); return; }
             const parsed = new Date(datetimeInput);
             if (Number.isNaN(parsed.getTime())) { alert('Ngày / giờ đặt hàng không hợp lệ.'); return; }
-            if (!docNo) { alert(type === 'Hợp đồng' ? 'Vui lòng chọn Số Hợp đồng từ Tab 7.' : 'Vui lòng nhập Số ĐNMH.'); return; }
+
+            const allSelectedArePurchasedNoPO = selected.every(o => isOrderActuallyPlaced(o) && !getStatusPOForItem(o));
+            const existingDocForRecovery = allSelectedArePurchasedNoPO
+                ? [...new Set(selected.map(o => String(o.contractNo || '').trim()).filter(Boolean))]
+                : [];
+            const effectiveDocNo = docNo || (existingDocForRecovery.length === 1 ? existingDocForRecovery[0] : '');
+
+            if (!effectiveDocNo && !allSelectedArePurchasedNoPO) {
+                alert(type === 'Hợp đồng' ? 'Vui lòng chọn Số Hợp đồng từ Tab 7.' : 'Vui lòng nhập Số ĐNMH.');
+                return;
+            }
             if (type === 'Hợp đồng') {
                 if (!supplierFilter) { alert('Vui lòng chọn một NCC cụ thể trước khi đặt hàng theo Hợp đồng.'); return; }
                 const managedContracts = getTab7ContractsForSupplier(supplierFilter);
-                if (!managedContracts.includes(docNo)) {
-                    alert(`Số Hợp đồng "${docNo}" không thuộc danh sách Hợp đồng được quản lý cho NCC "${supplierFilter}" tại Tab 7.`);
+                if (!managedContracts.includes(effectiveDocNo)) {
+                    alert(`Số Hợp đồng "${effectiveDocNo}" không thuộc danh sách Hợp đồng được quản lý cho NCC "${supplierFilter}" tại Tab 7.`);
                     return;
                 }
             }
@@ -3981,15 +4050,20 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                     const existingPrice = Number(o.purchasePrice);
 
                     if (targetSupplier) o.supplier = targetSupplier;
-                    if (!existingType) o.checkType = type;
-                    else o.checkType = existingType;
-                    if (!String(o.purchaseType || '').trim()) o.purchaseType = type;
-                    else o.purchaseType = String(o.purchaseType).trim() || type;
+                    if (!wasActuallyPlaced) {
+                        o.checkType = type;
+                        o.purchaseType = type;
+                    } else {
+                        // Recovery path: preserve the already confirmed purchasing
+                        // type and only add the missing PO relationship.
+                        o.checkType = existingType || type;
+                        o.purchaseType = String(o.purchaseType || '').trim() || existingType || type;
+                    }
 
                     // Already purchased items are not purchased again here. This
                     // operation only attaches them to a PO.
                     if (!wasActuallyPlaced) {
-                        o.contractNo = docNo;
+                        o.contractNo = effectiveDocNo;
                         o.orderPlaced = true;
                         o.orderedAt = timestamp;
                         o.orderPlacedAt = timestamp;
@@ -4003,7 +4077,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                         o.orderedAt = o.orderedAt || o.orderPlacedAt || timestamp;
                         o.orderPlacedAt = o.orderPlacedAt || o.orderedAt;
                         o.orderedBy = o.orderedBy || orderedBy;
-                        if (o.contractNo == null || String(o.contractNo).trim() === '') o.contractNo = docNo;
+                        if (o.contractNo == null || String(o.contractNo).trim() === '') o.contractNo = effectiveDocNo;
                         if (o.orderPlacementNote == null || String(o.orderPlacementNote).trim() === '') o.orderPlacementNote = note;
                     }
 
@@ -4110,8 +4184,18 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 syncPurchaseOrderReferences();
                 syncAllPurchaseOrderStatuses();
 
+                console.debug('[TAB4 BEFORE SAVE]', {
+                    orders,
+                    purchaseOrders
+                });
+
                 const saved = await saveToStorage();
                 if (!saved) throw new Error('Không thể lưu dữ liệu Đặt hàng / PO vào bộ nhớ trình duyệt.');
+
+                console.debug('[TAB4 AFTER SAVE]', {
+                    orders,
+                    purchaseOrders
+                });
 
                 orderPlacementSelectedIds = new Set();
                 orderPlacementConfirmState = { docNo: '', priceSourceByItem: {}, quoteIdByItem: {}, manualPriceByItem: {}, contractItemNoByItem: {} };
@@ -4130,6 +4214,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 });
                 purchaseOrders = poSnapshot;
                 trackingHistory = historySnapshot;
+                console.error('[TAB4 FINALIZE ERROR]', err);
                 console.error('[ProcureFlow] Finalize Tab4 order placement failed:', err);
                 alert(`Không thể Xác nhận Đặt hàng.\n\nChi tiết: ${err?.message || err}`);
                 renderAll();
@@ -8742,7 +8827,21 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
         let statusPOInvoiceEditState = new Set();
 
         function normalizeStatusItemSearchText(value) {
-            let text = normalizeSearchText(value);
+            let text = String(value ?? '')
+                .replace(/\u00A0/g, ' ')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/[–—−]/g, '-')
+                .replace(/\s*[-–—−]\s*/g, ' - ')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            // Ignore accidental surrounding quotation marks in the search box.
+            text = text.replace(/^[\"'“”‘’]+|[\"'“”‘’]+$/g, '').trim();
+
+            // Keep common unit/decimal variants equivalent without collapsing
+            // otherwise different item names. Examples: 1 m = 1m, 1,5m = 1.5m.
             return text
                 .replace(/(\d)\s+(?=[a-z])/g, '$1')
                 .replace(/(\d),(?=\d)/g, '$1.')
@@ -8786,26 +8885,107 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             return tokens.length > 0 && tokens.every(token => statusItemTokenMatches(itemName, token));
         }
 
-        function getStatusPOForItem(item) {
-            if (!item) return null;
-            const direct = getPurchaseOrderForItem(item);
-            if (direct && !['Invalid', 'Đã hủy'].includes(String(direct.status || '').trim())) return direct;
+        function getStatusPOItemIdSet(po) {
+            const ids = new Set();
+            const rawIds = Array.isArray(po?.itemIds) ? po.itemIds : [];
+            rawIds.forEach(value => {
+                if (value && typeof value === 'object') {
+                    [value.id, value.itemId, value.orderId, value.orderItemId].forEach(candidate => {
+                        const key = String(candidate ?? '').trim();
+                        if (key) ids.add(key);
+                    });
+                } else {
+                    const key = String(value ?? '').trim();
+                    if (key) ids.add(key);
+                }
+            });
+            return ids;
+        }
 
-            // Legacy-safe read-only recovery from PO.itemIds when item-level link is absent.
-            const itemId = String(item.id);
-            return (Array.isArray(purchaseOrders) ? purchaseOrders : []).find(po =>
-                !['Invalid', 'Đã hủy'].includes(String(po?.status || '').trim()) &&
-                getPurchaseOrderItemIds(po).includes(itemId)
-            ) || null;
+        function getStatusPOsForItem(item) {
+            if (!item) return [];
+            const found = [];
+            const seen = new Set();
+            const add = (po) => {
+                if (!po) return;
+                if (['Invalid', 'Đã hủy'].includes(String(po.status || '').trim())) return;
+                const id = String(po.poId ?? '').trim();
+                if (!id || seen.has(id)) return;
+                seen.add(id);
+                found.push(po);
+            };
+
+            // 1) Canonical item -> PO relation. In legacy data the stored
+            // purchaseOrderId may point to either poId or poNumber, so resolve
+            // both without mutating any data.
+            const linkedRef = String(item?.purchaseOrderId ?? '').trim();
+            if (linkedRef) {
+                add(getPurchaseOrderById(linkedRef));
+                const byNumber = (Array.isArray(purchaseOrders) ? purchaseOrders : [])
+                    .find(po => String(po?.poNumber ?? '').trim() === linkedRef);
+                add(byNumber || null);
+            }
+
+            // 2) Existing helper, when available, remains the canonical lookup.
+            add(getPurchaseOrderForItem(item));
+
+            // 3) Reverse relationship fallback: PO.itemIds may be the only valid
+            // relationship in old/inconsistent data. Scan all POs so an item can
+            // resolve to every PO that references its id.
+            const itemId = String(item?.id ?? '').trim();
+            if (itemId) {
+                (Array.isArray(purchaseOrders) ? purchaseOrders : []).forEach(po => {
+                    if (getStatusPOItemIdSet(po).has(itemId)) add(po);
+                });
+            }
+
+            return found;
+        }
+
+        function getStatusPOForItem(item) {
+            return getStatusPOsForItem(item)[0] || null;
         }
 
         function getStatusPOIdsForMatchingItems(items) {
             const ids = new Set();
             (Array.isArray(items) ? items : []).forEach(item => {
-                const po = getStatusPOForItem(item);
-                if (po?.poId) ids.add(String(po.poId));
+                getStatusPOsForItem(item).forEach(po => {
+                    if (po?.poId) ids.add(String(po.poId));
+                });
             });
             return ids;
+        }
+
+        function getStatusPOItemsForDisplay(po) {
+            if (!po) return [];
+            const poId = String(po.poId ?? '').trim();
+            const rawIds = getStatusPOItemIdSet(po);
+            const result = [];
+            const seen = new Set();
+
+            // Primary helper remains the existing canonical source.
+            getPurchaseOrderItems(po).forEach(item => {
+                const key = String(item?.id ?? '').trim();
+                if (key && !seen.has(key)) {
+                    seen.add(key);
+                    result.push(item);
+                }
+            });
+
+            // Add items that are linked from the item side even when PO.itemIds is
+            // stale/incomplete. This is read-only display recovery for Tab 4.
+            (Array.isArray(orders) ? orders : []).forEach(item => {
+                const key = String(item?.id ?? '').trim();
+                if (!key || seen.has(key)) return;
+                const directLinked = poId && String(item?.purchaseOrderId ?? '').trim() === poId;
+                const reverseLinked = rawIds.has(key);
+                if (directLinked || reverseLinked) {
+                    seen.add(key);
+                    result.push(item);
+                }
+            });
+
+            return result;
         }
 
         function hasStatusPOQueryMatch(po, query) {
@@ -8931,44 +9111,59 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
             if (!q) {
                 list.forEach(item => {
-                    const po = getStatusPOForItem(item);
-                    if (po?.poId) matchedPOIds.add(String(po.poId));
+                    const pos = getStatusPOsForItem(item);
+                    if (pos.length) pos.forEach(po => matchedPOIds.add(String(po.poId)));
                     else matchingItems.push(item);
                 });
                 return { matchingItems, matchedPOIds, matchedItemIds };
             }
 
             if (searchMode === 'ITEM') {
-                list.forEach(item => {
-                    if (!matchesStatusItemName(item, q)) return;
-                    matchedItemIds.add(String(item.id));
-                    const po = getStatusPOForItem(item);
-                    if (po?.poId) matchedPOIds.add(String(po.poId));
-                    else matchingItems.push(item);
+                // Exact-match priority is resolved BEFORE token matching. If one or
+                // more exact item names exist, only those exact items are eligible;
+                // near variants such as 1.2m / 1.5m are intentionally excluded.
+                const normalizedQuery = normalizeStatusItemSearchText(q);
+                const exactMatches = list.filter(item =>
+                    normalizeStatusItemSearchText(item?.item || '') === normalizedQuery
+                );
+                const candidates = exactMatches.length ? exactMatches : list.filter(item => matchesStatusItemName(item, q));
+
+                candidates.forEach(item => {
+                    matchedItemIds.add(String(item?.id ?? ''));
+                    const pos = getStatusPOsForItem(item);
+                    if (pos.length) {
+                        pos.forEach(po => matchedPOIds.add(String(po.poId)));
+                    } else {
+                        matchingItems.push(item);
+                    }
                 });
                 return { matchingItems, matchedPOIds, matchedItemIds };
             }
 
             list.forEach(item => {
-                const po = getStatusPOForItem(item);
+                const pos = getStatusPOsForItem(item);
+                const primaryPO = pos[0] || null;
                 let match = false;
                 switch (searchMode) {
-                    case 'PO': match = hasStatusPOQueryMatch(po, q); break;
-                    case 'SUPPLIER': match = hasStatusSupplierQueryMatch(item, po, q); break;
-                    case 'DOCUMENT': match = hasStatusDocumentQueryMatch(item, po, q) || hasStatusInvoiceQueryMatch(po, item, q); break;
+                    case 'PO': match = hasStatusPOQueryMatch(primaryPO, q); break;
+                    case 'SUPPLIER': match = hasStatusSupplierQueryMatch(item, primaryPO, q); break;
+                    case 'DOCUMENT': match = hasStatusDocumentQueryMatch(item, primaryPO, q) || hasStatusInvoiceQueryMatch(primaryPO, item, q); break;
                     case 'FROM': match = hasStatusFromQueryMatch(item, q); break;
-                    case 'DATE': match = hasStatusDateQueryMatch(item, po, q); break;
+                    case 'DATE': match = hasStatusDateQueryMatch(item, primaryPO, q); break;
                 }
                 if (!match) return;
                 matchedItemIds.add(String(item.id));
-                if (po?.poId) matchedPOIds.add(String(po.poId));
-                else matchingItems.push(item);
+                if (pos.length) {
+                    pos.forEach(po => matchedPOIds.add(String(po.poId)));
+                } else {
+                    matchingItems.push(item);
+                }
             });
 
             // Direct PO record matches are important when invoice / PO metadata exist
-            // independently of item-level fields.
+            // independently of item-level fields or when PO.itemIds are the only link.
             if (['PO', 'DOCUMENT', 'SUPPLIER', 'DATE'].includes(searchMode)) {
-                purchaseOrders.forEach(po => {
+                (Array.isArray(purchaseOrders) ? purchaseOrders : []).forEach(po => {
                     if (!po || ['Invalid', 'Đã hủy'].includes(String(po.status || '').trim())) return;
                     const rawQ = normalizeStatusItemSearchText(q);
                     let match = false;
@@ -9316,7 +9511,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
         function renderStatusPOBlock(po, visibleItems, options = {}) {
             const isNoPO = !po;
-            const allItems = isNoPO ? visibleItems : getPurchaseOrderItems(po);
+            const allItems = isNoPO ? visibleItems : getStatusPOItemsForDisplay(po);
             const info = getStatusPOHeaderInfo(po, visibleItems, allItems);
             const poNumber = po?.poNumber || po?.poId || 'Chưa có PO';
             const status = po?.status || 'Draft';
@@ -9525,12 +9720,40 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 });
 
             const hasSearch = !!search;
-            const isNoPOFilter = ['Chưa có PO', 'Chưa tạo PO'].includes(filterPO);
-            const isPurchasedNoPOFilter = filterPO === 'Đã mua – Chưa có PO';
-            const isNotPurchasedFilter = filterPO === 'Chưa mua';
-            const isHasPOFilter = ['Đã có PO', 'Đã tạo PO'].includes(filterPO);
-            const isStatusPOFilter = ['Đã gửi NCC', 'Đang giao', 'Hoàn thành'].includes(filterPO);
-            const isConcretePO = !['Tất cả PO', 'Đã có PO', 'Đã tạo PO', 'Chưa có PO', 'Chưa tạo PO', 'Đã mua – Chưa có PO', 'Chưa mua', 'Đã gửi NCC', 'Đang giao', 'Hoàn thành'].includes(filterPO);
+            let effectiveFilterPO = filterPO;
+            const isConcretePOValue = value => !['Tất cả PO', 'Đã có PO', 'Đã tạo PO', 'Chưa có PO', 'Chưa tạo PO', 'Đã mua – Chưa có PO', 'Chưa mua', 'Đã gửi NCC', 'Đang giao', 'Hoàn thành'].includes(value);
+            let isConcretePO = isConcretePOValue(effectiveFilterPO);
+
+            // A concrete PO filter should not silently suppress a newly-entered search
+            // when that search resolved to another PO (or to a no-PO item).
+            if (hasSearch && isConcretePO) {
+                const concreteKey = String(effectiveFilterPO || '').trim();
+                if (!matchedPOIds.has(concreteKey)) {
+                    const poSelect = document.getElementById('filter-status-po');
+                    if (poSelect) poSelect.value = 'Tất cả PO';
+                    effectiveFilterPO = 'Tất cả PO';
+                    isConcretePO = false;
+                }
+            }
+
+            const isNoPOFilter = ['Chưa có PO', 'Chưa tạo PO'].includes(effectiveFilterPO);
+            const isPurchasedNoPOFilter = effectiveFilterPO === 'Đã mua – Chưa có PO';
+            const isNotPurchasedFilter = effectiveFilterPO === 'Chưa mua';
+            const isHasPOFilter = ['Đã có PO', 'Đã tạo PO'].includes(effectiveFilterPO);
+            const isStatusPOFilter = ['Đã gửi NCC', 'Đang giao', 'Hoàn thành'].includes(effectiveFilterPO);
+
+            // When a new search resolves to a different PO (or to a no-PO item),
+            // do not let a stale concrete PO filter silently hide the search result.
+            // Normal non-search filtering remains unchanged.
+            if (hasSearch && isConcretePO) {
+                const concreteKey = String(effectiveFilterPO || '').trim();
+                if (!matchedPOIds.has(concreteKey)) {
+                    const poSelect = document.getElementById('filter-status-po');
+                    if (poSelect) poSelect.value = 'Tất cả PO';
+                    effectiveFilterPO = 'Tất cả PO';
+                    isConcretePO = false;
+                }
+            }
 
             const blocks = [];
             let renderedPOs = 0;
@@ -9539,8 +9762,8 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const isPOAllowedByFilter = (po) => {
                 if (!po) return false;
                 if (isNoPOFilter || isPurchasedNoPOFilter || isNotPurchasedFilter) return false;
-                if (isStatusPOFilter) return String(po.status || '') === filterPO;
-                if (isConcretePO) return getStatusPOFilterKey(po) === filterPO;
+                if (isStatusPOFilter) return String(po.status || '') === effectiveFilterPO;
+                if (isConcretePO) return getStatusPOFilterKey(po) === effectiveFilterPO;
                 return true;
             };
 
@@ -9548,7 +9771,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 if (hasSearch && !matchedPOIds.has(String(po.poId))) return;
                 if (!isPOAllowedByFilter(po)) return;
 
-                const allItems = getPurchaseOrderItems(po);
+                const allItems = getStatusPOItemsForDisplay(po);
                 if (!allItems.length) return;
 
                 // Stage is managed at PO level in Tab 4. Once a PO is resolved
@@ -9606,8 +9829,13 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
             if (!blocks.length) {
                 container.innerHTML = `<div class="text-center py-12 text-slate-400 text-sm">Không tìm thấy PO / mặt hàng phù hợp.</div>`;
-                console.debug('[ProcureFlow][Tab4 Search]', {
-                    query: search, searchMode, totalBefore: sortedList.length, totalAfter: 0, matchedPOs: 0
+                console.debug('[Tab4 Search]', {
+                    query: search,
+                    searchMode,
+                    matchedItems: [...matchedItemIds],
+                    matchedPOIds: [...matchedPOIds],
+                    totalBefore: sortedList.length,
+                    totalAfter: 0
                 });
                 return;
             }
@@ -9622,12 +9850,13 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 return renderStatusNoPOBlock(block.items, 'NOT_PURCHASED');
             }).join('');
 
-            console.debug('[ProcureFlow][Tab4 Search]', {
+            console.debug('[Tab4 Search]', {
                 query: search,
                 searchMode,
+                matchedItems: [...matchedItemIds],
+                matchedPOIds: [...matchedPOIds],
                 totalBefore: sortedList.length,
-                totalAfter: renderedItems,
-                matchedPOs: renderedPOs
+                totalAfter: renderedItems
             });
 
             ensureOrderPlacementTimer();
