@@ -2671,25 +2671,31 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const order = item;
             if (!order) return { ok: false, reason: 'Không tìm thấy item.' };
 
-            // Delivered items are never selectable for another placement/PO action.
+            // A delivered item is never eligible for another PO action.
             if (order.stage === 'Đã giao hàng') {
                 return { ok: false, reason: 'Đã giao hàng' };
             }
 
             const actuallyPlaced = isOrderActuallyPlaced(order);
-            const blockingPO = getBlockingPurchaseOrderForItem(order);
 
-            // IMPORTANT: orderPlaced=true without a real active PO is the recovery
-            // path "Đã mua – Chưa có PO" and MUST remain selectable.
-            // A purchaseOrderId by itself is NOT a hard lock. Only a real ACTIVE PO
-            // that actually contains this item blocks placing it into another PO.
-            if (blockingPO) {
+            // HARD BLOCK ONLY FOR A REAL ACTIVE PO.
+            // Check both sides of the relationship so old/inconsistent data cannot
+            // accidentally allow the same item into two active POs.
+            const activePO = (typeof getStatusPOsForItem === 'function'
+                ? getStatusPOsForItem(order)
+                : [])
+                .find(po => isPurchaseOrderActive(po));
+
+            if (activePO) {
                 return {
                     ok: false,
-                    reason: `Đã đặt • thuộc ${blockingPO.poNumber || blockingPO.poId}`
+                    reason: `Đã đặt • thuộc ${activePO.poNumber || activePO.poId}`
                 };
             }
 
+            // IMPORTANT: orderPlaced=true with NO active PO is the recovery path
+            // "Đã mua – Chưa có PO". It remains selectable to create/reuse a PO.
+            // A stale purchaseOrderId, invalid PO or cancelled PO must never hard-lock.
             if (actuallyPlaced) {
                 return { ok: true, reason: 'Đã mua • chưa có PO' };
             }
@@ -2953,15 +2959,26 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 return { ok: false, reason: 'Chưa chọn Hình thức mua hàng' };
             }
 
-            const actualPO = getStatusPOForItem(item);
             const actuallyPlaced = isOrderActuallyPlaced(item);
             const currentSupplier = String(item?.supplier || '').trim();
             const storedType = getOrderPlacementPurchaseType(item);
+            const activePO = (typeof getStatusPOsForItem === 'function'
+                ? getStatusPOsForItem(item)
+                : [])
+                .find(po => isPurchaseOrderActive(po));
 
-            // Special recovery workflow: an item that was already purchased but
-            // no longer has a valid PO can be selected to CREATE/LINK a PO.
-            // This must not reset orderPlaced, orderedAt or purchasePrice.
-            if (actuallyPlaced && !actualPO) {
+            // A delivered item is always blocked.
+            if (item.stage === 'Đã giao hàng') {
+                return { ok: false, reason: 'Đã giao hàng' };
+            }
+
+            // A real ACTIVE PO is the only PO-level hard block.
+            if (activePO) {
+                return { ok: false, reason: `Đã đặt • thuộc ${activePO.poNumber || activePO.poId}` };
+            }
+
+            // Recovery path: already purchased but no valid active PO.
+            if (actuallyPlaced) {
                 if (supplierFilter && currentSupplier && currentSupplier.toLowerCase() !== supplierFilter.toLowerCase()) {
                     return { ok: false, reason: `NCC hiện tại là ${currentSupplier}` };
                 }
@@ -2969,10 +2986,6 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                     return { ok: false, reason: `Hình thức hiện tại là ${storedType}` };
                 }
                 return { ok: true, reason: 'Đã mua • chưa có PO' };
-            }
-
-            if (item.stage === 'Đã giao hàng') {
-                return { ok: false, reason: 'Đã giao hàng' };
             }
 
             const base = canItemJoinPurchaseOrder(item);
@@ -3597,12 +3610,6 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 ? existingDocNumbers[0]
                 : '';
 
-            // Keep one explicit contract value for the Hợp đồng branch.
-            // Older versions referenced `existingContract` without defining it,
-            // causing a ReferenceError exactly when the first confirmation step
-            // was opened for a contract purchase.
-            const existingContract = orderPlacementConfirmState.docNo;
-
             const selectedDate = document.getElementById('po-create-date')?.value || getTodayISO();
             const now = new Date();
             const pad = n => String(n).padStart(2, '0');
@@ -3629,6 +3636,9 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             }
 
             if (type === 'Hợp đồng') {
+                // Reuse a single existing contract number when all selected items
+                // already carry the same one; otherwise let Tab 7 provide the choice.
+                const existingContract = existingDocNumbers.length === 1 ? existingDocNumbers[0] : '';
                 updateOrderPlacementContractOptions(existingContract);
                 const contractSelect = document.getElementById('order-place-confirm-contract-select');
                 if (contractSelect && existingContract) contractSelect.value = existingContract;
@@ -3956,6 +3966,10 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const parsed = new Date(datetimeInput);
             if (Number.isNaN(parsed.getTime())) { alert('Ngày / giờ đặt hàng không hợp lệ.'); return; }
 
+            // Re-run the same validation used by the modal UI. This guarantees that
+            // a stale/disabled button state can never hide the actual blocking reason.
+            updateOrderPlacementConfirmationPreview();
+
             const allSelectedArePurchasedNoPO = selected.every(o => isOrderActuallyPlaced(o) && !getStatusPOForItem(o));
             const existingDocForRecovery = allSelectedArePurchasedNoPO
                 ? [...new Set(selected.map(o => String(o.contractNo || '').trim()).filter(Boolean))]
@@ -4214,12 +4228,28 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
         // Backward-compatible handler name used by the existing Tab 4 button.
         function confirmOrderPlacement() {
-            try {
-                openOrderPlacementConfirmationModal();
-            } catch (err) {
-                console.error('[TAB4 CONFIRMATION OPEN ERROR]', err);
-                alert(`Không thể mở bước Xác nhận Đặt hàng.\n\nChi tiết: ${err?.message || err}`);
+            // Re-evaluate the button state at click time so stale disabled state can
+            // never silently prevent the confirmation modal from opening.
+            updateOrderPlacementConfirmButtonState();
+            const selected = getOrderPlacementSelectedItems();
+            const type = getSelectedOrderPlacementPurchaseType();
+            const checks = selected.map(o => ({ o, validation: canItemJoinCurrentOrderPlacementSession(o, type) }));
+            const invalid = checks.filter(x => !x.validation.ok);
+
+            if (!selected.length) {
+                alert('Vui lòng tick ít nhất một mặt hàng hợp lệ.');
+                return;
             }
+            if (!type) {
+                alert('Vui lòng chọn Hình thức mua hàng.');
+                return;
+            }
+            if (invalid.length) {
+                alert(`Không thể mở Xác nhận Đặt hàng:\n\n${invalid.map(x => `• ${x.o.item || '-'} → ${x.validation.reason || 'Chưa đủ điều kiện.'}`).join('\n')}`);
+                return;
+            }
+
+            openOrderPlacementConfirmationModal();
         }
 
         function openPurchaseOrderManager() {
