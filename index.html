@@ -1456,7 +1456,7 @@
                 </div>
                 <div class="flex justify-end gap-3">
                     <button type="button" onclick="closeModal('modal-create-po')" class="px-4 py-2 border border-slate-300 text-slate-700 text-sm font-medium rounded-lg hover:bg-slate-50">Hủy</button>
-                    <button type="button" id="order-placement-confirm-btn" onclick="confirmOrderPlacement()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg" title="Chọn ít nhất một mặt hàng đủ điều kiện.">
+                    <button type="button" id="order-placement-confirm-btn" onclick="confirmOrderPlacement()" disabled class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-lg opacity-50 cursor-not-allowed" title="Chọn ít nhất một mặt hàng đủ điều kiện.">
                         Xác nhận Đặt hàng
                     </button>
                 </div>
@@ -2670,34 +2670,21 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
         function canItemJoinPurchaseOrder(item) {
             const order = item;
             if (!order) return { ok: false, reason: 'Không tìm thấy item.' };
-
-            // A delivered item is never eligible for another PO action.
-            if (order.stage === 'Đã giao hàng') {
-                return { ok: false, reason: 'Đã giao hàng' };
-            }
+            if (order.stage === 'Đã giao hàng') return { ok: false, reason: 'Đã giao hàng' };
 
             const actuallyPlaced = isOrderActuallyPlaced(order);
+            const blockingPO = getBlockingPurchaseOrderForItem(order);
 
-            // HARD BLOCK ONLY FOR A REAL ACTIVE PO.
-            // Check both sides of the relationship so old/inconsistent data cannot
-            // accidentally allow the same item into two active POs.
-            const activePO = (typeof getStatusPOsForItem === 'function'
-                ? getStatusPOsForItem(order)
-                : [])
-                .find(po => isPurchaseOrderActive(po));
-
-            if (activePO) {
+            // This is the ONLY placement lock rule. A stale orderPlaced flag without
+            // orderedAt is not considered a real placement. purchaseOrderId alone is
+            // deliberately ignored unless it resolves to a truly blocking active PO.
+            if (actuallyPlaced || blockingPO) {
                 return {
                     ok: false,
-                    reason: `Đã đặt • thuộc ${activePO.poNumber || activePO.poId}`
+                    reason: blockingPO
+                        ? `Đã đặt • thuộc ${blockingPO.poNumber || blockingPO.poId}`
+                        : 'Đã đặt'
                 };
-            }
-
-            // IMPORTANT: orderPlaced=true with NO active PO is the recovery path
-            // "Đã mua – Chưa có PO". It remains selectable to create/reuse a PO.
-            // A stale purchaseOrderId, invalid PO or cancelled PO must never hard-lock.
-            if (actuallyPlaced) {
-                return { ok: true, reason: 'Đã mua • chưa có PO' };
             }
 
             return { ok: true, reason: '' };
@@ -2959,26 +2946,15 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 return { ok: false, reason: 'Chưa chọn Hình thức mua hàng' };
             }
 
+            const actualPO = getStatusPOForItem(item);
             const actuallyPlaced = isOrderActuallyPlaced(item);
             const currentSupplier = String(item?.supplier || '').trim();
             const storedType = getOrderPlacementPurchaseType(item);
-            const activePO = (typeof getStatusPOsForItem === 'function'
-                ? getStatusPOsForItem(item)
-                : [])
-                .find(po => isPurchaseOrderActive(po));
 
-            // A delivered item is always blocked.
-            if (item.stage === 'Đã giao hàng') {
-                return { ok: false, reason: 'Đã giao hàng' };
-            }
-
-            // A real ACTIVE PO is the only PO-level hard block.
-            if (activePO) {
-                return { ok: false, reason: `Đã đặt • thuộc ${activePO.poNumber || activePO.poId}` };
-            }
-
-            // Recovery path: already purchased but no valid active PO.
-            if (actuallyPlaced) {
+            // Special recovery workflow: an item that was already purchased but
+            // no longer has a valid PO can be selected to CREATE/LINK a PO.
+            // This must not reset orderPlaced, orderedAt or purchasePrice.
+            if (actuallyPlaced && !actualPO) {
                 if (supplierFilter && currentSupplier && currentSupplier.toLowerCase() !== supplierFilter.toLowerCase()) {
                     return { ok: false, reason: `NCC hiện tại là ${currentSupplier}` };
                 }
@@ -2986,6 +2962,10 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                     return { ok: false, reason: `Hình thức hiện tại là ${storedType}` };
                 }
                 return { ok: true, reason: 'Đã mua • chưa có PO' };
+            }
+
+            if (item.stage === 'Đã giao hàng') {
+                return { ok: false, reason: 'Đã giao hàng' };
             }
 
             const base = canItemJoinPurchaseOrder(item);
@@ -3279,45 +3259,20 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
         function updateOrderPlacementConfirmButtonState() {
             const btn = document.getElementById('order-placement-confirm-btn');
-            const validationEl = document.getElementById('order-placement-validation');
             if (!btn) return;
 
             const selected = getOrderPlacementSelectedItems();
             const selectedType = getSelectedOrderPlacementPurchaseType();
-            const checks = selected.map(o => ({ o, validation: canItemJoinCurrentOrderPlacementSession(o, selectedType) }));
-            const invalid = checks.filter(x => !x.validation.ok);
-            const valid = !!selectedType && selected.length > 0 && invalid.length === 0;
+            const valid = !!selectedType && selected.length > 0 && selected.every(o => canItemJoinCurrentOrderPlacementSession(o, selectedType).ok);
 
             btn.disabled = !valid;
             btn.classList.toggle('opacity-50', !valid);
             btn.classList.toggle('cursor-not-allowed', !valid);
             btn.title = !selected.length
                 ? 'Chọn ít nhất một mặt hàng đủ điều kiện.'
-                : !selectedType
-                    ? 'Chọn Hình thức mua hàng.'
-                    : invalid.length
-                        ? invalid[0].validation.reason || 'Có item chưa đủ điều kiện.'
-                        : 'Xác nhận Đặt hàng';
-
-            if (validationEl) {
-                if (!selectedType && selected.length) {
-                    validationEl.classList.remove('hidden');
-                    validationEl.innerHTML = '<div class="font-bold mb-1">Chưa thể tiếp tục:</div><div>• Vui lòng chọn Hình thức mua hàng.</div>';
-                } else if (invalid.length) {
-                    validationEl.classList.remove('hidden');
-                    validationEl.innerHTML = `
-                        <div class="font-bold mb-1">Không thể Xác nhận Đặt hàng:</div>
-                        <div class="space-y-0.5">
-                            ${invalid.map(x => `<div>• ${escapeHTML(x.o.item || '-')} → ${escapeHTML(x.validation.reason || 'Chưa đủ điều kiện.')}</div>`).join('')}
-                        </div>`;
-                } else if (!selected.length) {
-                    validationEl.classList.add('hidden');
-                    validationEl.innerHTML = '';
-                } else {
-                    validationEl.classList.add('hidden');
-                    validationEl.innerHTML = '';
-                }
-            }
+                : !valid
+                    ? 'Có mặt hàng đã chọn chưa đủ điều kiện đặt hàng.'
+                    : 'Xác nhận Đặt hàng';
         }
 
         function openCreatePOModal(presetIds = null) {
@@ -3597,18 +3552,11 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 }
             });
 
-            // Prefill an existing document number when all selected items already
-            // carry the same value. This is especially important for the recovery
-            // workflow "Đã mua – Chưa có PO": do not force users to re-enter a
-            // document they already confirmed.
-            const existingDocNumbers = [...new Set(
-                selected
-                    .map(o => String(o.contractNo || '').trim())
-                    .filter(Boolean)
-            )];
-            orderPlacementConfirmState.docNo = existingDocNumbers.length === 1
-                ? existingDocNumbers[0]
+            // One concrete supplier in this contract workflow => one contract selector.
+            const existingContract = supplierFilter && selected.length
+                ? String(selected.find(o => String(o.contractNo || '').trim())?.contractNo || '').trim()
                 : '';
+            orderPlacementConfirmState.docNo = existingContract;
 
             const selectedDate = document.getElementById('po-create-date')?.value || getTodayISO();
             const now = new Date();
@@ -3636,9 +3584,6 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             }
 
             if (type === 'Hợp đồng') {
-                // Reuse a single existing contract number when all selected items
-                // already carry the same one; otherwise let Tab 7 provide the choice.
-                const existingContract = existingDocNumbers.length === 1 ? existingDocNumbers[0] : '';
                 updateOrderPlacementContractOptions(existingContract);
                 const contractSelect = document.getElementById('order-place-confirm-contract-select');
                 if (contractSelect && existingContract) contractSelect.value = existingContract;
@@ -3845,7 +3790,6 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const doc = String(orderPlacementConfirmState.docNo || '').trim();
             const parsed = dt ? new Date(dt) : null;
             const errors = [];
-            const contractItemNumbers = new Map();
             let totalValue = 0;
             let totalKnown = true;
 
@@ -3952,39 +3896,17 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const note = String(document.getElementById('order-place-confirm-note')?.value || '').trim();
             const docNo = String(orderPlacementConfirmState.docNo || '').trim();
 
-            console.debug('[TAB4 FINALIZE]', {
-                selectedIds: selected.map(x => x.id),
-                selectedItems: selected.map(x => x.item),
-                type,
-                supplierFilter,
-                docNo
-            });
-
             if (!selected.length) { alert('Vui lòng chọn ít nhất một mặt hàng.'); return; }
             if (!['ĐNMH', 'Hợp đồng'].includes(type)) { alert('Vui lòng chọn Hình thức mua hàng trước.'); return; }
             if (!datetimeInput) { alert('Vui lòng chọn Ngày / giờ đặt hàng.'); return; }
             const parsed = new Date(datetimeInput);
             if (Number.isNaN(parsed.getTime())) { alert('Ngày / giờ đặt hàng không hợp lệ.'); return; }
-
-            // Re-run the same validation used by the modal UI. This guarantees that
-            // a stale/disabled button state can never hide the actual blocking reason.
-            updateOrderPlacementConfirmationPreview();
-
-            const allSelectedArePurchasedNoPO = selected.every(o => isOrderActuallyPlaced(o) && !getStatusPOForItem(o));
-            const existingDocForRecovery = allSelectedArePurchasedNoPO
-                ? [...new Set(selected.map(o => String(o.contractNo || '').trim()).filter(Boolean))]
-                : [];
-            const effectiveDocNo = docNo || (existingDocForRecovery.length === 1 ? existingDocForRecovery[0] : '');
-
-            if (!effectiveDocNo && !allSelectedArePurchasedNoPO) {
-                alert(type === 'Hợp đồng' ? 'Vui lòng chọn Số Hợp đồng từ Tab 7.' : 'Vui lòng nhập Số ĐNMH.');
-                return;
-            }
+            if (!docNo) { alert(type === 'Hợp đồng' ? 'Vui lòng chọn Số Hợp đồng từ Tab 7.' : 'Vui lòng nhập Số ĐNMH.'); return; }
             if (type === 'Hợp đồng') {
                 if (!supplierFilter) { alert('Vui lòng chọn một NCC cụ thể trước khi đặt hàng theo Hợp đồng.'); return; }
                 const managedContracts = getTab7ContractsForSupplier(supplierFilter);
-                if (!managedContracts.includes(effectiveDocNo)) {
-                    alert(`Số Hợp đồng "${effectiveDocNo}" không thuộc danh sách Hợp đồng được quản lý cho NCC "${supplierFilter}" tại Tab 7.`);
+                if (!managedContracts.includes(docNo)) {
+                    alert(`Số Hợp đồng "${docNo}" không thuộc danh sách Hợp đồng được quản lý cho NCC "${supplierFilter}" tại Tab 7.`);
                     return;
                 }
             }
@@ -4067,7 +3989,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                     // Already purchased items are not purchased again here. This
                     // operation only attaches them to a PO.
                     if (!wasActuallyPlaced) {
-                        o.contractNo = effectiveDocNo;
+                        o.contractNo = docNo;
                         o.orderPlaced = true;
                         o.orderedAt = timestamp;
                         o.orderPlacedAt = timestamp;
@@ -4081,7 +4003,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                         o.orderedAt = o.orderedAt || o.orderPlacedAt || timestamp;
                         o.orderPlacedAt = o.orderPlacedAt || o.orderedAt;
                         o.orderedBy = o.orderedBy || orderedBy;
-                        if (o.contractNo == null || String(o.contractNo).trim() === '') o.contractNo = effectiveDocNo;
+                        if (o.contractNo == null || String(o.contractNo).trim() === '') o.contractNo = docNo;
                         if (o.orderPlacementNote == null || String(o.orderPlacementNote).trim() === '') o.orderPlacementNote = note;
                     }
 
@@ -4188,18 +4110,8 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 syncPurchaseOrderReferences();
                 syncAllPurchaseOrderStatuses();
 
-                console.debug('[TAB4 BEFORE SAVE]', {
-                    orders,
-                    purchaseOrders
-                });
-
                 const saved = await saveToStorage();
                 if (!saved) throw new Error('Không thể lưu dữ liệu Đặt hàng / PO vào bộ nhớ trình duyệt.');
-
-                console.debug('[TAB4 AFTER SAVE]', {
-                    orders,
-                    purchaseOrders
-                });
 
                 orderPlacementSelectedIds = new Set();
                 orderPlacementConfirmState = { docNo: '', priceSourceByItem: {}, quoteIdByItem: {}, manualPriceByItem: {}, contractItemNoByItem: {} };
@@ -4218,7 +4130,6 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 });
                 purchaseOrders = poSnapshot;
                 trackingHistory = historySnapshot;
-                console.error('[TAB4 FINALIZE ERROR]', err);
                 console.error('[ProcureFlow] Finalize Tab4 order placement failed:', err);
                 alert(`Không thể Xác nhận Đặt hàng.\n\nChi tiết: ${err?.message || err}`);
                 renderAll();
@@ -4228,27 +4139,6 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
         // Backward-compatible handler name used by the existing Tab 4 button.
         function confirmOrderPlacement() {
-            // Re-evaluate the button state at click time so stale disabled state can
-            // never silently prevent the confirmation modal from opening.
-            updateOrderPlacementConfirmButtonState();
-            const selected = getOrderPlacementSelectedItems();
-            const type = getSelectedOrderPlacementPurchaseType();
-            const checks = selected.map(o => ({ o, validation: canItemJoinCurrentOrderPlacementSession(o, type) }));
-            const invalid = checks.filter(x => !x.validation.ok);
-
-            if (!selected.length) {
-                alert('Vui lòng tick ít nhất một mặt hàng hợp lệ.');
-                return;
-            }
-            if (!type) {
-                alert('Vui lòng chọn Hình thức mua hàng.');
-                return;
-            }
-            if (invalid.length) {
-                alert(`Không thể mở Xác nhận Đặt hàng:\n\n${invalid.map(x => `• ${x.o.item || '-'} → ${x.validation.reason || 'Chưa đủ điều kiện.'}`).join('\n')}`);
-                return;
-            }
-
             openOrderPlacementConfirmationModal();
         }
 
@@ -5969,50 +5859,36 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
         // --- TAB 2: SEARCH ENGINE ------------------------------------------------
         // Search is resolved BEFORE grouping.  The group is presentation-only.
         function normalizeTab2ItemSearchText(value) {
-            return normalizeSearchText(value)
+            return String(value ?? '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .toLowerCase()
+                .replace(/[–—−]/g, '-')
+                .replace(/[\s_-]+/g, ' ')
                 .replace(/(\d),(\d)/g, '$1.$2')
                 .replace(/(\d+(?:\.\d+)?)\s+(?=[a-zA-Z])/g, '$1')
                 .replace(/\s+/g, ' ')
                 .trim();
         }
-
         function getTab2ItemTokens(value) {
             return normalizeTab2ItemSearchText(value).split(' ').filter(Boolean);
         }
 
         function tab2ItemTokenMatches(itemToken, queryToken) {
             if (!itemToken || !queryToken) return false;
-            const item = String(itemToken);
-            const query = String(queryToken);
-
-            // Plain words use whole-token matching so "gas" does not match "gasket".
-            if (!/^\d+(?:\.\d+)?$/.test(query)) {
-                return item === query;
-            }
-
-            // Numeric search is intentionally conservative:
-            // 1 matches 1m / 1.2m / 1.5m, but 110 does not match 1100.
-            const match = item.match(/^(\d+(?:\.\d+)?)([a-z]+)?$/i);
-            if (!match) return item === query;
-            const numericPart = match[1];
-            const unitPart = match[2] || '';
-            if (numericPart === query) return true;
-            return !!unitPart && numericPart.startsWith(query + '.');
+            return String(itemToken).includes(String(queryToken));
         }
-
         function matchesTab2ItemName(order, query) {
             const itemName = normalizeTab2ItemSearchText(order?.item || '');
             const q = normalizeTab2ItemSearchText(query || '');
-            if (!q) return true;
-            if (itemName === q) return true;
+            if (!q || !itemName) return false;
 
-            const itemTokens = itemName.split(' ').filter(Boolean);
+            // Exact match is checked by applyTab2Search first. This helper only performs
+            // the fallback item-name search and never reads supplier / From / PO / documents.
             const queryTokens = q.split(' ').filter(Boolean);
-            return queryTokens.length > 0 && queryTokens.every(token =>
-                itemTokens.some(itemToken => tab2ItemTokenMatches(itemToken, token))
-            );
+            if (queryTokens.length === 1) return itemName.includes(q);
+            return queryTokens.every(token => itemName.includes(token));
         }
-
         function tab2FieldMatchesQuery(value, query, options = {}) {
             const field = normalizeSearchText(value || '');
             const q = normalizeSearchText(query || '');
@@ -6094,26 +5970,31 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const list = Array.isArray(source) ? source : [];
             if (!q) return 'NONE';
 
-            // Explicit PO identifiers always use PO-level search.
+            // 1) Explicit PO identifiers always use PO-level search.
             if (/^po(?:\s|[-_:]|\d|$)/i.test(q)) return 'PO';
 
-            // Explicit HĐ / ĐNMH identifiers always use document-level search.
+            // 2) Explicit HĐ / ĐNMH identifiers always use document-level search.
             if (/^(?:dnmh|hd)(?:\s|[-_:]|\d|$)/i.test(q)) return 'DOCUMENT';
 
-            // Exact item match has priority over any fuzzy field match.
-            const exactItemExists = list.some(o =>
-                normalizeTab2ItemSearchText(o?.item || '') === normalizeTab2ItemSearchText(query || '')
-            );
-            if (exactItemExists) return 'ITEM';
-
-            // Exact date / supplier / From are field-specific searches.
+            // 3) Date remains a field-specific search.
             const dateKey = getTab2DateQueryKey(String(query || '').trim());
             if (dateKey && list.some(o => normalizeQuoteDateFilterKey(o?.date) === dateKey)) return 'DATE';
 
+            // 4) ITEM SEARCH has priority over supplier / From / PO / document metadata.
+            const exactQuery = normalizeTab2ItemSearchText(query || '');
+            const exactItemExists = !!exactQuery && list.some(o =>
+                normalizeTab2ItemSearchText(o?.item || '') === exactQuery
+            );
+            if (exactItemExists) return 'ITEM';
+
+            // 5) If no exact item exists, item contains/token search still has priority.
+            const itemTokenMatch = list.some(o => matchesTab2ItemName(o, query));
+            if (itemTokenMatch) return 'ITEM';
+
+            // 6) Only after item search fails, fall back to metadata searches.
             if (list.some(o => tab2FieldMatchesQuery(o?.supplier, query))) return 'SUPPLIER';
             if (list.some(o => tab2FieldMatchesQuery(o?.restaurant, query))) return 'FROM';
 
-            // A PO can also be searched by an exact/contained identifier without a "PO" prefix.
             const poExactOrTokenMatch = list.some(o =>
                 getTab2PurchaseOrdersForItem(o).some(po =>
                     getTab2POFields(po).some(value => tab2FieldMatchesQuery(value, query, { includes: true }))
@@ -6126,21 +6007,14 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             );
             if (documentExactOrTokenMatch) return 'DOCUMENT';
 
-            // Fuzzy item search comes before supplier / From so a numeric query such as "110"
-            // still searches item names rather than arbitrary metadata fields.
-            const itemTokenMatch = list.some(o => matchesTab2ItemName(o, query));
-            if (itemTokenMatch) return 'ITEM';
-
             if (list.some(o => tab2FieldMatchesQuery(o?.supplier, query, { includes: true }))) return 'SUPPLIER';
             if (list.some(o => tab2FieldMatchesQuery(o?.restaurant, query, { includes: true }))) return 'FROM';
             if (list.some(o => getTab2DocumentFields(o).some(value => tab2FieldMatchesQuery(value, query, { includes: true })))) return 'DOCUMENT';
             if (list.some(o => getTab2PurchaseOrdersForItem(o).some(po => getTab2POFields(po).some(value => tab2FieldMatchesQuery(value, query, { includes: true }))))) return 'PO';
 
-            // A non-classified query is still an item search; it must never fall back to a
-            // whole-object OR search.
+            // 7) Unclassified text remains ITEM search; never use whole-object OR matching.
             return 'ITEM';
         }
-
         function applyTab2Search(source, query) {
             const list = Array.isArray(source) ? source : [];
             const rawQuery = String(query ?? '').trim();
@@ -6151,10 +6025,19 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             if (mode === 'ITEM') {
                 const exactQuery = normalizeTab2ItemSearchText(rawQuery);
                 const exactMatches = list.filter(o => normalizeTab2ItemSearchText(o?.item || '') === exactQuery);
-                if (exactMatches.length) return { items: exactMatches, mode: 'ITEM' };
-                return { items: list.filter(o => matchesTab2ItemName(o, rawQuery)), mode: 'ITEM' };
-            }
+                const containsMatches = exactMatches.length
+                    ? exactMatches
+                    : list.filter(o => matchesTab2ItemName(o, rawQuery));
 
+                console.debug('[TAB2 ITEM SEARCH]', {
+                    query: rawQuery,
+                    mode,
+                    exactMatches: exactMatches.map(o => o.item),
+                    containsMatches: containsMatches.map(o => o.item)
+                });
+
+                return { items: containsMatches, mode: 'ITEM' };
+            }
             if (mode === 'SUPPLIER') {
                 return { items: list.filter(o => tab2FieldMatchesQuery(o?.supplier, rawQuery, { includes: true })), mode };
             }
