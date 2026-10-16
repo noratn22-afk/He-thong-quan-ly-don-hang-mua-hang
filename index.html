@@ -1639,7 +1639,9 @@
                     <option value="Đã hủy">Đã hủy</option>
                 </select>
                 <span id="po-detail-count" class="text-xs text-slate-600">0 mặt hàng</span>
-                <button type="button" onclick="sendPurchaseOrderToSupplier(this.dataset.poId)" id="po-detail-send-btn" class="ml-auto px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg">Gửi PO cho NCC</button>
+                <button type="button" onclick="openEditPurchaseOrderModal(this.dataset.poId)" id="po-detail-edit-btn" class="px-3 py-2 bg-white hover:bg-indigo-50 text-indigo-700 border border-indigo-200 text-xs font-semibold rounded-lg">Sửa PO</button>
+                <button type="button" onclick="openAddItemsToPurchaseOrderModal(this.dataset.poId)" id="po-detail-add-items-btn" class="px-3 py-2 bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 text-xs font-semibold rounded-lg">+ Thêm mặt hàng</button>
+                <button type="button" onclick="sendPurchaseOrderToSupplier(this.dataset.poId)" id="po-detail-send-btn" class="px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold rounded-lg">Gửi PO cho NCC</button>
                 <button type="button" onclick="exportPurchaseOrderExcel(this.dataset.poId)" id="po-detail-export-btn" class="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold rounded-lg">Xuất Excel PO</button>
             </div>
 
@@ -1647,6 +1649,45 @@
                 <div class="text-xs font-bold text-slate-800 uppercase tracking-wider mb-2">Danh sách mặt hàng</div>
                 <div id="po-detail-items" class="space-y-2"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- MODAL: EDIT PURCHASE ORDER -->
+    <div id="modal-po-edit" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[98] hidden p-4 flex items-center justify-center no-print">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-3xl w-full max-h-[92vh] overflow-y-auto p-6 space-y-4">
+            <div class="flex items-start justify-between border-b border-slate-100 pb-3">
+                <div><h3 class="font-bold text-slate-900 text-base">Sửa Purchase Order</h3><p class="text-xs text-slate-500 mt-1">PO ID nội bộ được giữ nguyên để bảo toàn liên kết item–PO.</p></div>
+                <button type="button" onclick="closeModal('modal-po-edit')" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <input id="po-edit-id" type="hidden">
+            <div id="po-edit-warning" class="hidden rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"></div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <label class="text-xs font-semibold text-slate-600">PO Number<input id="po-edit-number" type="text" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm font-semibold"></label>
+                <label class="text-xs font-semibold text-slate-600">Nhà cung cấp<input id="po-edit-supplier" list="po-edit-supplier-options" type="text" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"><datalist id="po-edit-supplier-options"></datalist></label>
+                <label class="text-xs font-semibold text-slate-600">Ngày PO<input id="po-edit-date" type="date" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"></label>
+                <label class="text-xs font-semibold text-slate-600">Hình thức mua<select id="po-edit-type" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"><option value="ĐNMH">ĐNMH</option><option value="Hợp đồng">Hợp đồng</option></select></label>
+                <label class="text-xs font-semibold text-slate-600">Số chứng từ mua hàng / Hợp đồng<input id="po-edit-document-no" type="text" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"></label>
+                <label class="text-xs font-semibold text-slate-600">Trạng thái PO<select id="po-edit-status" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"><option value="Draft">Draft</option><option value="Đã gửi NCC">Đã gửi NCC</option><option value="Đang giao">Đang giao</option><option value="Hoàn thành">Hoàn thành</option><option value="Đã hủy">Đã hủy</option><option value="Invalid">Invalid</option></select></label>
+                <label class="text-xs font-semibold text-slate-600">Giai đoạn PO<select id="po-edit-stage" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"><option value="SSG">SSG</option><option value="Đặt hàng">Đặt hàng</option><option value="Đã giao hàng">Đã giao hàng</option><option value="Phát hành Hóa đơn">Phát hành Hóa đơn</option><option value="Làm ĐNTT">Làm ĐNTT</option></select></label>
+                <label class="text-xs font-semibold text-slate-600">Số hóa đơn<input id="po-edit-invoice-no" type="text" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"></label>
+                <label class="text-xs font-semibold text-slate-600">Ngày hóa đơn<input id="po-edit-invoice-date" type="date" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"></label>
+                <label class="md:col-span-2 text-xs font-semibold text-slate-600">Ghi chú<textarea id="po-edit-notes" rows="2" class="mt-1 w-full px-3 py-2 border border-slate-300 rounded-lg text-sm resize-y"></textarea></label>
+            </div>
+            <div class="flex justify-end gap-2 border-t border-slate-100 pt-3"><button type="button" onclick="closeModal('modal-po-edit')" class="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-700">Hủy</button><button type="button" onclick="savePurchaseOrderEdits()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold">Lưu thay đổi</button></div>
+        </div>
+    </div>
+
+    <!-- MODAL: ADD EXISTING ORDER ITEMS TO PO -->
+    <div id="modal-po-add-items" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[99] hidden p-4 flex items-center justify-center no-print">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-6xl w-full max-h-[92vh] overflow-y-auto p-6 space-y-4">
+            <div class="flex items-start justify-between border-b border-slate-100 pb-3">
+                <div><h3 class="font-bold text-slate-900 text-base">Thêm mặt hàng vào PO hiện tại</h3><p id="po-add-items-subtitle" class="text-xs text-slate-500 mt-1">Chọn Order Item hiện có trong orders[]; hệ thống không tạo item mới và không đặt hàng lại.</p></div>
+                <button type="button" onclick="closeModal('modal-po-add-items')" class="text-slate-400 hover:text-slate-700"><i data-lucide="x" class="w-5 h-5"></i></button>
+            </div>
+            <div id="po-add-items-alert" class="hidden rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"></div>
+            <div class="flex flex-wrap items-center gap-2"><input id="po-add-items-search" type="text" oninput="renderAddItemsToPOModal()" placeholder="Tìm mặt hàng, mã item, From, ngày Order..." class="flex-1 min-w-[240px] px-3 py-2 border border-slate-300 rounded-lg text-sm"><span class="px-3 py-2 rounded-lg border border-indigo-100 bg-indigo-50 text-indigo-700 text-xs font-bold">Đã chọn: <span id="po-add-items-count">0</span></span></div>
+            <div id="po-add-items-list" class="overflow-x-auto border border-slate-200 rounded-xl"></div>
+            <div class="flex justify-end gap-2 border-t border-slate-100 pt-3"><button type="button" onclick="closeModal('modal-po-add-items')" class="px-4 py-2 border border-slate-300 rounded-lg text-sm text-slate-700">Hủy</button><button type="button" onclick="confirmAddItemsToPurchaseOrder()" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-sm font-semibold">Thêm vào PO</button></div>
         </div>
     </div>
 
@@ -1818,6 +1859,8 @@
         // Purchase Orders created and managed from Tab 4.
         // PO is a separate business object; each item links by purchaseOrderId.
         let purchaseOrders = [];
+        let poAddItemsTargetId = '';
+        let poAddItemsSelectedIds = new Set();
 
         // Quote request tracking: separate from quotes so "đã hỏi giá" is not inferred from quotes.
         let quoteRequests = [];
@@ -2300,6 +2343,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 createdAt: String(source.createdAt || getNowISO()),
                 createdBy: String(source.createdBy || 'Ngọc').trim() || 'Ngọc',
                 purchaseType: String(source.purchaseType || source.poType || 'ĐNMH').trim() || 'ĐNMH',
+                purchaseDocumentNo: String(source.purchaseDocumentNo ?? source.documentNo ?? source.docNo ?? '').trim(),
                 itemIds,
                 invoiceNo: String(source.invoiceNo ?? '').trim(),
                 invoiceDate: source.invoiceDate ? (function(){ try { const r=parseExcelDate(source.invoiceDate); return r.valid ? r.value : ''; } catch(e){ return ''; } })() : '',
@@ -2567,6 +2611,76 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             }
             usedNumbers.add(candidate);
             return candidate;
+        }
+
+
+        // Purchase document references are used to keep truly different ĐNMH / contracts separate.
+        // orderGroupId is intentionally NOT a PO grouping key: one PO may contain items from
+        // multiple source Order Groups when supplier, type, date and document conditions match.
+        function getOrderPurchaseDocumentNumber(item) {
+            return String(item?.purchaseDocumentNo ?? item?.contractNo ?? item?.dnmh ?? '').trim();
+        }
+
+        function getPurchaseOrderDocumentNumber(po) {
+            const explicit = String(po?.purchaseDocumentNo ?? po?.documentNo ?? po?.docNo ?? '').trim();
+            if (explicit) return explicit;
+            // Recover legacy references from either side of the relationship, even if itemIds is stale.
+            const refs = new Set([String(po?.poId || '').trim(), String(po?.poNumber || '').trim()].filter(Boolean));
+            const itemsById = new Map(getPurchaseOrderItems(po).map(item => [String(item.id), item]));
+            (Array.isArray(orders) ? orders : []).forEach(item => {
+                if (refs.has(String(item?.purchaseOrderId || '').trim())) itemsById.set(String(item.id), item);
+            });
+            const documentRefs = [...new Set([...itemsById.values()]
+                .map(getOrderPurchaseDocumentNumber).filter(Boolean))];
+            if (documentRefs.length === 1) return documentRefs[0];
+            if (documentRefs.length > 1) return '__MIXED_DOCUMENTS__';
+            return '';
+        }
+
+        function normalizePOGroupingValue(value) {
+            return String(value ?? '').trim().toLocaleLowerCase('vi');
+        }
+
+        function buildOrderPlacementGroups(items, options = {}) {
+            const groups = new Map();
+            const purchaseType = String(options.purchaseType || '').trim();
+            const poDate = String(options.poDate || getTodayISO()).slice(0, 10);
+            const fallbackDocumentNo = String(options.fallbackDocumentNo || '').trim();
+            (Array.isArray(items) ? items : []).forEach(item => {
+                if (!item) return;
+                const supplier = String((typeof options.supplierResolver === 'function'
+                    ? options.supplierResolver(item) : item.supplier) || '').trim();
+                // Unplaced items receive the session document number at final confirmation;
+                // already-purchased recovery items retain their real existing document number.
+                const currentDocument = isOrderActuallyPlaced(item) ? getOrderPurchaseDocumentNumber(item) : '';
+                const documentNo = currentDocument || fallbackDocumentNo;
+                const key = [normalizePOGroupingValue(supplier), normalizePOGroupingValue(purchaseType),
+                    formatPODateKey(poDate), normalizePOGroupingValue(documentNo)].join('||');
+                if (!groups.has(key)) {
+                    groups.set(key, {
+                        key, supplier, purchaseType, poDate, documentNo,
+                        items: [], orderGroupIds: new Set()
+                    });
+                }
+                const group = groups.get(key);
+                group.items.push(item);
+                const sourceGroupId = normalizeOrderGroupId(item?.orderGroupId);
+                if (sourceGroupId) group.orderGroupIds.add(sourceGroupId);
+            });
+            return groups;
+        }
+
+        function findReusablePurchaseOrderForPlacementGroup(group) {
+            if (!group) return null;
+            return purchaseOrders.find(po => {
+                if (!['Draft', 'Đã gửi NCC', 'Đang giao'].includes(String(po?.status || 'Draft').trim())) return false;
+                if (normalizePOGroupingValue(po?.supplier) !== normalizePOGroupingValue(group.supplier)) return false;
+                if (formatPODateKey(po?.poDate) !== formatPODateKey(group.poDate)) return false;
+                if (normalizePOGroupingValue(po?.purchaseType || 'ĐNMH') !== normalizePOGroupingValue(group.purchaseType)) return false;
+                const existingDocumentNo = getPurchaseOrderDocumentNumber(po);
+                if (normalizePOGroupingValue(existingDocumentNo) !== normalizePOGroupingValue(group.documentNo)) return false;
+                return true;
+            }) || null;
         }
 
         function getPurchaseOrderProgress(po) {
@@ -2985,7 +3099,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                     if (filter !== 'Tất cả PO' && po.status !== filter) return false;
                     const items = getPurchaseOrderItems(po);
                     const searchable = normalizeSearchText([
-                        po.poNumber, po.poId, po.supplier, po.poDate, formatDateVN(po.poDate), po.status, po.purchaseType,
+                        po.poNumber, po.poId, po.supplier, po.poDate, formatDateVN(po.poDate), po.status, po.purchaseType, po.purchaseDocumentNo, getPurchaseOrderDocumentNumber(po),
                         ...items.flatMap(o => [o.item, o.id, o.restaurant, o.contractNo, o.contractItemNo])
                     ].filter(Boolean).join(' '));
                     const tokens = search.split(/\s+/).filter(Boolean);
@@ -3020,7 +3134,10 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                             </div>
                             <div class="flex flex-wrap items-center gap-2">
                                 <span class="inline-flex items-center px-2.5 py-1 rounded-full border text-[11px] font-semibold ${statusClass}">${escapeHTML(po.status)}</span>
+                                <button type="button" onclick='openEditPurchaseOrderModal(${JSON.stringify(po.poId)})' class="px-2.5 py-1.5 rounded-lg bg-indigo-50 text-indigo-700 border border-indigo-100 text-[11px] font-semibold hover:bg-indigo-100">Sửa PO</button>
+                                <button type="button" onclick='openAddItemsToPurchaseOrderModal(${JSON.stringify(po.poId)})' class="px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-700 border border-amber-100 text-[11px] font-semibold hover:bg-amber-100">+ Thêm mặt hàng</button>
                                 <button type="button" onclick='exportPurchaseOrderExcel(${JSON.stringify(po.poId)})' class="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-100 text-[11px] font-semibold hover:bg-emerald-100">Xuất Excel</button>
+                                <button type="button" onclick='deletePurchaseOrder(${JSON.stringify(po.poId)})' class="px-2.5 py-1.5 rounded-lg bg-rose-50 text-rose-700 border border-rose-100 text-[11px] font-semibold hover:bg-rose-100">Xóa PO</button>
                             </div>
                         </div>
                         <div class="mt-3 flex flex-wrap items-center gap-2">
@@ -3384,15 +3501,13 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             }
 
             const validSelected = checks.filter(x => x.validation.ok).map(x => x.o);
-            const byKey = new Map();
-            validSelected.forEach(o => {
-                const supplier = String(o.supplier || '').trim();
-                const type = selectedType || getOrderPlacementPurchaseType(o);
-                const orderGroupId = getOrderGroupId(o);
-                const key = `${orderGroupId}||${supplier.toLowerCase()}||${poDate}||${type}`;
-                if (!byKey.has(key)) byKey.set(key, { orderGroupId, supplier, type, items: [] });
-                byKey.get(key).items.push(o);
+            const byKey = buildOrderPlacementGroups(validSelected, {
+                purchaseType: selectedType || (validSelected[0] ? getOrderPlacementPurchaseType(validSelected[0]) : ''),
+                poDate,
+                fallbackDocumentNo: '',
+                supplierResolver: o => String(o.supplier || '').trim()
             });
+            byKey.forEach(group => { group.type = group.purchaseType; });
 
             let html = `
                 <div class="text-xs font-bold text-slate-800 mb-2">
@@ -3407,7 +3522,8 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 html += '<div class="space-y-1">';
                 const previewUsedNumbers = new Set();
                 for (const group of byKey.values()) {
-                    const poNumberPreview = createUniquePONumberWithUsed(group.supplier, poDate, previewUsedNumbers);
+                    const reusablePreviewPO = findReusablePurchaseOrderForPlacementGroup(group);
+                    const poNumberPreview = reusablePreviewPO?.poNumber || createUniquePONumberWithUsed(group.supplier, poDate, previewUsedNumbers);
                     html += `
                         <div class="flex flex-wrap items-center justify-between gap-2 py-2 border-t border-indigo-100">
                             <div>
@@ -4117,18 +4233,18 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
             if (preview) {
                 const poDate = parsed && !Number.isNaN(parsed.getTime()) ? dt.slice(0, 10) : getTodayISO();
-                const groups = new Map();
-                selected.forEach(o => {
-                    const supplier = supplierFilter || String(o.supplier || '').trim() || 'Chưa có NCC';
-                    const orderGroupId = getOrderGroupId(o);
-                    const key = `${orderGroupId}||${supplier.toLowerCase()}||${poDate}||${type}`;
-                    if (!groups.has(key)) groups.set(key, { orderGroupId, supplier, items: [] });
-                    groups.get(key).items.push(o);
+                const fallbackDocumentNo = String(orderPlacementConfirmState.docNo || '').trim();
+                const groups = buildOrderPlacementGroups(selected, {
+                    purchaseType: type,
+                    poDate,
+                    fallbackDocumentNo,
+                    supplierResolver: o => supplierFilter || String(o.supplier || '').trim() || 'Chưa có NCC'
                 });
                 const used = new Set();
                 let html = `<div class="text-xs font-bold text-slate-800 mb-2">Bạn đang chọn ${selected.length} mặt hàng</div><div class="space-y-2">`;
                 for (const g of groups.values()) {
-                    const poNumber = createUniquePONumberWithUsed(g.supplier, poDate, used);
+                    const reusablePreviewPO = findReusablePurchaseOrderForPlacementGroup(g);
+                    const poNumber = reusablePreviewPO?.poNumber || createUniquePONumberWithUsed(g.supplier, poDate, used);
                     const groupTotal = type === 'ĐNMH' ? g.items.reduce((sum, o) => {
                         const st = getOrderPlacementConfirmPriceState(o);
                         const q = Number(o.qty);
@@ -4321,55 +4437,56 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 });
 
                 // ======================================================
-                // 2) GROUP THE UPDATED orders[] ITEMS
-                //    supplier + PO date + purchase type
+                // 2) GROUP ALL SELECTED ITEMS BEFORE CREATING ANY PO.
+                //    Group keys intentionally exclude item.id / orderGroupId.
+                //    Different suppliers, purchase types, PO dates or actual document
+                //    references remain separate for business reasons.
                 // ======================================================
-                const groups = new Map();
-                selected.forEach(o => {
-                    const supplier = String(o.supplier || '').trim();
-                    const orderGroupId = getOrderGroupId(o);
-                    const key = `${orderGroupId}||${supplier.toLowerCase()}||${poDate}||${type}`;
-                    if (!groups.has(key)) {
-                        groups.set(key, { orderGroupId, supplier, purchaseType: type, poDate, items: [] });
-                    }
-                    groups.get(key).items.push(o);
+                const groups = buildOrderPlacementGroups(selected, {
+                    purchaseType: type,
+                    poDate,
+                    fallbackDocumentNo: effectiveDocNo,
+                    supplierResolver: o => String(o.supplier || '').trim()
                 });
 
                 // ======================================================
-                // 3) CREATE PO ONLY NOW
+                // 3) REUSE A COMPATIBLE PO OR CREATE ONE PO PER GROUP.
                 // ======================================================
                 for (const group of groups.values()) {
-                    const reusablePO = purchaseOrders.find(po => {
-                        const status = String(po?.status || 'Draft').trim();
-                        if (!['Draft', 'Đã gửi NCC', 'Đang giao'].includes(status)) return false;
-                        if (String(po?.supplier || '').trim().toLowerCase() !== group.supplier.toLowerCase()) return false;
-                        if (formatPODateKey(po?.poDate) !== formatPODateKey(group.poDate)) return false;
-                        if (String(po?.purchaseType || 'ĐNMH').trim() !== group.purchaseType) return false;
-                        const explicitGroupId = normalizeOrderGroupId(po?.orderGroupId);
-                        if (explicitGroupId) return explicitGroupId === group.orderGroupId;
-                        const poItems = getPurchaseOrderItems(po);
-                        const derivedGroups = new Set(poItems.map(item => getOrderGroupId(item)).filter(Boolean));
-                        return derivedGroups.size === 1 && derivedGroups.has(group.orderGroupId);
-                    });
-
+                    const reusablePO = findReusablePurchaseOrderForPlacementGroup(group);
                     const poId = reusablePO?.poId || createPurchaseOrderId();
                     const poNumber = reusablePO?.poNumber || createUniquePONumber(group.supplier, group.poDate);
+                    const incomingGroupIds = [...group.orderGroupIds];
+                    const existingGroupIds = [
+                        ...(Array.isArray(reusablePO?.orderGroupIds) ? reusablePO.orderGroupIds.map(normalizeOrderGroupId).filter(Boolean) : []),
+                        normalizeOrderGroupId(reusablePO?.orderGroupId)
+                    ].filter(Boolean);
+                    const combinedGroupIds = [...new Set([...existingGroupIds, ...incomingGroupIds])];
                     const po = reusablePO || {
                         poId,
                         poNumber,
-                        orderGroupId: group.orderGroupId,
+                        orderGroupId: incomingGroupIds.length === 1 ? incomingGroupIds[0] : '',
+                        orderGroupIds: incomingGroupIds,
                         supplier: group.supplier,
                         poDate: group.poDate,
                         purchaseType: group.purchaseType,
+                        purchaseDocumentNo: group.documentNo || effectiveDocNo,
                         createdAt: timestamp,
                         createdBy: orderedBy,
                         itemIds: [],
                         invoiceNo: '',
                         invoiceDate: '',
+                        notes: note,
                         status: 'Draft',
                         stage: 'Đặt hàng'
                     };
-                    po.orderGroupId = po.orderGroupId || group.orderGroupId;
+                    po.supplier = group.supplier;
+                    po.poDate = group.poDate;
+                    po.purchaseType = group.purchaseType;
+                    po.purchaseDocumentNo = String(po.purchaseDocumentNo || group.documentNo || effectiveDocNo || '').trim();
+                    po.orderGroupIds = combinedGroupIds;
+                    po.orderGroupId = combinedGroupIds.length === 1 ? combinedGroupIds[0] : '';
+                    if (note && !String(po.notes || po.note || '').trim()) po.notes = note;
                     po.itemIds = [...new Set([...getPurchaseOrderItemIds(po), ...group.items.map(o => String(o.id))])];
                     if (!po.createdBy) po.createdBy = orderedBy;
 
@@ -4439,6 +4556,265 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             openOrderPlacementConfirmationModal();
         }
 
+        function openEditPurchaseOrderModal(poId) {
+            const po = getPurchaseOrderById(poId);
+            if (!po) { alert('Không tìm thấy PO cần sửa.'); return; }
+            const setValue = (id, value) => { const el = document.getElementById(id); if (el) el.value = value == null ? '' : String(value); };
+            setValue('po-edit-id', po.poId);
+            setValue('po-edit-number', po.poNumber || po.poId);
+            setValue('po-edit-supplier', po.supplier || '');
+            setValue('po-edit-date', formatPODateKey(po.poDate) || getTodayISO());
+            setValue('po-edit-type', po.purchaseType || 'ĐNMH');
+            setValue('po-edit-document-no', getPurchaseOrderDocumentNumber(po) === '__MIXED_DOCUMENTS__' ? '' : getPurchaseOrderDocumentNumber(po));
+            setValue('po-edit-status', po.status || 'Draft');
+            setValue('po-edit-stage', getPurchaseOrderStage(po));
+            setValue('po-edit-invoice-no', po.invoiceNo || '');
+            setValue('po-edit-invoice-date', normalizeInvoiceDateValue(po.invoiceDate));
+            setValue('po-edit-notes', po.notes ?? po.note ?? '');
+            const supplierOptions = document.getElementById('po-edit-supplier-options');
+            if (supplierOptions) supplierOptions.innerHTML = getOrderPlacementSuppliers().map(name => `<option value="${escapeHTMLAttribute(name)}"></option>`).join('');
+            const warning = document.getElementById('po-edit-warning');
+            const itemCount = getPurchaseOrderItems(po).length;
+            if (warning) {
+                warning.classList.toggle('hidden', !(po.invoiceNo || po.invoiceDate || getPurchaseOrderStage(po) === 'Phát hành Hóa đơn'));
+                warning.textContent = (po.invoiceNo || po.invoiceDate || getPurchaseOrderStage(po) === 'Phát hành Hóa đơn')
+                    ? `PO đang có hóa đơn hoặc ở giai đoạn Phát hành Hóa đơn. Nếu sửa NCC, hình thức mua hoặc chứng từ, hệ thống sẽ kiểm tra tương thích của ${itemCount} item trước khi lưu; thông tin hóa đơn không tự động thay đổi.` : '';
+            }
+            document.getElementById('modal-po-edit').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        async function savePurchaseOrderEdits() {
+            const poId = String(document.getElementById('po-edit-id')?.value || '').trim();
+            const po = getPurchaseOrderById(poId);
+            if (!po) { alert('Không tìm thấy PO cần cập nhật.'); return; }
+            const nextNumber = String(document.getElementById('po-edit-number')?.value || '').trim();
+            const nextSupplier = String(document.getElementById('po-edit-supplier')?.value || '').trim();
+            const nextDate = String(document.getElementById('po-edit-date')?.value || '').trim();
+            const nextType = String(document.getElementById('po-edit-type')?.value || '').trim();
+            const nextDocumentNo = String(document.getElementById('po-edit-document-no')?.value || '').trim();
+            const nextStatus = String(document.getElementById('po-edit-status')?.value || '').trim();
+            const nextStage = String(document.getElementById('po-edit-stage')?.value || '').trim();
+            const nextInvoiceNo = String(document.getElementById('po-edit-invoice-no')?.value || '').trim();
+            const nextInvoiceDate = String(document.getElementById('po-edit-invoice-date')?.value || '').trim();
+            const nextNotes = String(document.getElementById('po-edit-notes')?.value || '').trim();
+            if (!nextNumber) { alert('PO Number không được để trống.'); return; }
+            if (!nextSupplier) { alert('Vui lòng nhập NCC.'); return; }
+            if (!nextDate || !parseExcelDate(nextDate)?.valid) { alert('Ngày PO không hợp lệ.'); return; }
+            if (!['ĐNMH', 'Hợp đồng'].includes(nextType)) { alert('Hình thức mua không hợp lệ.'); return; }
+            if (!PURCHASE_ORDER_STATUSES.includes(nextStatus)) { alert('Trạng thái PO không hợp lệ.'); return; }
+            if (!PURCHASE_ORDER_STAGES.includes(nextStage)) { alert('Giai đoạn PO không hợp lệ.'); return; }
+            const duplicate = purchaseOrders.find(other => String(other.poId) !== String(po.poId) && normalizePOGroupingValue(other.poNumber) === normalizePOGroupingValue(nextNumber));
+            if (duplicate) { alert(`PO Number đã tồn tại ở ${duplicate.poNumber || duplicate.poId}. Vui lòng dùng số khác.`); return; }
+
+            const items = getPurchaseOrderItems(po);
+            const mismatch = [];
+            items.forEach(item => {
+                const itemSupplier = String(item.supplier || '').trim();
+                const itemType = String(getOrderPlacementPurchaseType(item) || item.purchaseType || '').trim();
+                const itemDoc = getOrderPurchaseDocumentNumber(item);
+                if (itemSupplier && normalizePOGroupingValue(itemSupplier) !== normalizePOGroupingValue(nextSupplier)) mismatch.push(`${item.item || item.id}: NCC item hiện tại là ${itemSupplier}`);
+                else if (!itemSupplier && normalizePOGroupingValue(po.supplier) !== normalizePOGroupingValue(nextSupplier)) mismatch.push(`${item.item || item.id}: Thiếu NCC ở item nên không thể xác nhận tương thích với NCC mới`);
+                if (itemType && normalizePOGroupingValue(itemType) !== normalizePOGroupingValue(nextType)) mismatch.push(`${item.item || item.id}: Hình thức item hiện tại là ${itemType}`);
+                else if (!itemType && normalizePOGroupingValue(po.purchaseType || 'ĐNMH') !== normalizePOGroupingValue(nextType)) mismatch.push(`${item.item || item.id}: Thiếu Hình thức mua ở item nên không thể xác nhận tương thích với loại PO mới`);
+                if (itemDoc && nextDocumentNo && normalizePOGroupingValue(itemDoc) !== normalizePOGroupingValue(nextDocumentNo)) mismatch.push(`${item.item || item.id}: Chứng từ item hiện tại là ${itemDoc}`);
+                else if (!itemDoc && nextDocumentNo && normalizePOGroupingValue(getPurchaseOrderDocumentNumber(po)) !== normalizePOGroupingValue(nextDocumentNo)) mismatch.push(`${item.item || item.id}: Thiếu số chứng từ ở item nên không thể xác nhận việc đổi số chứng từ PO`);
+                if (nextType === 'Hợp đồng' && (!nextDocumentNo || !itemDoc || normalizePOGroupingValue(itemDoc) !== normalizePOGroupingValue(nextDocumentNo))) mismatch.push(`${item.item || item.id}: Không xác định được cùng số Hợp đồng`);
+            });
+            if (mismatch.length) {
+                alert('Không thể lưu vì thông tin PO mới làm các item không còn tương thích. Hãy xử lý item trước, không có dữ liệu nào bị thay đổi.\n\n' + [...new Set(mismatch)].map(x => '• ' + x).join('\n'));
+                return;
+            }
+
+            const previousNumber = String(po.poNumber || '').trim();
+            const allPOSnapshot = JSON.parse(JSON.stringify(purchaseOrders));
+            const allItemLinkSnapshots = orders.map(item => ({ id: item.id, purchaseOrderId: item.purchaseOrderId }));
+            Object.assign(po, {
+                poNumber: nextNumber,
+                supplier: nextSupplier,
+                poDate: normalizeQuoteDateFilterKey(nextDate) || nextDate,
+                purchaseType: nextType,
+                purchaseDocumentNo: nextDocumentNo,
+                status: nextStatus,
+                stage: nextStage,
+                invoiceNo: nextInvoiceNo,
+                invoiceDate: nextInvoiceDate,
+                lastModifiedAt: getNowISO()
+            });
+            if ('notes' in po || !('note' in po)) po.notes = nextNotes; else po.note = nextNotes;
+            // Preserve canonical links even for legacy records whose item reference used PO Number.
+            orders.forEach(item => {
+                const ref = String(item.purchaseOrderId || '').trim();
+                if (ref && (ref === String(po.poId) || ref === previousNumber)) item.purchaseOrderId = po.poId;
+            });
+            try {
+                syncPurchaseOrderReferences();
+                const saved = await saveToStorage();
+                if (saved === false) throw new Error('Không lưu được dữ liệu PO vào bộ nhớ trình duyệt.');
+                closeModal('modal-po-edit');
+                renderAll();
+                renderPurchaseOrderManager();
+                openPODetailModal(po.poId);
+            } catch (error) {
+                purchaseOrders = allPOSnapshot;
+                allItemLinkSnapshots.forEach(snapshot => {
+                    const item = orders.find(o => String(o.id) === String(snapshot.id));
+                    if (item) item.purchaseOrderId = snapshot.purchaseOrderId;
+                });
+                alert(`Không thể lưu chỉnh sửa PO.\n\n${error?.message || error}`);
+            }
+        }
+
+        function getItemPOAddCompatibility(item, po) {
+            if (!item || !po) return { ok: false, reason: 'Không tìm thấy item hoặc PO.' };
+            const allowedPOStatuses = ['Draft', 'Đã gửi NCC', 'Đang giao'];
+            if (!allowedPOStatuses.includes(String(po.status || 'Draft').trim())) return { ok: false, reason: `PO đang ở trạng thái ${po.status || 'không xác định'}; không thể bổ sung item.` };
+            const id = String(item.id);
+            const poIds = getPurchaseOrderItemIds(po);
+            const linkedPOs = getStatusPOsForItem(item).filter(existing => !['Invalid', 'Đã hủy'].includes(String(existing.status || '').trim()));
+            if (poIds.includes(id) || linkedPOs.some(existing => String(existing.poId) === String(po.poId))) return { ok: false, reason: 'Item đã thuộc PO này.' };
+            const otherPO = linkedPOs.find(existing => String(existing.poId) !== String(po.poId));
+            if (otherPO) return { ok: false, reason: `Item đang thuộc PO hợp lệ ${otherPO.poNumber || otherPO.poId}.` };
+            if (!isOrderActuallyPlaced(item)) {
+                if (item.orderPlaced === true || item.orderedAt || item.orderPlacedAt) {
+                    return { ok: false, reason: 'Dữ liệu ngày đặt hàng thiếu hoặc không hợp lệ; cần kiểm tra lịch sử trước khi thêm vào PO.' };
+                }
+                return { ok: false, reason: 'Item chưa được đặt mua. Hãy dùng workflow Đặt hàng để không bỏ qua bước xác nhận và timer.' };
+            }
+            const supplier = String(item.supplier || '').trim();
+            if (!supplier || !String(po.supplier || '').trim()) return { ok: false, reason: 'Thiếu NCC ở item hoặc PO nên chưa xác định được tính tương thích.' };
+            if (normalizePOGroupingValue(supplier) !== normalizePOGroupingValue(po.supplier)) return { ok: false, reason: `NCC item là ${supplier}, không khớp NCC PO (${po.supplier}).` };
+            const itemType = String(getOrderPlacementPurchaseType(item) || item.purchaseType || '').trim();
+            const poType = String(po.purchaseType || 'ĐNMH').trim();
+            if (!itemType) return { ok: false, reason: 'Item chưa có Hình thức mua hàng.' };
+            if (normalizePOGroupingValue(itemType) !== normalizePOGroupingValue(poType)) return { ok: false, reason: `Hình thức item là ${itemType}, không khớp PO (${poType}).` };
+            const itemDoc = getOrderPurchaseDocumentNumber(item);
+            const poDoc = getPurchaseOrderDocumentNumber(po);
+            if (poType === 'Hợp đồng') {
+                if (!itemDoc || !poDoc || poDoc === '__MIXED_DOCUMENTS__') return { ok: false, reason: 'Thiếu hoặc không thống nhất số Hợp đồng ở PO/item.' };
+                if (normalizePOGroupingValue(itemDoc) !== normalizePOGroupingValue(poDoc)) return { ok: false, reason: `Số Hợp đồng item (${itemDoc}) không khớp PO (${poDoc}).` };
+            } else if ((itemDoc || poDoc) && (!itemDoc || !poDoc || normalizePOGroupingValue(itemDoc) !== normalizePOGroupingValue(poDoc))) {
+                return { ok: false, reason: `Số chứng từ item (${itemDoc || 'chưa có'}) không khớp PO (${poDoc || 'chưa xác định'}).` };
+            }
+            return { ok: true, reason: '' };
+        }
+
+        function openAddItemsToPurchaseOrderModal(poId) {
+            const po = getPurchaseOrderById(poId);
+            if (!po) { alert('Không tìm thấy PO cần bổ sung mặt hàng.'); return; }
+            poAddItemsTargetId = String(po.poId);
+            poAddItemsSelectedIds = new Set();
+            const search = document.getElementById('po-add-items-search');
+            if (search) search.value = '';
+            const alertEl = document.getElementById('po-add-items-alert');
+            const stage = getPurchaseOrderStage(po);
+            const invoiceExists = !!(String(po.invoiceNo || '').trim() || String(po.invoiceDate || '').trim());
+            if (alertEl) {
+                const showWarning = invoiceExists || stage === 'Phát hành Hóa đơn';
+                alertEl.classList.toggle('hidden', !showWarning);
+                alertEl.textContent = showWarning ? 'Cảnh báo: PO đã có thông tin hóa đơn hoặc đang ở giai đoạn Phát hành Hóa đơn. Khi xác nhận thêm item, hệ thống sẽ yêu cầu bạn xác nhận rủi ro chứng từ; không tự sửa hóa đơn.' : '';
+            }
+            const subtitle = document.getElementById('po-add-items-subtitle');
+            if (subtitle) subtitle.textContent = `${po.poNumber || po.poId} • ${po.supplier || 'Chưa có NCC'} • ${po.purchaseType || 'ĐNMH'} • Ngày PO ${formatDateVN(po.poDate)}. Chỉ liên kết item đã đặt mua và chưa thuộc PO khác.`;
+            renderAddItemsToPOModal();
+            document.getElementById('modal-po-add-items').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function togglePOAddItemSelection(itemId, checked) {
+            const id = String(itemId);
+            const item = orders.find(o => String(o.id) === id);
+            const po = getPurchaseOrderById(poAddItemsTargetId);
+            const compatibility = getItemPOAddCompatibility(item, po);
+            if (checked && compatibility.ok) poAddItemsSelectedIds.add(id);
+            else poAddItemsSelectedIds.delete(id);
+            renderAddItemsToPOModal();
+        }
+
+        function renderAddItemsToPOModal() {
+            const list = document.getElementById('po-add-items-list');
+            const count = document.getElementById('po-add-items-count');
+            if (count) count.textContent = String(poAddItemsSelectedIds.size);
+            if (!list) return;
+            const po = getPurchaseOrderById(poAddItemsTargetId);
+            if (!po) { list.innerHTML = '<div class="p-5 text-sm text-rose-600">Không tìm thấy PO.</div>'; return; }
+            const query = normalizeSearchText(document.getElementById('po-add-items-search')?.value || '');
+            const tokens = query.split(/\s+/).filter(Boolean);
+            const rows = (Array.isArray(orders) ? orders : []).filter(item => {
+                const text = normalizeSearchText([item.item, item.id, item.code, item.itemCode, item.restaurant, item.area, item.from, item.date, formatDateVN(item.date), item.supplier, item.contractNo, item.contractItemNo].filter(Boolean).join(' '));
+                return !tokens.length || tokens.every(token => text.includes(token));
+            });
+            if (!rows.length) { list.innerHTML = '<div class="p-6 text-sm text-slate-400 text-center">Không có item phù hợp với từ khóa.</div>'; return; }
+            list.innerHTML = `<table class="w-full min-w-[1050px] text-left text-xs"><thead class="bg-slate-50 border-b border-slate-200"><tr class="text-slate-500"><th class="p-2.5 w-14 text-center">Chọn</th><th class="p-2.5">Mặt hàng / Mã</th><th class="p-2.5">Ngày Order</th><th class="p-2.5">From</th><th class="p-2.5 text-right">SL</th><th class="p-2.5">NCC</th><th class="p-2.5">Hình thức</th><th class="p-2.5 text-right">Giá mua</th><th class="p-2.5">Điều kiện</th></tr></thead><tbody class="divide-y divide-slate-100">${rows.map(item => {
+                const id = String(item.id);
+                const compatibility = getItemPOAddCompatibility(item, po);
+                const checked = poAddItemsSelectedIds.has(id) && compatibility.ok;
+                const value = Number.isFinite(Number(item.purchaseValue)) && item.purchaseValue !== '' && item.purchaseValue !== null ? Number(item.purchaseValue) : (Number.isFinite(Number(item.purchasePrice)) && Number.isFinite(Number(item.qty)) ? Number(item.purchasePrice) * Number(item.qty) : null);
+                const from = item.restaurant || item.area || item.from || '-';
+                return `<tr class="${compatibility.ok ? 'bg-white hover:bg-indigo-50/40' : 'bg-slate-50/70'}"><td class="p-2.5 text-center"><input type="checkbox" ${checked ? 'checked' : ''} ${compatibility.ok ? '' : 'disabled'} onchange='togglePOAddItemSelection(${JSON.stringify(id)}, this.checked)' aria-label="Chọn item ${escapeHTMLAttribute(id)}"></td><td class="p-2.5"><div class="font-semibold text-slate-800">${escapeHTML(item.item || '-')}</div><div class="text-[10px] text-slate-400 mt-0.5">ID: ${escapeHTML(id)}${item.code || item.itemCode ? ` • Mã: ${escapeHTML(item.code || item.itemCode)}` : ''}</div></td><td class="p-2.5">${escapeHTML(formatDateVN(item.date) || '-')}</td><td class="p-2.5">${escapeHTML(from)}</td><td class="p-2.5 text-right">${escapeHTML(item.qty ?? 0)} ${escapeHTML(item.unit || '')}</td><td class="p-2.5">${escapeHTML(item.supplier || '-')}</td><td class="p-2.5">${escapeHTML(getOrderPlacementPurchaseType(item) || item.purchaseType || '-')}</td><td class="p-2.5 text-right">${value !== null ? escapeHTML(formatPurchaseMoney(value)) : 'Chưa có giá'}</td><td class="p-2.5"><span class="inline-flex max-w-[270px] whitespace-normal px-2 py-1 rounded-md border text-[10px] ${compatibility.ok ? 'bg-emerald-50 text-emerald-700 border-emerald-100' : 'bg-slate-100 text-slate-500 border-slate-200'}">${compatibility.ok ? 'Đủ điều kiện' : escapeHTML(compatibility.reason)}</span></td></tr>`;
+            }).join('')}</tbody></table>`;
+            if (count) count.textContent = String(poAddItemsSelectedIds.size);
+        }
+
+        async function confirmAddItemsToPurchaseOrder() {
+            const po = getPurchaseOrderById(poAddItemsTargetId);
+            if (!po) { alert('Không tìm thấy PO đích.'); return; }
+            const selectedIds = [...poAddItemsSelectedIds].map(String);
+            if (!selectedIds.length) { alert('Vui lòng chọn ít nhất một mặt hàng đủ điều kiện.'); return; }
+            const selectedItems = [];
+            const errors = [];
+            selectedIds.forEach(id => {
+                const item = orders.find(o => String(o.id) === id);
+                const check = getItemPOAddCompatibility(item, po);
+                if (!check.ok) errors.push(`${item?.item || id}: ${check.reason}`);
+                else selectedItems.push(item);
+            });
+            if (errors.length) {
+                alert('Một số item không còn đủ điều kiện:\n\n' + errors.map(e => '• ' + e).join('\n'));
+                renderAddItemsToPOModal();
+                if (!selectedItems.length) return;
+                if (!confirm(`Sẽ chỉ thêm ${selectedItems.length} item hợp lệ; bỏ qua ${errors.length} item không hợp lệ. Tiếp tục?`)) return;
+            }
+            if (!selectedItems.length) { alert('Không có item hợp lệ để thêm vào PO.'); return; }
+            const hasInvoice = !!(String(po.invoiceNo || '').trim() || String(po.invoiceDate || '').trim());
+            const isInvoiceStage = getPurchaseOrderStage(po) === 'Phát hành Hóa đơn';
+            if ((hasInvoice || isInvoiceStage) && !confirm(`CẢNH BÁO: PO ${po.poNumber || po.poId} đã có hóa đơn hoặc đang ở giai đoạn Phát hành Hóa đơn. Bổ sung ${selectedItems.length} mặt hàng có thể làm chứng từ hiện tại không còn khớp. Hệ thống sẽ không tự sửa hóa đơn. Bạn xác nhận tiếp tục?`)) return;
+
+            const allPOSnapshot = JSON.parse(JSON.stringify(purchaseOrders));
+            const allItemLinkSnapshots = orders.map(item => ({ id: item.id, purchaseOrderId: item.purchaseOrderId }));
+            try {
+                selectedItems.forEach(item => {
+                    // Final duplicate/ownership check at commit time.
+                    const check = getItemPOAddCompatibility(item, po);
+                    if (!check.ok) throw new Error(`${item.item || item.id}: ${check.reason}`);
+                    const id = String(item.id);
+                    po.itemIds = [...new Set([...getPurchaseOrderItemIds(po), id])];
+                    item.purchaseOrderId = String(po.poId);
+                    // Intentionally do not touch orderPlaced, timestamps, supplier,
+                    // purchase type, contract fields, price or quote linkage.
+                });
+                syncPurchaseOrderReferences();
+                syncAllPurchaseOrderStatuses();
+                const saved = await saveToStorage();
+                if (saved === false) throw new Error('Không lưu được liên kết item–PO.');
+                const addedCount = selectedItems.length;
+                poAddItemsSelectedIds = new Set();
+                poAddItemsTargetId = '';
+                closeModal('modal-po-add-items');
+                renderAll();
+                renderPurchaseOrderManager();
+                openPODetailModal(po.poId);
+                alert(`Đã thêm ${addedCount} mặt hàng vào ${po.poNumber || po.poId}. Thông tin mua hàng gốc của item được giữ nguyên.`);
+            } catch (error) {
+                purchaseOrders = allPOSnapshot;
+                allItemLinkSnapshots.forEach(snapshot => {
+                    const item = orders.find(o => String(o.id) === String(snapshot.id));
+                    if (item) item.purchaseOrderId = snapshot.purchaseOrderId;
+                });
+                alert(`Không thể thêm mặt hàng vào PO.\n\n${error?.message || error}`);
+            }
+        }
+
         function openPurchaseOrderManager() {
             document.getElementById('modal-po-manager').classList.remove('hidden');
             const search = document.getElementById('po-manager-search');
@@ -4477,8 +4853,12 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             }
             const detailSendBtn = document.getElementById('po-detail-send-btn');
             const detailExportBtn = document.getElementById('po-detail-export-btn');
+            const detailEditBtn = document.getElementById('po-detail-edit-btn');
+            const detailAddItemsBtn = document.getElementById('po-detail-add-items-btn');
             if (detailSendBtn) detailSendBtn.dataset.poId = po.poId;
             if (detailExportBtn) detailExportBtn.dataset.poId = po.poId;
+            if (detailEditBtn) detailEditBtn.dataset.poId = po.poId;
+            if (detailAddItemsBtn) detailAddItemsBtn.dataset.poId = po.poId;
             if (count) count.textContent = `${progress.total} mặt hàng • ${progress.placed}/${progress.total} đã đặt`;
             if (total) total.textContent = progress.totalValue ? formatPurchaseMoney(progress.totalValue) : 'Chưa xác định';
 
