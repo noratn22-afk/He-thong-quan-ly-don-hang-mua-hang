@@ -298,21 +298,29 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
                 <!-- Left Sidebar: Quote Status by Supplier -->
-                <div class="lg:col-span-1 bg-white rounded-xl border border-slate-200 shadow-sm p-4 flex flex-col space-y-4 h-fit sticky top-20">
+                <div class="lg:col-span-1 bg-white rounded-xl border border-slate-200 shadow-sm p-3 flex flex-col space-y-3 h-fit sticky top-20">
                     <h3 class="font-semibold text-sm text-slate-800 flex items-center space-x-2">
                         <i data-lucide="users" class="w-4 h-4 text-indigo-600"></i>
                         <span>Theo dõi Báo giá theo Nhà Cung Cấp</span>
                     </h3>
-                    <p class="text-xs text-slate-500">Theo dõi NCC đã hỏi giá, NCC đã báo giá và NCC chưa phản hồi.</p>
-                    <div id="quote-tracking-list" class="space-y-4 overflow-y-auto max-h-[500px] pr-1">
+                    <p class="text-[11px] text-slate-500">Mở từng NCC để xem đúng mặt hàng, trạng thái và thao tác theo từng cặp NCC – Order.</p>
+                    <select id="quote-tracking-status" onchange="setQuoteSupplierStatusFilter(this.value)" class="w-full px-2.5 py-2 border border-slate-300 rounded-lg text-xs bg-white text-slate-700 focus:outline-none focus:ring-2 focus:ring-indigo-500">
+                        <option value="pending" selected>Đã hỏi – Chưa báo giá</option>
+                        <option value="all">Tất cả đã hỏi / có báo giá</option>
+                        <option value="quoted">Đã có báo giá thực tế</option>
+                        <option value="confirmed">Đã xác nhận, chưa có giá</option>
+                        <option value="rejected">Từ chối báo giá</option>
+                        <option value="unasked">Chưa hỏi giá</option>
+                    </select>
+                    <div id="quote-tracking-list" class="space-y-2 overflow-y-auto max-h-[600px] pr-1">
                         <!-- Populated by JS -->
                     </div>
                 </div>
 
                 <!-- Right Area: Multi-Supplier Quote Comparison Blocks -->
-                <div class="lg:col-span-2 flex flex-col space-y-4">
+                <div class="lg:col-span-3 flex flex-col space-y-4">
                     <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
                         <div class="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
                             <h3 class="font-semibold text-sm text-slate-800 flex items-center space-x-2">
@@ -371,6 +379,7 @@
                             <option value="Đặt hàng">Đặt hàng</option>
                             <option value="Đã giao hàng">Đã giao hàng</option>
                             <option value="Phát hành Hóa đơn">Phát hành Hóa đơn</option>
+                            <option value="Làm ĐNTT">Làm ĐNTT</option>
                         </select>
                         <select id="filter-status-po" onchange="renderStatusTable()" class="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 min-w-[210px]">
                             <option value="Tất cả PO">Tất cả PO</option>
@@ -1051,7 +1060,24 @@
                 </div>
             </div>
 
-            <div id="export-ssg-summary" class="grid grid-cols-2 sm:grid-cols-5 gap-3"></div>
+            <div id="export-ssg-supplier-selection" class="hidden border border-slate-200 rounded-xl p-4 space-y-3">
+                <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-800">Chọn NCC báo giá hiển thị trong Excel</h4>
+                        <p class="text-[11px] text-slate-500 mt-1">Chỉ xuất giá của NCC được chọn. NCC chưa có giá sẽ hiển thị trạng thái, không lấy giá thay thế.</p>
+                    </div>
+                    <span class="shrink-0 text-xs font-semibold text-indigo-700 bg-indigo-50 border border-indigo-100 rounded-lg px-3 py-1.5">Đang chọn: <span id="export-ssg-supplier-count">0</span> NCC</span>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                    <button type="button" onclick="selectAllSSGQuotedSuppliers()" class="px-3 py-1.5 rounded-lg text-xs font-semibold border border-emerald-200 bg-emerald-50 text-emerald-700 hover:bg-emerald-100">Tất cả NCC có báo giá thực tế</button>
+                    <button type="button" onclick="selectAllSSGRelatedSuppliers()" class="px-3 py-1.5 rounded-lg text-xs font-semibold border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100">Chọn tất cả NCC liên quan</button>
+                    <button type="button" onclick="deselectAllSSGSuppliers()" class="px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-300 bg-white text-slate-700 hover:bg-slate-100">Bỏ chọn NCC</button>
+                </div>
+                <div id="export-ssg-supplier-list" class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto border border-slate-100 rounded-lg p-2"></div>
+                <div id="export-ssg-supplier-note" class="text-[11px] text-slate-500"></div>
+            </div>
+
+            <div id="export-ssg-summary" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-4 gap-3"></div>
 
             <div id="export-ssg-preview" class="bg-indigo-50 border border-indigo-100 rounded-xl p-4 text-sm text-indigo-900">
                 Chưa chọn điều kiện xuất.
@@ -1799,6 +1825,10 @@
         let currentQuoteRejectContext = null;
         let pendingQuoteAction = null;
         let quoteStatusFilter = 'all';
+        let quoteSupplierStatusFilter = 'pending';
+        let quoteTrackingExpandedSuppliers = new Set();
+        window.ssgSelectedSupplierNames = new Set();
+        window.ssgSupplierSelectMode = 'allQuoted';
 
         // Robust event delegation for Tab 3 quote actions.
         // Using data attributes avoids fragile inline onclick strings when supplier names contain quotes
@@ -1831,6 +1861,18 @@
                     case 'confirm-action':
                         confirmPendingQuoteAction();
                         break;
+                    case 'confirm-reported':
+                        setSupplierQuoteAcknowledgement(orderId, supplier, true);
+                        break;
+                    case 'reset-reported':
+                        setSupplierQuoteAcknowledgement(orderId, supplier, false);
+                        break;
+                    case 'focus-item':
+                        focusQuoteComparisonItem(orderId);
+                        break;
+                    case 'ask':
+                        openQuoteRequestModal(orderId, supplier);
+                        break;
                     default:
                         break;
                 }
@@ -1838,6 +1880,20 @@
                 console.error('Quote action error:', err);
                 alert('Không thể thực hiện thao tác này. Vui lòng thử lại.');
             }
+        });
+
+        document.addEventListener('click', function (event) {
+            const toggle = event.target.closest('[data-supplier-card-toggle]');
+            if (!toggle) return;
+            event.preventDefault();
+            const supplierName = String(toggle.getAttribute('data-supplier') || '').trim();
+            if (!supplierName) return;
+            if (quoteTrackingExpandedSuppliers.has(supplierName.toLowerCase())) {
+                quoteTrackingExpandedSuppliers.delete(supplierName.toLowerCase());
+            } else {
+                quoteTrackingExpandedSuppliers.add(supplierName.toLowerCase());
+            }
+            renderQuotes();
         });
 
         // App Initialization
@@ -2202,8 +2258,11 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
         // order.id remains the item ID; purchaseOrderId links item -> PO.
         // ==========================================================
         const PURCHASE_ORDER_STATUSES = ['Draft', 'Đã gửi NCC', 'Đang giao', 'Hoàn thành', 'Đã hủy', 'Invalid'];
-        const PURCHASE_ORDER_STAGES = ['SSG', 'Đặt hàng', 'Đã giao hàng', 'Phát hành Hóa đơn'];
+        const PURCHASE_ORDER_STAGES = ['SSG', 'Đặt hàng', 'Đã giao hàng', 'Phát hành Hóa đơn', 'Làm ĐNTT'];
         let orderPlacementSelectedIds = new Set();
+        // Independent UI-only selection for the Tab 4 no-PO recovery blocks.
+        // Never share this Set with the normal order-placement selection flow.
+        let statusNoPOSelectedIds = new Set();
         // UI-only state for the multi-item confirmation modal. The business source of truth remains orders[].
         let orderPlacementConfirmState = {
             docNo: '',
@@ -2725,6 +2784,109 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             if (!po) return 'SSG';
             const raw = String(po.stage || '').trim();
             return PURCHASE_ORDER_STAGES.includes(raw) ? raw : 'SSG';
+        }
+
+
+        // UI-only reminder: never write alert flags or infer a missing placement date.
+        // Use the real placement timestamp on each order item, with the PO's stage as source of truth.
+        function parseActualOrderDateForOverdue(value) {
+            if (value instanceof Date) {
+                return Number.isNaN(value.getTime()) ? null : new Date(value.getTime());
+            }
+            if (value === null || value === undefined || String(value).trim() === '') return null;
+            const raw = String(value).trim();
+
+            // Strict ISO / SQL-like date or timestamp.
+            let match = raw.match(/^(\d{4})-(\d{1,2})-(\d{1,2})(.*)$/);
+            if (match) {
+                const year = Number(match[1]), month = Number(match[2]), day = Number(match[3]);
+                const dateOnly = new Date(year, month - 1, day);
+                if (dateOnly.getFullYear() !== year || dateOnly.getMonth() !== month - 1 || dateOnly.getDate() !== day) return null;
+                if (!match[4]) return dateOnly;
+                const parsed = new Date(raw);
+                return Number.isNaN(parsed.getTime()) ? null : parsed;
+            }
+
+            // Vietnam-local DD/MM/YYYY with optional time, including legacy saved values.
+            match = raw.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?$/);
+            if (match) {
+                const day = Number(match[1]), month = Number(match[2]), year = Number(match[3]);
+                const hour = Number(match[4] || 0), minute = Number(match[5] || 0), second = Number(match[6] || 0);
+                const parsed = new Date(year, month - 1, day, hour, minute, second, 0);
+                if (parsed.getFullYear() !== year || parsed.getMonth() !== month - 1 || parsed.getDate() !== day ||
+                    hour > 23 || minute > 59 || second > 59) return null;
+                return parsed;
+            }
+
+            const fallback = new Date(raw);
+            return Number.isNaN(fallback.getTime()) ? null : fallback;
+        }
+
+        function getActualOrderPlacedDateForOverdue(item) {
+            if (!item) return null;
+            const stageTimes = item.stageTimes && typeof item.stageTimes === 'object' ? item.stageTimes : {};
+            // orderedAt / orderPlacedAt are the primary saved timestamps. A recorded
+            // stage transition to "Đặt hàng" is a final fallback, not the request date.
+            const candidates = [item.orderedAt, item.orderPlacedAt, stageTimes['Đặt hàng']];
+            for (const candidate of candidates) {
+                const parsed = parseActualOrderDateForOverdue(candidate);
+                if (parsed) return parsed;
+            }
+            return null;
+        }
+
+        function getStatusItemOverdueInfo(item, po = null, now = new Date()) {
+            const stage = po ? getPurchaseOrderStage(po) : String(item?.stage || 'SSG').trim();
+            const isDntt = normalizeStatusItemSearchText(stage) === normalizeStatusItemSearchText('Làm ĐNTT');
+            if (isDntt || !item || item.orderPlaced !== true) {
+                return { overdue: false, elapsedDays: null, placedDate: null, stage };
+            }
+            const placedDate = getActualOrderPlacedDateForOverdue(item);
+            if (!placedDate) return { overdue: false, elapsedDays: null, placedDate: null, stage };
+            const nowDate = now instanceof Date ? now : new Date(now);
+            if (Number.isNaN(nowDate.getTime())) return { overdue: false, elapsedDays: null, placedDate, stage };
+            const elapsedMs = nowDate.getTime() - placedDate.getTime();
+            if (elapsedMs < 0) return { overdue: false, elapsedDays: 0, placedDate, stage };
+            const elapsedDays = Math.floor(elapsedMs / 86400000);
+            return { overdue: elapsedMs > 10 * 86400000, elapsedDays, placedDate, stage };
+        }
+
+        function getStatusOverdueSummary(items, po = null, now = new Date()) {
+            const details = (Array.isArray(items) ? items : []).map(item => ({
+                item,
+                ...getStatusItemOverdueInfo(item, po, now)
+            }));
+            const overdueItems = details.filter(entry => entry.overdue);
+            return {
+                overdue: overdueItems.length > 0,
+                overdueCount: overdueItems.length,
+                maxElapsedDays: overdueItems.reduce((max, entry) => Math.max(max, Number(entry.elapsedDays) || 0), 0),
+                itemDetails: details,
+                overdueItems
+            };
+        }
+
+        function getStatusPOOverdueInfo(po, items, now = new Date()) {
+            if (!po || normalizeStatusItemSearchText(getPurchaseOrderStage(po)) === normalizeStatusItemSearchText('Làm ĐNTT')) {
+                return { overdue: false, overdueCount: 0, maxElapsedDays: null, itemDetails: [], overdueItems: [] };
+            }
+            return getStatusOverdueSummary(items, po, now);
+        }
+
+        function renderOverdueWarningHTML(info, compact = false) {
+            if (!info?.overdue) return '';
+            const days = Number(info.maxElapsedDays ?? info.elapsedDays) || 0;
+            const count = Number(info.overdueCount) || 1;
+            const ageLabel = days > 10 ? `${days} ngày` : 'hơn 10 ngày';
+            const detail = count > 1
+                ? `Có ${count} mặt hàng quá hạn; lâu nhất đã đặt ${ageLabel} – Chưa chuyển trạng thái Làm ĐNTT.`
+                : `Đã đặt ${ageLabel} – Chưa chuyển trạng thái Làm ĐNTT.`;
+            return `
+                <div class="${compact ? 'mt-1.5' : 'mt-2'}">
+                    <span class="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-rose-200 bg-rose-50 text-rose-700 text-[10px] font-extrabold ${compact ? '' : 'sm:text-[11px]'}">🔴 QUÁ HẠN – CHƯA LÀM ĐNTT</span>
+                    <div class="mt-1 text-[10px] ${compact ? '' : 'text-xs'} font-semibold text-rose-700">${escapeHTML(detail)}</div>
+                </div>
+            `;
         }
 
         function renderPurchaseOrderStageControl(po) {
@@ -3334,37 +3496,82 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             lucide.createIcons();
         }
 
+        function reconcileStatusNoPOSelection() {
+            // Preserve selection across search/filter/render changes. Only remove an ID
+            // when its source item no longer exists or it now belongs to a valid PO.
+            const existing = new Map((Array.isArray(orders) ? orders : []).map(item => [String(item?.id ?? ''), item]));
+            statusNoPOSelectedIds = new Set([...statusNoPOSelectedIds]
+                .map(id => String(id))
+                .filter(id => {
+                    const item = existing.get(id);
+                    return !!item && !getStatusPOForItem(item);
+                }));
+        }
+
         function toggleStatusNoPOSelection(itemId, checked) {
             const id = String(itemId);
+            const item = (Array.isArray(orders) ? orders : []).find(o => String(o?.id) === id);
             if (checked) {
-                const item = orders.find(o => String(o.id) === id);
                 const po = item ? getStatusPOForItem(item) : null;
-                if (!item || po) return;
-                orderPlacementSelectedIds.add(id);
+                if (!item || po) {
+                    statusNoPOSelectedIds.delete(id);
+                } else {
+                    statusNoPOSelectedIds.add(id);
+                }
             } else {
-                orderPlacementSelectedIds.delete(id);
+                statusNoPOSelectedIds.delete(id);
             }
-            const count = document.querySelectorAll('.status-no-po-selector:checked').length;
+            // The count always comes from the same Set used by the create-PO action,
+            // including selections retained while the user searches or changes filters.
+            reconcileStatusNoPOSelection();
+            const count = statusNoPOSelectedIds.size;
             document.querySelectorAll('[data-status-selection-count]').forEach(el => { el.textContent = String(count); });
         }
 
         function openCreatePOModalFromStatusSelection() {
-            const selected = [...orderPlacementSelectedIds].map(id => String(id));
-            const usable = selected.filter(id => {
-                const item = orders.find(o => String(o.id) === id);
-                // This action is only for the recovery path: already-purchased items
-                // without a PO are being grouped into a PO, not bought again.
-                return !!item && !getStatusPOForItem(item) && (item.orderPlaced === true || item.stage !== 'Đã giao hàng');
+            const selectedIds = [...statusNoPOSelectedIds].map(id => String(id));
+            const diagnostics = selectedIds.map(id => {
+                const item = (Array.isArray(orders) ? orders : []).find(o => String(o?.id) === id) || null;
+                const linkedPO = item ? getStatusPOForItem(item) : null;
+                let reason = '';
+                if (!item) reason = 'Item không còn tồn tại trong orders[].';
+                else if (linkedPO) reason = `Đã thuộc PO hợp lệ ${linkedPO.poNumber || linkedPO.poId}.`;
+                return { id, item, linkedPO, reason };
             });
-            if (!usable.length) {
-                alert('Vui lòng tick ít nhất một mặt hàng Chưa có PO.');
+            const validItems = diagnostics.filter(row => row.item && !row.linkedPO).map(row => row.item);
+            console.debug('[TAB4 NO-PO SELECTION]', {
+                selectedIds,
+                selectedCount: statusNoPOSelectedIds.size,
+                validItems: validItems.map(item => ({
+                    id: String(item.id),
+                    item: item.item,
+                    orderPlaced: item.orderPlaced,
+                    purchaseOrderId: item.purchaseOrderId,
+                    linkedPO: getStatusPOForItem(item)?.poNumber || null
+                }))
+            });
+
+            const skipped = diagnostics.filter(row => row.reason);
+            if (!validItems.length) {
+                const details = diagnostics.length
+                    ? diagnostics.map(row => `• ${row.item?.item || row.id}: ${row.reason || 'Không đủ điều kiện tạo PO.'}`).join('\n')
+                    : '• Chưa có mặt hàng nào được chọn.';
+                alert(`Không có item hợp lệ để tạo PO.\n\n${details}`);
+                reconcileStatusNoPOSelection();
+                document.querySelectorAll('[data-status-selection-count]').forEach(el => { el.textContent = String(statusNoPOSelectedIds.size); });
                 return;
             }
+
+            // Invalid selections are reported, but do not block valid selected items.
+            if (skipped.length) {
+                console.warn('[TAB4 NO-PO SELECTION] Bỏ qua item không hợp lệ:', skipped.map(row => ({ id: row.id, item: row.item?.item || '', reason: row.reason })));
+            }
+
+            const usable = validItems.map(item => String(item.id));
             openCreatePOModal(usable);
 
-            const selectedItems = usable.map(id => orders.find(o => String(o.id) === id)).filter(Boolean);
-            const types = [...new Set(selectedItems.map(o => getOrderPlacementPurchaseType(o)).filter(v => v === 'ĐNMH' || v === 'Hợp đồng'))];
-            const suppliersForSelection = [...new Set(selectedItems.map(o => String(o.supplier || '').trim()).filter(Boolean))];
+            const types = [...new Set(validItems.map(o => getOrderPlacementPurchaseType(o)).filter(v => v === 'ĐNMH' || v === 'Hợp đồng'))];
+            const suppliersForSelection = [...new Set(validItems.map(o => String(o.supplier || '').trim()).filter(Boolean))];
             const typeEl = document.getElementById('order-place-type-filter');
             const supplierEl = document.getElementById('order-place-supplier-filter');
             if (typeEl && types.length === 1) typeEl.value = types[0];
@@ -3373,6 +3580,10 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             if (supplierEl && suppliersForSelection.length === 1) supplierEl.value = suppliersForSelection[0];
             renderOrderPlacementItems();
             updateOrderPlacementConfirmButtonState();
+
+            if (skipped.length) {
+                alert(`Đã mở modal với ${validItems.length} item hợp lệ. Các item sau được bỏ qua:\n\n${skipped.map(row => `• ${row.item?.item || row.id}: ${row.reason}`).join('\n')}`);
+            }
         }
 
         function getOrderPlacementConfirmDateTime() {
@@ -4198,6 +4409,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 });
 
                 orderPlacementSelectedIds = new Set();
+                reconcileStatusNoPOSelection();
                 orderPlacementConfirmState = { docNo: '', priceSourceByItem: {}, quoteIdByItem: {}, manualPriceByItem: {}, contractItemNoByItem: {} };
                 closeOrderPlacementConfirmation(false);
                 closeModal('modal-create-po');
@@ -4853,7 +5065,12 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                         seen.add(key); return true;
                     }).map(r => {
                         const rawStatus = String(r?.status || '').trim().toLowerCase();
-                        return { ...r, status: (rawStatus === 'rejected' || rawStatus === 'từ chối báo giá') ? 'Từ chối báo giá' : (rawStatus === 'đã báo giá' ? 'Đã báo giá' : 'Đã hỏi'), rejectedDate: String(r?.rejectedDate || ''), rejectedBy: String(r?.rejectedBy || ''), rejectReason: String(r?.rejectReason || '') };
+                        const normalizedStatus = normalizeSearchText(rawStatus);
+                        let normalizedQuoteStatus = 'Đã hỏi';
+                        if (rawStatus === 'rejected' || normalizedStatus === 'tu choi bao gia') normalizedQuoteStatus = 'Từ chối báo giá';
+                        else if ((normalizedStatus.includes('xac nhan') && normalizedStatus.includes('chua co gia')) || normalizedStatus === 'da xac nhan bao gia chua co gia') normalizedQuoteStatus = 'Đã xác nhận báo giá - chưa có giá';
+                        else if (normalizedStatus === 'da bao gia') normalizedQuoteStatus = 'Đã báo giá';
+                        return { ...r, status: normalizedQuoteStatus, rejectedDate: String(r?.rejectedDate || ''), rejectedBy: String(r?.rejectedBy || ''), rejectReason: String(r?.rejectReason || '') };
                     });
                 } catch (err) { console.error('[ProcureFlow] Invalid procure_quote_requests:', err); quoteRequests = []; }
             } else quoteRequests = [];
@@ -7301,29 +7518,42 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             return status === 'từ chối báo giá' || status === 'rejected';
         }
 
+        function isQuoteRequestConfirmedNoPrice(request) {
+            const raw = String(request?.status || '').trim();
+            const normalized = normalizeSearchText(raw);
+            // Old data may already contain "Đã báo giá" without an active quotation.
+            // In that case it is a response acknowledgement, never a numeric price.
+            return (normalized.includes('xac nhan') && normalized.includes('chua co gia')) || normalized === 'da xac nhan bao gia chua co gia' || normalized === 'da bao gia';
+        }
+
+        function hasRealQuotePrice(quote) {
+            if (!quote) return false;
+            const raw = quote?.quotedPrice;
+            if (raw === null || raw === undefined || String(raw).trim() === '') return false;
+            const price = Number(String(raw).replace(/,/g, '').trim());
+            return Number.isFinite(price) && price >= 0;
+        }
+
         function getQuoteTrackingSummary(order) {
             const requests = getQuoteRequestRecordsForOrder(order);
             const askedSuppliers = [...new Set(requests.map(r => String(r?.supplierName || '').trim()).filter(Boolean))];
             const quotedSuppliers = [];
             const pendingSuppliers = [];
+            const confirmedNoPriceSuppliers = [];
             const rejectedSuppliers = [];
 
             askedSuppliers.forEach(supplierName => {
-                const request = getQuoteRequestForSupplier(order, supplierName);
-                const quote = findQuoteForOrderSupplier(order, supplierName);
-                if (isQuoteRequestRejected(request)) {
-                    rejectedSuppliers.push(supplierName);
-                } else if (quote) {
-                    quotedSuppliers.push(supplierName);
-                } else {
-                    pendingSuppliers.push(supplierName);
-                }
+                const status = getQuoteStatusForSupplier(order, supplierName);
+                if (status.label === 'Từ chối báo giá') rejectedSuppliers.push(supplierName);
+                else if (status.label === 'Đã báo giá') quotedSuppliers.push(supplierName);
+                else if (status.confirmedNoPrice) confirmedNoPriceSuppliers.push(supplierName);
+                else pendingSuppliers.push(supplierName);
             });
 
             // Quotes from suppliers that were not explicitly requested are still real quotes.
             // They do not create an implied "đã hỏi" relationship.
             const allQuotedSuppliers = [...new Set(
-                quotes.filter(q => String(q?.itemId ?? q?.orderId ?? '') === String(order?.id ?? ''))
+                quotes.filter(q => String(q?.itemId ?? q?.orderId ?? '') === String(order?.id ?? '') && hasRealQuotePrice(q))
                     .map(q => String(q?.supplierName || '').trim())
                     .filter(Boolean)
             )];
@@ -7332,36 +7562,110 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 askedSuppliers,
                 quotedSuppliers,
                 pendingSuppliers,
+                confirmedNoPriceSuppliers,
                 rejectedSuppliers,
                 allQuotedSuppliers,
                 askedCount: askedSuppliers.length,
                 quotedCount: quotedSuppliers.length,
                 pendingCount: pendingSuppliers.length,
-                rejectedCount: rejectedSuppliers.length
+                confirmedNoPriceCount: confirmedNoPriceSuppliers.length,
+                rejectedCount: rejectedSuppliers.length,
+                notPricedCount: pendingSuppliers.length + confirmedNoPriceSuppliers.length
             };
         }
 
         function getQuoteStatusForSupplier(order, supplierName) {
-            const target = String(supplierName || '').trim().toLowerCase();
             const request = getQuoteRequestForSupplier(order, supplierName);
             const requestExists = !!request;
             const quote = findQuoteForOrderSupplier(order, supplierName);
+            const quoteExists = hasRealQuotePrice(quote);
 
             if (isQuoteRequestRejected(request)) {
-                return { requestExists: true, quoteExists: !!quote, label: 'Từ chối báo giá', tone: 'rose', request };
+                return { requestExists: true, quoteExists, hasRealQuote: quoteExists, confirmedNoPrice: false, label: 'Từ chối báo giá', tone: 'rose', request, quote };
             }
-            if (quote) {
-                return { requestExists, quoteExists: true, label: 'Đã báo giá', tone: 'emerald', request };
+            if (quoteExists) {
+                return { requestExists, quoteExists: true, hasRealQuote: true, confirmedNoPrice: false, label: 'Đã báo giá', tone: 'emerald', request, quote };
+            }
+            if (requestExists && isQuoteRequestConfirmedNoPrice(request)) {
+                return { requestExists: true, quoteExists: false, hasRealQuote: false, confirmedNoPrice: true, label: 'Đã xác nhận – chưa có giá', tone: 'sky', request, quote };
             }
             if (requestExists) {
-                return { requestExists: true, quoteExists: false, label: 'Chưa phản hồi', tone: 'amber', request };
+                return { requestExists: true, quoteExists: false, hasRealQuote: false, confirmedNoPrice: false, label: 'Chưa phản hồi', tone: 'amber', request, quote };
             }
-            return { requestExists: false, quoteExists: false, label: 'Chưa hỏi giá', tone: 'slate', request: null };
+            return { requestExists: false, quoteExists: false, hasRealQuote: false, confirmedNoPrice: false, label: 'Chưa hỏi giá', tone: 'slate', request: null, quote };
         }
 
         function setQuoteStatusFilter(filter) {
             quoteStatusFilter = ['all', 'unasked', 'pending', 'quoted', 'rejected', 'complete'].includes(filter) ? filter : 'all';
             renderQuotes();
+        }
+
+        function setQuoteSupplierStatusFilter(filter) {
+            quoteSupplierStatusFilter = ['all', 'unasked', 'pending', 'confirmed', 'quoted', 'rejected'].includes(filter) ? filter : 'pending';
+            const select = document.getElementById('quote-tracking-status');
+            if (select) select.value = quoteSupplierStatusFilter;
+            renderQuotes();
+        }
+
+        function getQuoteItemElementId(orderId) {
+            return 'quote-item-' + String(orderId ?? '').replace(/[^a-zA-Z0-9_-]/g, '_');
+        }
+
+        async function setSupplierQuoteAcknowledgement(orderId, supplierName, confirmed) {
+            const order = orders.find(o => String(o.id) === String(orderId));
+            const supplier = String(supplierName || '').trim();
+            if (!order || !supplier) return;
+            const request = getQuoteRequestForSupplier(order, supplier);
+            if (!request) {
+                alert('Chỉ có thể cập nhật trạng thái cho NCC đã được ghi nhận là đã hỏi giá. Vui lòng dùng “Hỏi giá NCC” trước.');
+                return;
+            }
+            if (isQuoteRequestRejected(request)) {
+                alert('NCC đang ở trạng thái từ chối. Hãy khôi phục trạng thái trước khi cập nhật phản hồi.');
+                return;
+            }
+            if (hasRealQuotePrice(findQuoteForOrderSupplier(order, supplier))) {
+                alert('NCC này đã có báo giá thực tế. Không cần đánh dấu thủ công.');
+                return;
+            }
+
+            const previousStatus = request.status;
+            request.status = confirmed ? 'Đã xác nhận báo giá - chưa có giá' : 'Đã hỏi';
+            const actionName = confirmed ? 'Xác nhận NCC đã phản hồi nhưng chưa có giá trong hệ thống' : 'Đưa NCC về trạng thái chờ báo giá';
+            pushTrackingHistory(order, actionName, {
+                supplier,
+                quoteRecorded: false,
+                status: request.status,
+                note: confirmed ? 'Chỉ ghi nhận phản hồi; không tạo quotation hoặc giá giả.' : 'Khôi phục trạng thái chờ báo giá.'
+            }, order.by || 'Ngọc');
+
+            const ok = await saveToStorage({ forceKeys: ['procure_quote_requests','procure_tracking_history'], reloadOnFailure: false });
+            if (!ok) {
+                request.status = previousStatus;
+                loadFromStorage();
+                renderQuotes();
+                alert('Không lưu được trạng thái. Dữ liệu đã được tải lại từ bộ nhớ đã lưu.');
+                return;
+            }
+            renderQuotes();
+        }
+
+        function focusQuoteComparisonItem(orderId) {
+            const searchEl = document.getElementById('search-quotes');
+            quoteStatusFilter = 'all';
+            renderQuotes();
+            window.setTimeout(() => {
+                const target = document.getElementById(getQuoteItemElementId(orderId));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    target.classList.add('ring-2', 'ring-indigo-300');
+                    window.setTimeout(() => target.classList.remove('ring-2', 'ring-indigo-300'), 1800);
+                } else if (searchEl && searchEl.value) {
+                    searchEl.value = '';
+                    renderQuotes();
+                    window.setTimeout(() => document.getElementById(getQuoteItemElementId(orderId))?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+                }
+            }, 80);
         }
 
         // --- TAB 3 SEARCH / FILTER HELPERS -----------------------------------
@@ -7424,7 +7728,9 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 group?.by,
                 ...items.flatMap(o => [
                     o?.id, o?.item, o?.area, o?.unit, o?.note,
-                    o?.contractItemNo, o?.stage, o?.deliveryStatus
+                    o?.contractItemNo, o?.stage, o?.deliveryStatus,
+                    ...getQuoteTrackingSummary(o).askedSuppliers,
+                    ...getQuoteTrackingSummary(o).allQuotedSuppliers
                 ])
             ].filter(Boolean).join(' ');
             return normalizeSearchText(text);
@@ -7445,6 +7751,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             if (tracking.askedCount === 0) statusTerms.push('Chưa hỏi giá', 'Chua hoi gia');
             if (tracking.pendingCount > 0) statusTerms.push('Chưa phản hồi', 'Chua phan hoi');
             if (tracking.quotedCount > 0 || activeQuotedCount > 0) statusTerms.push('Đã báo giá', 'Da bao gia');
+            if ((tracking.confirmedNoPriceCount || 0) > 0) statusTerms.push('Đã xác nhận chưa có giá', 'Da xac nhan chua co gia');
             if (tracking.rejectedCount > 0) statusTerms.push('Từ chối báo giá', 'Tu choi bao gia');
             if (tracking.askedCount > 0 && tracking.pendingCount === 0) statusTerms.push('Đã đủ phản hồi', 'Da du phan hoi');
             if (activeQuotedCount === 0) statusTerms.push('Chưa báo giá', 'Chua bao gia');
@@ -7584,6 +7891,145 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             return true;
         }
 
+        function renderQuoteSupplierTracker(container, eligibleOrders, fromFilter, dateFilter, searchInfo) {
+            if (!container) return;
+            const baseOrders = eligibleOrders.filter(order => {
+                const fromOk = !fromFilter || String(order.restaurant || '') === fromFilter;
+                const dateOk = !dateFilter || normalizeQuoteDateFilterKey(order.date) === dateFilter;
+                return fromOk && dateOk;
+            });
+            const query = String(searchInfo?.normalized || '').trim();
+            const supplierNames = [...new Set([
+                ...suppliers.map(s => String(s || '').trim()),
+                ...quoteRequests.filter(r => baseOrders.some(o => String(o.id) === String(r?.itemId ?? r?.orderId ?? ''))).map(r => String(r?.supplierName || '').trim()),
+                ...quotes.filter(q => baseOrders.some(o => String(o.id) === String(q?.itemId ?? q?.orderId ?? ''))).map(q => String(q?.supplierName || '').trim())
+            ].filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
+
+            function itemText(order, supplierName) {
+                const itemCode = order.orderNo || order.requestNo || order.requisitionNo || order.code || order.dnmh || order.itemCode || order.contractNo || '';
+                const requestNotes = getQuoteRequestRecordsForOrder(order).map(r => [r?.rejectReason, r?.status].filter(Boolean).join(' ')).join(' ');
+                const pairStatus = getQuoteStatusForSupplier(order, supplierName).label;
+                return normalizeSearchText([order.item, itemCode, order.restaurant, order.date, formatDateVN(order.date), order.qty, order.unit, order.note, requestNotes, pairStatus].filter(Boolean).join(' '));
+            }
+
+            const cards = [];
+            supplierNames.forEach(supplierName => {
+                const supplierQueryMatch = !!query && quoteSearchMatchesAllTokens(supplierName, query);
+                let scopedOrders = baseOrders;
+                if (query && !supplierQueryMatch) {
+                    scopedOrders = baseOrders.filter(order => quoteSearchMatchesAllTokens(itemText(order, supplierName), query));
+                }
+                if (query && !supplierQueryMatch && !scopedOrders.length) return;
+
+                const statuses = scopedOrders.map(order => ({ order, status: getQuoteStatusForSupplier(order, supplierName) }));
+                const totals = {
+                    asked: statuses.filter(x => x.status.requestExists).length,
+                    quoted: statuses.filter(x => x.status.label === 'Đã báo giá').length,
+                    pending: statuses.filter(x => x.status.label === 'Chưa phản hồi').length,
+                    confirmed: statuses.filter(x => x.status.confirmedNoPrice).length,
+                    rejected: statuses.filter(x => x.status.label === 'Từ chối báo giá').length,
+                    unasked: statuses.filter(x => !x.status.requestExists && !x.status.quoteExists).length
+                };
+                const hasAnyRelation = totals.asked > 0 || totals.quoted > 0;
+                if (!hasAnyRelation && quoteSupplierStatusFilter !== 'unasked') return;
+                if (quoteSupplierStatusFilter === 'pending' && totals.pending === 0) return;
+                if (quoteSupplierStatusFilter === 'quoted' && totals.quoted === 0) return;
+                if (quoteSupplierStatusFilter === 'confirmed' && totals.confirmed === 0) return;
+                if (quoteSupplierStatusFilter === 'rejected' && totals.rejected === 0) return;
+                if (quoteSupplierStatusFilter === 'unasked' && totals.unasked === 0 && hasAnyRelation) {
+                    // Keep a supplier card when the selected scope still contains some not-yet-asked items.
+                    // The row filter below determines exactly which items are displayed.
+                }
+
+                const itemRows = statuses.filter(({ order, status }) => {
+                    if (quoteSupplierStatusFilter === 'unasked') return !status.requestExists && !status.quoteExists;
+                    if (quoteSupplierStatusFilter === 'pending') return status.label === 'Chưa phản hồi';
+                    if (quoteSupplierStatusFilter === 'quoted') return status.label === 'Đã báo giá';
+                    if (quoteSupplierStatusFilter === 'confirmed') return !!status.confirmedNoPrice;
+                    if (quoteSupplierStatusFilter === 'rejected') return status.label === 'Từ chối báo giá';
+                    return status.requestExists || status.quoteExists;
+                });
+                if (!itemRows.length) return;
+
+                const supplierKey = supplierName.toLowerCase();
+                const expanded = quoteTrackingExpandedSuppliers.has(supplierKey);
+                const rowsHtml = itemRows.map(({ order, status }) => {
+                    const itemCode = order.orderNo || order.requestNo || order.requisitionNo || order.code || order.dnmh || order.itemCode || order.contractNo || ('DNMH' + String(order.id).padStart(3, '0'));
+                    const statusStyle = status.label === 'Đã báo giá'
+                        ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                        : status.label === 'Từ chối báo giá'
+                            ? 'bg-rose-50 text-rose-700 border-rose-200'
+                            : status.confirmedNoPrice
+                                ? 'bg-sky-50 text-sky-700 border-sky-200'
+                                : status.label === 'Chưa phản hồi'
+                                    ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                    : 'bg-slate-50 text-slate-600 border-slate-200';
+                    let actions = '';
+                    if (status.label === 'Chưa phản hồi') {
+                        actions = `
+                            <button type="button" data-quote-action="confirm-reported" data-order-id="${escapeHTMLAttribute(order.id)}" data-supplier="${escapeHTMLAttribute(supplierName)}" class="px-2 py-1 rounded-md bg-sky-600 hover:bg-sky-700 text-white text-[10px] font-bold" title="Ghi nhận NCC đã phản hồi, chưa có giá được nhập">Đánh dấu đã báo giá</button>
+                            <button type="button" data-quote-action="reject" data-order-id="${escapeHTMLAttribute(order.id)}" data-supplier="${escapeHTMLAttribute(supplierName)}" class="px-2 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold">Từ chối</button>`;
+                    } else if (status.confirmedNoPrice) {
+                        actions = `
+                            <button type="button" data-quote-action="reset-reported" data-order-id="${escapeHTMLAttribute(order.id)}" data-supplier="${escapeHTMLAttribute(supplierName)}" class="px-2 py-1 rounded-md bg-amber-50 hover:bg-amber-100 text-amber-700 text-[10px] font-bold" title="Khôi phục trạng thái chờ báo giá">Chưa báo giá</button>
+                            <button type="button" data-quote-action="reject" data-order-id="${escapeHTMLAttribute(order.id)}" data-supplier="${escapeHTMLAttribute(supplierName)}" class="px-2 py-1 rounded-md bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold">Từ chối</button>`;
+                    } else if (status.label === 'Từ chối báo giá') {
+                        actions = `<button type="button" data-quote-action="restore" data-order-id="${escapeHTMLAttribute(order.id)}" data-supplier="${escapeHTMLAttribute(supplierName)}" class="px-2 py-1 rounded-md bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-[10px] font-bold">Khôi phục</button>`;
+                    } else if (status.label === 'Chưa hỏi giá') {
+                        actions = `<button type="button" data-quote-action="ask" data-order-id="${escapeHTMLAttribute(order.id)}" data-supplier="${escapeHTMLAttribute(supplierName)}" class="px-2 py-1 rounded-md bg-indigo-600 hover:bg-indigo-700 text-white text-[10px] font-bold">Hỏi giá NCC</button>`;
+                    } else {
+                        actions = `<span class="text-[10px] font-semibold text-emerald-700">Có giá thực tế</span>`;
+                    }
+                    const actualQuote = findQuoteForOrderSupplier(order, supplierName);
+                    const priceText = status.label === 'Đã báo giá' && actualQuote
+                        ? `${Number(actualQuote.quotedPrice).toLocaleString('vi-VN')} đ`
+                        : status.confirmedNoPrice ? 'Đã xác nhận phản hồi; chưa ghi nhận giá' : '';
+                    return `
+                        <div class="rounded-lg border border-slate-200 bg-white p-2.5 space-y-2">
+                            <div class="flex items-start justify-between gap-2">
+                                <button type="button" data-quote-action="focus-item" data-order-id="${escapeHTMLAttribute(order.id)}" class="min-w-0 flex-1 text-left hover:text-indigo-700" title="Đi tới mặt hàng trong bảng so sánh giá">
+                                    <div class="text-xs font-bold text-slate-800 break-words">${escapeHTML(order.item || 'Chưa có tên mặt hàng')}</div>
+                                    <div class="mt-1 text-[10px] text-slate-500 flex flex-wrap gap-x-2 gap-y-0.5">
+                                        <span>${escapeHTML(order.qty)} ${escapeHTML(order.unit)}</span><span>· ${escapeHTML(order.restaurant || 'Chưa xác định')}</span><span>· ${escapeHTML(formatDateVN(order.date))}</span>
+                                    </div>
+                                    <div class="text-[10px] text-slate-400 mt-0.5">${escapeHTML(itemCode)}</div>
+                                </button>
+                                <span class="shrink-0 px-2 py-1 border rounded-full text-[10px] font-bold ${statusStyle}">${escapeHTML(status.label)}</span>
+                            </div>
+                            ${priceText ? `<div class="text-[10px] ${status.label === 'Đã báo giá' ? 'font-bold text-emerald-700' : 'text-sky-700'}">${escapeHTML(priceText)}</div>` : ''}
+                            <div class="flex flex-wrap gap-1.5">${actions}</div>
+                        </div>
+                    `;
+                }).join('');
+
+                cards.push(`
+                    <div class="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+                        <button type="button" data-supplier-card-toggle data-supplier="${escapeHTMLAttribute(supplierName)}" aria-expanded="${expanded ? 'true' : 'false'}" class="w-full text-left p-3 hover:bg-slate-50 transition">
+                            <div class="flex items-start justify-between gap-2">
+                                <div class="min-w-0 flex-1">
+                                    <div class="text-xs font-bold text-slate-800 break-words">${escapeHTML(supplierName)}</div>
+                                    <div class="text-[10px] text-slate-500 mt-1">Đã hỏi: <strong>${totals.asked}</strong> · Chưa có giá: <strong class="text-amber-700">${totals.pending + totals.confirmed}</strong></div>
+                                </div>
+                                <span class="shrink-0 text-slate-400 text-sm">${expanded ? '−' : '+'}</span>
+                            </div>
+                            <div class="grid grid-cols-2 gap-1.5 mt-2 text-[10px]">
+                                <span class="rounded-md bg-emerald-50 text-emerald-700 px-2 py-1 font-semibold">Có giá: ${totals.quoted}</span>
+                                <span class="rounded-md bg-amber-50 text-amber-700 px-2 py-1 font-semibold">Chờ giá: ${totals.pending}</span>
+                                <span class="rounded-md bg-sky-50 text-sky-700 px-2 py-1 font-semibold">Xác nhận, chưa giá: ${totals.confirmed}</span>
+                                <span class="rounded-md bg-rose-50 text-rose-700 px-2 py-1 font-semibold">Từ chối: ${totals.rejected}</span>
+                            </div>
+                        </button>
+                        <div class="${expanded ? '' : 'hidden'} border-t border-slate-100 p-2 space-y-2">
+                            <div class="flex justify-between items-center text-[10px] text-slate-500 px-1"><span>${itemRows.length} mặt hàng đang hiển thị</span><span>Nhấn tên hàng để tới bảng so sánh</span></div>
+                            <div class="space-y-2 overflow-y-auto max-h-[320px] pr-1">${rowsHtml}</div>
+                        </div>
+                    </div>
+                `);
+            });
+
+            container.innerHTML = cards.join('') || `<div class="rounded-xl border border-dashed border-slate-300 p-5 text-center text-xs text-slate-500">Không có mặt hàng phù hợp với bộ lọc NCC / trạng thái / Order hiện tại.</div>`;
+        }
+
         function renderQuotes() {
             const searchEl = document.getElementById('search-quotes');
             const search = String(searchEl?.value || '').trim();
@@ -7602,66 +8048,8 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             trackingContainer.innerHTML = '';
             blocksContainer.innerHTML = '';
 
-            // 1. LEFT SIDEBAR — "Đã hỏi" is based only on explicit quoteRequests.
-            const validEligibleOrders = eligibleOrders;
-            const renderSupplierTrackingCard = (sup) => {
-                const target = String(sup || '').trim().toLowerCase();
-                const summary = { asked: 0, quoted: 0, pending: 0, rejected: 0 };
-                validEligibleOrders.forEach(order => {
-                    const status = getQuoteStatusForSupplier(order, sup);
-                    if (!status.requestExists) return;
-                    summary.asked += 1;
-                    if (status.label === 'Đã báo giá') summary.quoted += 1;
-                    else if (status.label === 'Chưa phản hồi') summary.pending += 1;
-                    else if (status.label === 'Từ chối báo giá') summary.rejected += 1;
-                });
-
-                // Legacy / direct quotes without a request are still shown as reported, but
-                // they never contribute to "Đã hỏi" unless a request record exists.
-                const legacyReported = new Set(eligibleQuotes
-                    .filter(q => String(q?.supplierName || '').trim().toLowerCase() === target)
-                    .map(q => String(q?.itemId ?? q?.orderId ?? '')));
-                const legacyOnlyReported = [...legacyReported].filter(id => {
-                    const order = validEligibleOrders.find(o => String(o.id) === String(id));
-                    return order && !getQuoteRequestForSupplier(order, sup);
-                }).length;
-                const reportedDisplay = summary.quoted + legacyOnlyReported;
-
-                if (summary.asked === 0 && reportedDisplay === 0) return '';
-
-                return `
-                    <div class="bg-slate-50 p-3 rounded-xl border border-slate-200 space-y-2">
-                        <div class="flex justify-between items-start gap-2">
-                            <span class="font-semibold text-xs text-slate-800">${escapeHTML(sup)}</span>
-                            <span class="text-[10px] px-2 py-0.5 bg-indigo-50 text-indigo-700 rounded-full font-medium">Đã hỏi: ${summary.asked}</span>
-                        </div>
-                        <div class="grid grid-cols-2 gap-2 text-[11px]">
-                            <div class="rounded-lg bg-emerald-50 border border-emerald-100 px-2 py-1.5 text-emerald-700 font-semibold">Đã báo: ${reportedDisplay}</div>
-                            <div class="rounded-lg bg-amber-50 border border-amber-100 px-2 py-1.5 text-amber-700 font-semibold">Chưa phản hồi: ${summary.pending}</div>
-                            <div class="rounded-lg bg-rose-50 border border-rose-100 px-2 py-1.5 text-rose-700 font-semibold col-span-2">Từ chối: ${summary.rejected}</div>
-                        </div>
-                    </div>
-                `;
-            };
-
-            suppliers.forEach(sup => {
-                trackingContainer.innerHTML += renderSupplierTrackingCard(sup);
-            });
-
-            // Include request records for suppliers that are no longer in the master list.
-            const requestSupplierNames = [...new Set(quoteRequests
-                .filter(r => eligibleOrderIds.has(String(r?.itemId ?? r?.orderId ?? '')))
-                .map(r => String(r?.supplierName || '').trim())
-                .filter(Boolean))];
-            requestSupplierNames
-                .filter(name => !suppliers.some(s => String(s).trim().toLowerCase() === name.toLowerCase()))
-                .forEach(sup => {
-                    trackingContainer.innerHTML += renderSupplierTrackingCard(sup);
-                });
-
-            if (trackingContainer.innerHTML === '') {
-                trackingContainer.innerHTML = `<div class="text-xs text-slate-400 text-center py-6">Chưa có dữ liệu hỏi/báo giá NCC.</div>`;
-            }
+            // 1. SUPPLIER TRACKER — compact accordion, grouped by supplier and item/Order.
+            renderQuoteSupplierTracker(trackingContainer, eligibleOrders, fromFilter, dateFilter, searchInfo);
 
             // 2. MAIN COMPARISON — ĐNMH only, grouped by explicit Order Group / PO.
             const groups = getOrderGroups(eligibleOrders);
@@ -7703,7 +8091,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                     const minPrice = validPrices.length ? Math.min(...validPrices) : null;
                     const itemCode = o.contractNo || getOrderGroupId(o) || o.orderNo || o.requestNo || o.requisitionNo || o.code || o.dnmh || o.itemCode || ('DNMH' + String(o.id).padStart(3, '0'));
                     const responseText = tracking.askedCount > 0
-                        ? `${tracking.quotedCount}/${tracking.askedCount} NCC đã báo giá${tracking.rejectedCount > 0 ? ` · ${tracking.rejectedCount} từ chối` : ''}`
+                        ? `${tracking.quotedCount}/${tracking.askedCount} NCC có giá thực tế${tracking.confirmedNoPriceCount > 0 ? ` · ${tracking.confirmedNoPriceCount} xác nhận chưa có giá` : ''}${tracking.rejectedCount > 0 ? ` · ${tracking.rejectedCount} từ chối` : ''}`
                         : 'Chưa hỏi NCC nào';
 
                     const askedChips = tracking.askedSuppliers.length
@@ -7748,16 +8136,19 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                                                     </td>
                                                     <td class="py-3 px-3 text-center">
                                                         ${status.label === 'Đã báo giá'
-                                                            ? '<span class="inline-flex items-center px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold rounded-full">🟢 Đã báo giá</span>'
+                                                            ? '<span class="inline-flex items-center px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold rounded-full">🟢 Đã báo giá thực tế</span>'
                                                             : status.label === 'Từ chối báo giá'
                                                                 ? '<span class="inline-flex items-center px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-200 text-[11px] font-bold rounded-full">🔴 Từ chối báo giá</span>'
-                                                                : status.label === 'Chưa phản hồi'
-                                                                    ? '<span class="inline-flex items-center px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-bold rounded-full">🟠 Chưa phản hồi</span>'
-                                                                    : '<span class="inline-flex items-center px-2.5 py-1 bg-slate-50 text-slate-500 border border-slate-200 text-[11px] font-bold rounded-full">⚪ Chưa hỏi giá</span>'}
+                                                                : status.confirmedNoPrice
+                                                                    ? '<span class="inline-flex items-center px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 text-[11px] font-bold rounded-full">🔵 Đã xác nhận – chưa có giá</span>'
+                                                                    : status.label === 'Chưa phản hồi'
+                                                                        ? '<span class="inline-flex items-center px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 text-[11px] font-bold rounded-full">🟠 Chưa phản hồi</span>'
+                                                                        : '<span class="inline-flex items-center px-2.5 py-1 bg-slate-50 text-slate-500 border border-slate-200 text-[11px] font-bold rounded-full">⚪ Chưa hỏi giá</span>'}
                                                     </td>
                                                     <td class="py-3 px-3 text-right whitespace-nowrap">
                                                         <div class="flex flex-wrap gap-1.5 justify-end">
-                                                            ${status.label === 'Chưa phản hồi' ? `<button type="button" onclick="openQuoteRejectModal(this.dataset.orderId, this.dataset.supplier)" data-order-id="${escapeHTMLAttribute(o.id)}" data-supplier="${escapeHTMLAttribute(sup)}" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg transition" title="Từ chối báo giá"><span>Từ chối</span></button>` : ''}
+                                                            ${status.label === 'Chưa phản hồi' ? `<button type="button" data-quote-action="confirm-reported" data-order-id="${escapeHTMLAttribute(o.id)}" data-supplier="${escapeHTMLAttribute(sup)}" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-sky-50 hover:bg-sky-100 text-sky-700 text-xs font-semibold rounded-lg transition" title="Ghi nhận phản hồi nhưng chưa có giá">Đánh dấu đã báo giá</button><button type="button" onclick="openQuoteRejectModal(this.dataset.orderId, this.dataset.supplier)" data-order-id="${escapeHTMLAttribute(o.id)}" data-supplier="${escapeHTMLAttribute(sup)}" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg transition" title="Từ chối báo giá"><span>Từ chối</span></button>` : ''}
+                                                            ${status.confirmedNoPrice ? `<button type="button" data-quote-action="reset-reported" data-order-id="${escapeHTMLAttribute(o.id)}" data-supplier="${escapeHTMLAttribute(sup)}" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold rounded-lg transition" title="Khôi phục về Chưa phản hồi">Chưa báo giá</button><button type="button" onclick="openQuoteRejectModal(this.dataset.orderId, this.dataset.supplier)" data-order-id="${escapeHTMLAttribute(o.id)}" data-supplier="${escapeHTMLAttribute(sup)}" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg transition" title="Từ chối báo giá"><span>Từ chối</span></button>` : ''}
                                                             ${status.label === 'Đã báo giá' ? `<button type="button" onclick="openQuoteRejectModal(this.dataset.orderId, this.dataset.supplier)" data-order-id="${escapeHTMLAttribute(o.id)}" data-supplier="${escapeHTMLAttribute(sup)}" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 text-xs font-semibold rounded-lg transition" title="Đổi trạng thái sang Từ chối báo giá"><span>Từ chối</span></button>` : ''}
                                                             ${status.label === 'Từ chối báo giá' ? `<button type="button" onclick="restoreQuoteRequest(this.dataset.orderId, this.dataset.supplier)" data-order-id="${escapeHTMLAttribute(o.id)}" data-supplier="${escapeHTMLAttribute(sup)}" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold rounded-lg transition" title="Khôi phục về Chưa phản hồi"><span>Khôi phục</span></button>` : ''}
                                                             ${quote ? `<button type="button" onclick="deleteQuote('${escapeHTMLAttribute(quote.quoteId)}')" class="inline-flex items-center space-x-1 px-2.5 py-1 bg-rose-50 hover:bg-rose-100 text-rose-700 text-xs font-semibold rounded-lg transition" title="Xóa báo giá này"><i data-lucide="trash-2" class="w-3.5 h-3.5"></i><span>Xóa báo giá</span></button>` : ''}
@@ -7780,7 +8171,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                         : '';
 
                     sectionHtml += `
-                        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4 transition hover:shadow-md mb-4">
+                        <div id="${escapeHTMLAttribute(getQuoteItemElementId(o.id))}" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 space-y-4 transition hover:shadow-md mb-4">
                             <div class="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-3 border-b border-slate-100 pb-3">
                                 <div class="min-w-0">
                                     <h4 class="font-bold text-slate-900 text-base flex items-center space-x-2 flex-wrap gap-2">
@@ -7798,7 +8189,8 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                                 </div>
                                 <div class="flex flex-wrap items-center gap-2 shrink-0">
                                     <span class="inline-flex items-center px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded-full text-[11px] font-bold">${tracking.askedCount} NCC đã hỏi</span>
-                                    <span class="inline-flex items-center px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold">${tracking.quotedCount} NCC đã báo</span>
+                                    <span class="inline-flex items-center px-2.5 py-1 bg-emerald-50 text-emerald-700 border border-emerald-200 rounded-full text-[11px] font-bold">${tracking.quotedCount} NCC có giá</span>
+                                    <span class="inline-flex items-center px-2.5 py-1 bg-sky-50 text-sky-700 border border-sky-200 rounded-full text-[11px] font-bold">${tracking.confirmedNoPriceCount} xác nhận chưa giá</span>
                                     <span class="inline-flex items-center px-2.5 py-1 bg-amber-50 text-amber-700 border border-amber-200 rounded-full text-[11px] font-bold">${tracking.pendingCount} NCC chưa phản hồi</span>
                                     <span class="inline-flex items-center px-2.5 py-1 bg-rose-50 text-rose-700 border border-rose-200 rounded-full text-[11px] font-bold">${tracking.rejectedCount} NCC từ chối</span>
                                     ${completionBadge}
@@ -7887,7 +8279,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             return true;
         }
 
-        function openQuoteRequestModal(orderId) {
+        function openQuoteRequestModal(orderId, preferredSupplierName = '') {
             const order = orders.find(o => String(o.id) === String(orderId));
             if (!order) {
                 alert('Không tìm thấy mặt hàng.');
@@ -7918,12 +8310,13 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
             listEl.innerHTML = suppliers.length
                 ? suppliers.map((sup, idx) => {
-                    const checked = existing.some(name => name.toLowerCase() === String(sup).trim().toLowerCase());
+                    const wasAsked = existing.some(name => name.toLowerCase() === String(sup).trim().toLowerCase());
+                    const checked = wasAsked || String(preferredSupplierName || '').trim().toLowerCase() === String(sup).trim().toLowerCase();
                     return `
                         <label class="flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-200 hover:bg-slate-50 cursor-pointer">
                             <input type="checkbox" data-quote-request-supplier="${escapeHTMLAttribute(sup)}" ${checked ? 'checked' : ''} class="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
                             <span class="text-sm font-medium text-slate-700">${escapeHTML(sup)}</span>
-                            ${checked ? `<span class="ml-auto text-[10px] font-semibold ${isQuoteRequestRejected(getQuoteRequestForSupplier(order, sup)) ? 'text-rose-600' : 'text-emerald-600'}">${isQuoteRequestRejected(getQuoteRequestForSupplier(order, sup)) ? 'Từ chối' : 'Đã hỏi'}</span>` : ''}
+                            ${wasAsked ? `<span class="ml-auto text-[10px] font-semibold ${isQuoteRequestRejected(getQuoteRequestForSupplier(order, sup)) ? 'text-rose-600' : 'text-emerald-600'}">${isQuoteRequestRejected(getQuoteRequestForSupplier(order, sup)) ? 'Từ chối' : 'Đã hỏi'}</span>` : ''}
                         </label>
                     `;
                 }).join('')
@@ -7987,7 +8380,8 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 r.requestedDate = requestedDate;
                 r.requestedBy = requestedBy;
                 if (!isQuoteRequestRejected(r)) {
-                    r.status = findQuoteForOrderSupplier(order, r.supplierName) ? 'Đã báo giá' : 'Đã hỏi';
+                    if (hasRealQuotePrice(findQuoteForOrderSupplier(order, r.supplierName))) r.status = 'Đã báo giá';
+                    else if (!isQuoteRequestConfirmedNoPrice(r)) r.status = 'Đã hỏi';
                 }
             });
 
@@ -8339,7 +8733,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             if (!isQuoteEligibleOrder(order)) {
                 return { quotes: [], supplierCount: 0, hasQuote: false };
             }
-            const itemQuotes = quotes.filter(q => String(q?.itemId ?? '') === String(order?.id ?? ''));
+            const itemQuotes = quotes.filter(q => String(q?.itemId ?? q?.orderId ?? '') === String(order?.id ?? ''));
             const validQuotes = itemQuotes.filter(q => {
                 const supplier = String(q?.supplierName || '').trim();
                 if (!supplier) return false;
@@ -8356,6 +8750,130 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 supplierCount: suppliers.length,
                 hasQuote: validQuotes.length > 0
             };
+        }
+
+        function getSelectedSSGSupplierNames() {
+            return [...(window.ssgSelectedSupplierNames instanceof Set ? window.ssgSelectedSupplierNames : new Set())]
+                .map(name => String(name || '').trim()).filter(Boolean);
+        }
+
+        function hasSSGQuoteFromSelectedSuppliers(order) {
+            const selectedSuppliers = getSelectedSSGSupplierNames().map(s => s.toLowerCase());
+            if (!selectedSuppliers.length) return false;
+            return getSSGItemQuoteInfo(order).quotes.some(q => selectedSuppliers.includes(String(q?.supplierName || '').trim().toLowerCase()));
+        }
+
+        function hasSSGConfirmedResponseFromSelectedSuppliers(order) {
+            const selectedSuppliers = getSelectedSSGSupplierNames();
+            return selectedSuppliers.some(supplier => getQuoteStatusForSupplier(order, supplier).confirmedNoPrice);
+        }
+
+        function getSSGSupplierOptions(ordersForScope) {
+            const candidateNames = [...new Set((ordersForScope || []).flatMap(order => {
+                const tracking = getQuoteTrackingSummary(order);
+                const quoteNames = quotes.filter(q => String(q?.itemId ?? q?.orderId ?? '') === String(order?.id ?? ''))
+                    .map(q => String(q?.supplierName || '').trim()).filter(Boolean);
+                return [...tracking.askedSuppliers, ...tracking.allQuotedSuppliers, ...quoteNames];
+            }).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'vi'));
+            const actualQuoteNames = [...new Set((ordersForScope || []).flatMap(order => getSSGItemQuoteInfo(order).quotes.map(q => String(q?.supplierName || '').trim())).filter(Boolean))]
+                .sort((a, b) => a.localeCompare(b, 'vi'));
+            const rows = candidateNames.map(name => {
+                let pricedItems = 0, confirmedWithoutPriceItems = 0, waitingItems = 0, rejectedItems = 0;
+                (ordersForScope || []).forEach(order => {
+                    const status = getQuoteStatusForSupplier(order, name);
+                    if (status.label === 'Đã báo giá') pricedItems++;
+                    else if (status.confirmedNoPrice) confirmedWithoutPriceItems++;
+                    else if (status.label === 'Chưa phản hồi') waitingItems++;
+                    else if (status.label === 'Từ chối báo giá') rejectedItems++;
+                });
+                return { name, pricedItems, confirmedWithoutPriceItems, waitingItems, rejectedItems, hasActualPrice: actualQuoteNames.some(s => s.toLowerCase() === name.toLowerCase()) };
+            });
+            return { rows, actualQuoteNames };
+        }
+
+        function renderSSGSupplierSelection() {
+            const wrap = document.getElementById('export-ssg-supplier-selection');
+            const list = document.getElementById('export-ssg-supplier-list');
+            const countEl = document.getElementById('export-ssg-supplier-count');
+            const noteEl = document.getElementById('export-ssg-supplier-note');
+            if (!wrap || !list) return;
+            const from = document.getElementById('export-ssg-from')?.value || '';
+            const date = document.getElementById('export-ssg-date')?.value || '';
+            const matchedOrders = getSSGFilteredOrders();
+            if (!from || !date || !matchedOrders.length) {
+                wrap.classList.add('hidden');
+                list.innerHTML = '';
+                if (countEl) countEl.textContent = '0';
+                return;
+            }
+            const selectedOrders = getSelectedSSGOrders();
+            const scopeOrders = selectedOrders.length ? selectedOrders : matchedOrders;
+            const optionData = getSSGSupplierOptions(scopeOrders);
+            if (!(window.ssgSelectedSupplierNames instanceof Set)) window.ssgSelectedSupplierNames = new Set();
+
+            if (window.ssgSupplierSelectMode === 'allQuoted') {
+                window.ssgSelectedSupplierNames = new Set(optionData.actualQuoteNames);
+            } else {
+                const candidatesLower = new Set(optionData.rows.map(row => row.name.toLowerCase()));
+                window.ssgSelectedSupplierNames = new Set(getSelectedSSGSupplierNames().filter(name => candidatesLower.has(name.toLowerCase())));
+            }
+
+            wrap.classList.remove('hidden');
+            list.innerHTML = optionData.rows.map(row => {
+                const checked = getSelectedSSGSupplierNames().some(name => name.toLowerCase() === row.name.toLowerCase());
+                return `
+                    <label class="flex items-start gap-2 rounded-lg border ${checked ? 'border-indigo-300 bg-indigo-50/60' : 'border-slate-200 bg-white'} px-3 py-2 cursor-pointer hover:bg-slate-50">
+                        <input type="checkbox" data-ssg-supplier="${escapeHTMLAttribute(row.name)}" ${checked ? 'checked' : ''} onchange="toggleSSGSupplier(this.dataset.ssgSupplier, this.checked)" class="mt-0.5 w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500">
+                        <span class="min-w-0 flex-1">
+                            <span class="block text-xs font-semibold text-slate-800 break-words">${escapeHTML(row.name)}</span>
+                            <span class="block text-[10px] text-slate-500 mt-1">Có giá: ${row.pricedItems} · Xác nhận chưa giá: ${row.confirmedWithoutPriceItems} · Chờ: ${row.waitingItems} · Từ chối: ${row.rejectedItems}</span>
+                        </span>
+                    </label>
+                `;
+            }).join('') || '<div class="p-3 text-xs text-slate-500">Chưa có NCC được hỏi hoặc báo giá trong các mặt hàng đang chọn.</div>';
+            if (countEl) countEl.textContent = String(getSelectedSSGSupplierNames().length);
+            if (noteEl) {
+                noteEl.textContent = selectedOrders.length
+                    ? `Danh sách NCC được tính theo ${selectedOrders.length} mặt hàng đang chọn.`
+                    : 'Chưa chọn mặt hàng xuất; danh sách NCC đang hiển thị theo toàn bộ mặt hàng phù hợp From / ngày.';
+            }
+        }
+
+        function toggleSSGSupplier(supplierName, checked) {
+            const supplier = String(supplierName || '').trim();
+            if (!supplier) return;
+            if (!(window.ssgSelectedSupplierNames instanceof Set)) window.ssgSelectedSupplierNames = new Set();
+            window.ssgSupplierSelectMode = 'manual';
+            const existing = getSelectedSSGSupplierNames().filter(name => name.toLowerCase() !== supplier.toLowerCase());
+            if (checked) existing.push(supplier);
+            window.ssgSelectedSupplierNames = new Set(existing);
+            updateSSGPreviewSummaryOnly();
+            renderSSGItemSelection(false);
+        }
+
+        function selectAllSSGQuotedSuppliers() {
+            window.ssgSupplierSelectMode = 'allQuoted';
+            window.ssgSelectedSupplierNames = new Set();
+            updateSSGPreviewSummaryOnly();
+            renderSSGItemSelection(false);
+        }
+
+        function selectAllSSGRelatedSuppliers() {
+            const selectedOrders = getSelectedSSGOrders();
+            const matchedOrders = getSSGFilteredOrders();
+            const scopeOrders = selectedOrders.length ? selectedOrders : matchedOrders;
+            const optionData = getSSGSupplierOptions(scopeOrders);
+            window.ssgSupplierSelectMode = 'manual';
+            window.ssgSelectedSupplierNames = new Set(optionData.rows.map(row => row.name));
+            updateSSGPreviewSummaryOnly();
+            renderSSGItemSelection(false);
+        }
+
+        function deselectAllSSGSuppliers() {
+            window.ssgSupplierSelectMode = 'manual';
+            window.ssgSelectedSupplierNames = new Set();
+            updateSSGPreviewSummaryOnly();
+            renderSSGItemSelection(false);
         }
 
         function getSSGItemSelectionOrders() {
@@ -8414,8 +8932,8 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             // Keep the current selections even when switching filters.
             const visibleOrders = allOrders.filter(order => {
                 const info = getSSGItemQuoteInfo(order);
-                if (window.ssgItemFilter === 'quoted') return info.hasQuote;
-                if (window.ssgItemFilter === 'unquoted') return !info.hasQuote;
+                if (window.ssgItemFilter === 'quoted') return hasSSGQuoteFromSelectedSuppliers(order);
+                if (window.ssgItemFilter === 'unquoted') return !hasSSGQuoteFromSelectedSuppliers(order);
                 return true;
             });
 
@@ -8423,10 +8941,14 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             listEl.innerHTML = visibleOrders.map(order => {
                 const info = getSSGItemQuoteInfo(order);
                 const checked = window.ssgSelectedItemIds.has(String(order.id));
-                const status = info.hasQuote
-                    ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">🟢 Đã báo giá</span>'
-                    : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 text-rose-700 border border-rose-200 font-semibold">🔴 Chưa báo giá</span>';
-                const warning = !info.hasQuote && checked
+                const hasSelectedPrice = hasSSGQuoteFromSelectedSuppliers(order);
+                const hasSelectedAcknowledgement = !hasSelectedPrice && hasSSGConfirmedResponseFromSelectedSuppliers(order);
+                const status = hasSelectedPrice
+                    ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 font-semibold">🟢 Đã có giá từ NCC được chọn</span>'
+                    : hasSelectedAcknowledgement
+                        ? '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-50 text-sky-700 border border-sky-200 font-semibold">🔵 Đã xác nhận phản hồi, chưa có giá</span>'
+                        : '<span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-50 text-amber-700 border border-amber-200 font-semibold">⚪ Chưa có giá từ NCC được chọn</span>';
+                const warning = !hasSelectedPrice && checked
                     ? '<div class="mt-2 text-[11px] font-semibold text-amber-700">⚠ Mặt hàng này chưa có báo giá từ NCC.</div>'
                     : '';
                 const itemCode = order.orderNo || order.requestNo || order.requisitionNo || order.code || order.dnmh || order.itemCode || '';
@@ -8442,7 +8964,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                                         ${itemCode ? `<span>Mã ĐNMH: ${escapeHTML(itemCode)}</span>` : ''}
                                     </div>
                                 </div>
-                                <div class="shrink-0 text-[11px] font-semibold text-slate-500">${info.supplierCount} NCC báo giá</div>
+                                <div class="shrink-0 text-[11px] font-semibold text-slate-500">${info.supplierCount} NCC có giá tổng thể</div>
                             </div>
                             <div class="mt-2 flex flex-wrap items-center gap-2">
                                 ${status}
@@ -8465,13 +8987,13 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
         }
 
         function selectQuotedSSGItems() {
-            window.ssgSelectedItemIds = new Set(getSSGItemSelectionOrders().filter(o => getSSGItemQuoteInfo(o).hasQuote).map(o => String(o.id)));
+            window.ssgSelectedItemIds = new Set(getSSGItemSelectionOrders().filter(o => hasSSGQuoteFromSelectedSuppliers(o)).map(o => String(o.id)));
             renderSSGItemSelection(false);
             updateSSGPreviewSummaryOnly();
         }
 
         function selectUnquotedSSGItems() {
-            window.ssgSelectedItemIds = new Set(getSSGItemSelectionOrders().filter(o => !getSSGItemQuoteInfo(o).hasQuote).map(o => String(o.id)));
+            window.ssgSelectedItemIds = new Set(getSSGItemSelectionOrders().filter(o => !hasSSGQuoteFromSelectedSuppliers(o)).map(o => String(o.id)));
             renderSSGItemSelection(false);
             updateSSGPreviewSummaryOnly();
         }
@@ -8493,19 +9015,25 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const from = document.getElementById('export-ssg-from')?.value || '';
             const date = document.getElementById('export-ssg-date')?.value || '';
             const matchedOrders = getSSGFilteredOrders();
-            const selectedQuoted = selectedOrders.filter(o => getSSGItemQuoteInfo(o).hasQuote).length;
-            const selectedUnquoted = selectedOrders.length - selectedQuoted;
             const summaryEl = document.getElementById('export-ssg-summary');
             if (!summaryEl) return;
+
+            renderSSGSupplierSelection();
+            renderSSGItemSelection(false);
+            const selectedSuppliers = getSelectedSSGSupplierNames();
+            const selectedQuoted = selectedOrders.filter(o => hasSSGQuoteFromSelectedSuppliers(o)).length;
+            const selectedUnquoted = selectedOrders.length - selectedQuoted;
             const dates = [...new Set(matchedOrders.map(o => normalizeSSGDateKey(o.date)).filter(Boolean))];
-            const supplierSet = new Set();
-            matchedOrders.forEach(o => getSSGItemQuoteInfo(o).quotes.forEach(q => supplierSet.add(String(q.supplierName || '').trim())));
-            const noQuoteCount = matchedOrders.filter(o => !getSSGItemQuoteInfo(o).hasQuote).length;
+            const allActualQuoteSuppliers = new Set();
+            matchedOrders.forEach(order => getSSGItemQuoteInfo(order).quotes.forEach(q => allActualQuoteSuppliers.add(String(q.supplierName || '').trim())));
             const cards = [
                 ['Số From', new Set(matchedOrders.map(o => String(o.restaurant || 'Chưa xác định'))).size, 'text-indigo-700'],
                 ['Số ngày', dates.length, 'text-indigo-700'],
-                ['Số mặt hàng', matchedOrders.length, 'text-slate-800'],
-                ['NCC báo giá', supplierSet.size, 'text-emerald-700'],
+                ['Số mặt hàng trong phạm vi', matchedOrders.length, 'text-slate-800'],
+                ['NCC có giá thực tế', allActualQuoteSuppliers.size, 'text-emerald-700'],
+                ['NCC được chọn', selectedSuppliers.length, 'text-indigo-700'],
+                ['Mặt hàng có giá từ NCC chọn', selectedQuoted, 'text-emerald-700'],
+                ['Mặt hàng chưa có giá NCC chọn', selectedUnquoted, 'text-amber-700'],
                 ['Đang chọn xuất', selectedOrders.length, 'text-indigo-700']
             ];
             summaryEl.innerHTML = cards.map(([label, value, cls]) => `
@@ -8525,11 +9053,11 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                     <div><span class="font-semibold">Ngày Order:</span> ${escapeHTML(dateLabel)}</div>
                 </div>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs mb-3">
-                    <div class="rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2"><span class="font-semibold text-emerald-700">Đã báo giá:</span> ${selectedQuoted} / ${matchedOrders.filter(o => getSSGItemQuoteInfo(o).hasQuote).length}</div>
-                    <div class="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2"><span class="font-semibold text-amber-700">Chưa báo giá:</span> ${selectedUnquoted} / ${noQuoteCount}</div>
-                    <div class="rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-2"><span class="font-semibold text-indigo-700">Đang chọn xuất:</span> ${selectedOrders.length}</div>
+                    <div class="rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2"><span class="font-semibold text-emerald-700">Mặt hàng có giá:</span> ${selectedQuoted} / ${selectedOrders.length} mặt hàng đang chọn</div>
+                    <div class="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2"><span class="font-semibold text-amber-700">Chưa có giá từ NCC chọn:</span> ${selectedUnquoted} mặt hàng</div>
+                    <div class="rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-2"><span class="font-semibold text-indigo-700">Đang chọn xuất:</span> ${selectedOrders.length} mặt hàng · ${selectedSuppliers.length} NCC</div>
                 </div>
-                ${selectedUnquoted > 0 ? '<div class="mt-2 text-xs font-semibold text-amber-700">⚠ Có mặt hàng chưa báo giá đang được chọn. Khi xuất, cột SCM chọn của các mặt hàng này sẽ để trống.</div>' : ''}
+                ${selectedUnquoted > 0 ? '<div class="mt-2 text-xs font-semibold text-amber-700">⚠ Mặt hàng chưa có giá từ NCC được chọn vẫn được giữ trong SSG. Excel sẽ hiển thị “Chưa báo giá”, “Chưa hỏi giá”, “Đã xác nhận – chưa có giá” hoặc “Từ chối báo giá” đúng trạng thái; không tự điền giá của NCC khác.</div>' : ''}
             `;
         }
 
@@ -8553,6 +9081,10 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             dateSelect.innerHTML = '<option value="">-- Chọn From trước --</option>';
             dateSelect.disabled = true;
             resetSSGItemSelectionState();
+            window.ssgSelectedSupplierNames = new Set();
+            window.ssgSupplierSelectMode = 'allQuoted';
+            document.getElementById('export-ssg-supplier-list').innerHTML = '';
+            document.getElementById('export-ssg-supplier-selection').classList.add('hidden');
             document.getElementById('export-ssg-summary').innerHTML = '';
             document.getElementById('export-ssg-preview').innerHTML = 'Chưa chọn điều kiện xuất.';
             document.getElementById('export-ssg-item-selection').classList.add('hidden');
@@ -8598,6 +9130,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 summaryEl.innerHTML = '';
                 previewEl.innerHTML = 'Chưa chọn đủ From và ngày Order.';
                 document.getElementById('export-ssg-item-selection')?.classList.add('hidden');
+                document.getElementById('export-ssg-supplier-selection')?.classList.add('hidden');
                 return;
             }
 
@@ -8606,6 +9139,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 summaryEl.innerHTML = '';
                 previewEl.innerHTML = '<div class="font-semibold text-rose-700">Không có dữ liệu Order phù hợp với From và ngày đã chọn.</div>';
                 document.getElementById('export-ssg-item-selection')?.classList.add('hidden');
+                document.getElementById('export-ssg-supplier-selection')?.classList.add('hidden');
                 window.ssgSelectedItemIds = new Set();
                 return;
             }
@@ -8707,36 +9241,24 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
 
             const from = document.getElementById('export-ssg-from')?.value || '';
             const date = document.getElementById('export-ssg-date')?.value || '';
-            if (!from) {
-                alert('Vui lòng chọn From.');
-                return;
-            }
-            if (!date) {
-                alert('Vui lòng chọn ngày Order.');
-                return;
-            }
+            if (!from) { alert('Vui lòng chọn From.'); return; }
+            if (!date) { alert('Vui lòng chọn ngày Order.'); return; }
 
             const matchedOrders = getSSGFilteredOrders();
             if (!matchedOrders.length) {
                 alert('Không có dữ liệu Order phù hợp với From và ngày đã chọn.');
                 return;
             }
-
             const selectedOrders = getSelectedSSGOrders();
             if (!selectedOrders.length) {
                 alert('Vui lòng chọn ít nhất 1 mặt hàng để xuất SSG.');
                 return;
             }
-
-            // Supplier columns are the union of real quote suppliers and suppliers explicitly asked.
-            // This keeps rejected / pending suppliers visible even when they have no price.
-            const supplierNames = [...new Set(
-                selectedOrders.flatMap(o => {
-                    const tracking = getQuoteTrackingSummary(o);
-                    const quoted = getSSGItemQuoteInfo(o).quotes.map(q => String(q?.supplierName || '').trim()).filter(Boolean);
-                    return [...tracking.askedSuppliers, ...quoted];
-                }).filter(Boolean)
-            )];
+            const supplierNames = getSelectedSSGSupplierNames();
+            if (!supplierNames.length) {
+                alert('Vui lòng chọn ít nhất 1 NCC trong mục “Chọn NCC báo giá hiển thị trong Excel”.');
+                return;
+            }
 
             const header = [
                 'STTNo.',
@@ -8747,42 +9269,39 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 'HOD',
                 'SCM chọn'
             ];
-
             const rows = [header];
             const supplierStartCol = 4;
 
             selectedOrders.forEach((order, index) => {
                 const itemInfo = getSSGItemQuoteInfo(order);
                 const priceMap = {};
-                itemInfo.quotes.forEach(q => {
-                    const supplier = String(q?.supplierName || '').trim();
-                    if (!supplier) return;
+                supplierNames.forEach(supplier => {
+                    const exactQuote = itemInfo.quotes.find(q => String(q?.supplierName || '').trim().toLowerCase() === supplier.toLowerCase());
                     const status = getQuoteStatusForSupplier(order, supplier);
                     if (status.label === 'Từ chối báo giá') {
                         priceMap[supplier] = 'Từ chối báo giá';
-                        return;
-                    }
-                    const price = formatSSGPrice(q?.quotedPrice);
-                    if (!(supplier in priceMap) || priceMap[supplier] === 'Chưa báo giá') {
-                        priceMap[supplier] = price;
+                    } else if (exactQuote && hasRealQuotePrice(exactQuote)) {
+                        priceMap[supplier] = formatSSGPrice(exactQuote.quotedPrice);
+                    } else if (status.confirmedNoPrice) {
+                        priceMap[supplier] = 'Đã xác nhận báo giá - chưa có giá';
+                    } else if (status.requestExists) {
+                        priceMap[supplier] = 'Chưa báo giá';
+                    } else {
+                        priceMap[supplier] = 'Chưa hỏi giá';
                     }
                 });
 
-                getQuoteTrackingSummary(order).askedSuppliers.forEach(supplier => {
-                    const status = getQuoteStatusForSupplier(order, supplier);
-                    if (status.label === 'Từ chối báo giá') priceMap[supplier] = 'Từ chối báo giá';
-                    else if (!(supplier in priceMap)) priceMap[supplier] = 'Chưa báo giá';
-                });
-
-                // Critical rule: SCM can only contain a supplier with a real quote that is not rejected.
-                const scmValue = itemInfo.hasQuote ? getSSGScmValue(order) : '';
+                // SCM choice is only retained if it is an allowed supplier for this export AND has a real quote for this exact item.
+                const currentScm = getSSGScmValue(order);
+                const scmValue = currentScm && supplierNames.some(s => s.toLowerCase() === currentScm.toLowerCase())
+                    ? currentScm : '';
 
                 rows.push([
                     index + 1,
                     order?.item || '',
                     order?.unit || '',
                     Number.isFinite(Number(order?.qty)) ? Number(order.qty) : '',
-                    ...supplierNames.map(supplier => supplier in priceMap ? priceMap[supplier] : 'Chưa báo giá'),
+                    ...supplierNames.map(supplier => priceMap[supplier]),
                     getSSGHodValue(order),
                     scmValue
                 ]);
@@ -8794,29 +9313,18 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             ws['!autofilter'] = { ref: `A1:${XLSX.utils.encode_col(totalCols - 1)}${totalRows}` };
             applySSGSheetLayout(ws, supplierNames.length, totalRows);
             applySSGCellStyles(ws, totalRows, totalCols, supplierStartCol, supplierNames.length);
-
-            const qtyColumn = 3;
             for (let r = 1; r < totalRows; r++) {
-                const qtyCell = ws[XLSX.utils.encode_cell({ r, c: qtyColumn })];
+                const qtyCell = ws[XLSX.utils.encode_cell({ r, c: 3 })];
                 if (qtyCell && typeof qtyCell.v === 'number') qtyCell.z = '#,##0.##';
             }
 
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'SSG');
-
             const fromLabel = from === '__ALL_FROM__' ? 'ALL' : sanitizeSSGFilePart(from);
             const dateLabel = date === '__ALL_DATE__' ? 'ALL_DATE' : String(formatDateVN(date)).replace(/\//g, '');
-            let fileName;
-            if (from === '__ALL_FROM__' && date === '__ALL_DATE__') {
-                fileName = 'SSG_ALL_FROM_ALL_DATE.xlsx';
-            } else if (from === '__ALL_FROM__') {
-                fileName = `SSG_ALL_${dateLabel}.xlsx`;
-            } else if (date === '__ALL_DATE__') {
-                fileName = `SSG_${fromLabel}_ALL_DATE.xlsx`;
-            } else {
-                fileName = `SSG_${fromLabel}_${dateLabel}.xlsx`;
-            }
-
+            let supplierLabel = supplierNames.length === 1 ? sanitizeSSGFilePart(supplierNames[0]).toUpperCase() : 'MULTI_SUPPLIER';
+            if (supplierNames.length > 1) supplierLabel = 'MULTI_SUPPLIER';
+            const fileName = `SSG_${fromLabel}_${dateLabel}_${supplierLabel}.xlsx`;
             XLSX.writeFile(wb, fileName);
             closeModal('modal-export-ssg');
         }
@@ -8832,6 +9340,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 .normalize('NFD')
                 .replace(/[\u0300-\u036f]/g, '')
                 .toLowerCase()
+                .replace(/đ/g, 'd')
                 .replace(/[–—−]/g, '-')
                 .replace(/\s*[-–—−]\s*/g, ' - ')
                 .replace(/\s+/g, ' ')
@@ -8872,7 +9381,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             }
 
             const escaped = t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            return new RegExp(`(?:^|[^a-z0-9])${escaped}(?=$|[^a-z0-9])`, 'i').test(name);
+            return new RegExp(`(?:^|[^a-z0-9])${escaped}(?=$|[^a-z0-9])`, 'i').test(name) || name.includes(t);
         }
 
         function matchesStatusItemName(order, query) {
@@ -9257,7 +9766,8 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 'SSG': 'bg-slate-100 text-slate-700 border-slate-200',
                 'Đặt hàng': 'bg-indigo-50 text-indigo-700 border-indigo-200',
                 'Đã giao hàng': 'bg-emerald-50 text-emerald-700 border-emerald-200',
-                'Phát hành Hóa đơn': 'bg-violet-50 text-violet-700 border-violet-200'
+                'Phát hành Hóa đơn': 'bg-violet-50 text-violet-700 border-violet-200',
+                'Làm ĐNTT': 'bg-emerald-50 text-emerald-700 border-emerald-200'
             }[String(stage || '')] || 'bg-slate-50 text-slate-600 border-slate-200';
         }
 
@@ -9328,17 +9838,21 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             renderAll();
         }
 
-        function renderStatusItemRow(o, index) {
+        function renderStatusItemRow(o, index, po = null) {
             const placed = o.orderPlaced === true;
+            const overdueInfo = getStatusItemOverdueInfo(o, po);
             const value = Number.isFinite(Number(o.purchaseValue))
                 ? Number(o.purchaseValue)
                 : (Number.isFinite(Number(o.purchasePrice)) && Number.isFinite(Number(o.qty)) ? Number(o.purchasePrice) * Number(o.qty) : null);
             return `
-                <tr class="${placed ? 'bg-white' : 'bg-rose-50/40'} border-b border-slate-100 hover:bg-slate-50/80 align-top">
+                <tr class="${overdueInfo.overdue ? 'bg-rose-50/70 border-l-4 border-l-rose-500' : (placed ? 'bg-white' : 'bg-rose-50/40')} border-b border-slate-100 hover:bg-slate-50/80 align-top">
                     <td class="py-3 px-3 text-xs font-semibold text-slate-500 text-center">${index + 1}</td>
                     <td class="py-3 px-3 text-xs font-semibold text-indigo-700 whitespace-nowrap">${escapeHTML(formatDateVN(o.date))}</td>
                     <td class="py-3 px-3 text-xs font-semibold text-slate-700 min-w-[170px]">${escapeHTML(o.restaurant || '-')}</td>
-                    <td class="py-3 px-3 font-semibold ${placed ? 'text-slate-800' : 'text-rose-800'} min-w-[220px]">${escapeHTML(o.item || '-')}</td>
+                    <td class="py-3 px-3 font-semibold ${overdueInfo.overdue ? 'text-rose-800' : (placed ? 'text-slate-800' : 'text-rose-800')} min-w-[220px]">
+                        <div>${escapeHTML(o.item || '-')}</div>
+                        ${overdueInfo.overdue ? renderOverdueWarningHTML(overdueInfo, true) : ''}
+                    </td>
                     <td class="py-3 px-3 text-slate-600 whitespace-nowrap">${escapeHTML(o.unit || '-')}</td>
                     <td class="py-3 px-3 font-bold text-indigo-600 text-right">${Number.isFinite(Number(o.qty)) ? escapeHTML(String(o.qty)) : '-'}</td>
                     <td class="py-3 px-3 text-slate-700 min-w-[140px]">${escapeHTML(o.supplier || '-')}</td>
@@ -9502,7 +10016,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const rows = Array.isArray(visibleItems) ? visibleItems : [];
             if (!rows.length) return '';
             return rows.map((o, idx) => {
-                const rowHtml = renderStatusItemRow(o, idx);
+                const rowHtml = renderStatusItemRow(o, idx, po);
                 const rowOpen = rowHtml.replace(/\s*<\/tr>\s*$/, '');
                 if (idx !== 0 || !po) return `${rowOpen}</tr>`;
                 return `${rowOpen}${renderStatusPOStageCell(po, info, rows.length)}${renderStatusPOInvoiceCell(po, allItems)}<\/tr>`;
@@ -9517,6 +10031,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const status = po?.status || 'Draft';
             const statusClass = getStatusPOStatusClass(status);
             const stage = info.stage || 'SSG';
+            const overdueInfo = isNoPO ? getStatusOverdueSummary(allItems, null) : getStatusPOOverdueInfo(po, allItems);
             const orderLabels = info.orderLabels;
             const visibleLabel = info.visibleCount === info.total ? `${info.total} mặt hàng` : `${info.total} mặt hàng • ${info.visibleCount} đang hiển thị`;
             const orderHtml = orderLabels.length ? `<div class="flex flex-wrap gap-1.5 mt-2">${orderLabels.map(label => `<span class="inline-flex items-center px-2 py-1 rounded-lg bg-white/80 border border-slate-200 text-[11px] text-slate-600"><span class="font-semibold text-slate-700 mr-1">Order:</span>${escapeHTML(label)}</span>`).join('')}</div>` : '';
@@ -9529,8 +10044,8 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                 </div>`;
 
             return `
-                <section class="bg-white rounded-xl border ${isNoPO ? 'border-amber-200' : 'border-slate-200'} shadow-sm overflow-hidden">
-                    <div class="px-4 py-4 ${isNoPO ? 'bg-amber-50/70' : 'bg-slate-50'} border-b border-slate-200">
+                <section class="bg-white rounded-xl border ${overdueInfo.overdue ? 'border-rose-300 border-l-4 border-l-rose-500' : (isNoPO ? 'border-amber-200' : 'border-slate-200')} shadow-sm overflow-hidden">
+                    <div class="px-4 py-4 ${overdueInfo.overdue ? 'bg-rose-50/70' : (isNoPO ? 'bg-amber-50/70' : 'bg-slate-50')} border-b border-slate-200">
                         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
                             <div class="min-w-0 flex-1">
                                 <div class="flex flex-wrap items-center gap-2">
@@ -9542,6 +10057,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                                 </div>
                                 ${!isNoPO ? `<div class="flex flex-wrap gap-x-5 gap-y-1 mt-2 text-xs text-slate-600"><span><strong>NCC:</strong> ${escapeHTML(po?.supplier || '-')}</span><span><strong>Ngày PO:</strong> ${escapeHTML(formatDateVN(po?.poDate))}</span><span><strong>Hình thức:</strong> ${escapeHTML(po?.purchaseType || '-')}</span><span><strong>Người tạo:</strong> ${escapeHTML(po?.createdBy || '-')}</span><span><strong>${escapeHTML(visibleLabel)}</strong></span></div>` : `<div class="mt-2 text-xs text-slate-600"><strong>${escapeHTML(visibleLabel)}</strong></div>`}
                                 ${orderHtml}
+                                ${overdueInfo.overdue ? renderOverdueWarningHTML(overdueInfo) : ''}
                             </div>
                             <div class="flex flex-wrap items-center lg:justify-end gap-1.5 text-xs">
                                 ${!isNoPO ? `<span class="px-2.5 py-1 rounded-lg ${getPurchaseOrderStageClass(stage)} text-[10px] font-bold">Giai đoạn: ${escapeHTML(stage)}</span><span class="px-2.5 py-1 rounded-lg bg-white border border-indigo-100 text-[10px] font-bold text-indigo-700">Đặt hàng: ${info.placed}/${info.total}</span><span class="px-2.5 py-1 rounded-lg bg-white border border-emerald-100 text-[10px] font-bold text-emerald-700">Giao hàng: ${info.delivered}/${info.total}</span>` : ''}
@@ -9628,10 +10144,13 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const subtitle = purchased
                 ? 'Các item đã đặt mua nhưng chưa có PO. Tick để gom vào PO mà không đặt mua lại.'
                 : 'Các item chưa đặt mua và chưa có PO.';
-            const selectedCount = items.filter(item => orderPlacementSelectedIds.has(String(item.id))).length;
+            reconcileStatusNoPOSelection();
+            const selectedCount = statusNoPOSelectedIds.size;
+            const overdueSummary = getStatusOverdueSummary(items, null);
+            const overdueByItemId = new Map((overdueSummary.itemDetails || []).map(entry => [String(entry.item?.id ?? ''), entry]));
             return `
-                <section class="bg-white rounded-xl border ${purchased ? 'border-indigo-200' : 'border-amber-200'} shadow-sm overflow-hidden">
-                    <div class="px-4 py-4 ${purchased ? 'bg-indigo-50/70' : 'bg-amber-50/70'} border-b border-slate-200">
+                <section class="bg-white rounded-xl border ${overdueSummary.overdue ? 'border-rose-300 border-l-4 border-l-rose-500' : (purchased ? 'border-indigo-200' : 'border-amber-200')} shadow-sm overflow-hidden">
+                    <div class="px-4 py-4 ${overdueSummary.overdue ? 'bg-rose-50/70' : (purchased ? 'bg-indigo-50/70' : 'bg-amber-50/70')} border-b border-slate-200">
                         <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3">
                             <div>
                                 <div class="flex flex-wrap items-center gap-2">
@@ -9640,6 +10159,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                                     <span class="inline-flex items-center px-2 py-1 rounded-full border text-[10px] font-semibold ${purchased ? 'bg-indigo-100 text-indigo-800 border-indigo-200' : 'bg-amber-100 text-amber-800 border-amber-200'}">${items.length} mặt hàng</span>
                                 </div>
                                 <div class="text-xs text-slate-600 mt-2">${subtitle}</div>
+                                ${overdueSummary.overdue ? renderOverdueWarningHTML(overdueSummary) : ''}
                             </div>
                             <div class="flex flex-wrap items-center gap-2">
                                 ${purchased || !purchased ? `<span class="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[10px] font-bold text-slate-600">Đã chọn: <span data-status-selection-count>${selectedCount}</span></span>` : ''}
@@ -9664,19 +10184,23 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                             </thead>
                             <tbody class="divide-y divide-slate-100">
                                 ${items.map((o, idx) => {
-                                    const checked = orderPlacementSelectedIds.has(String(o.id));
+                                    const checked = statusNoPOSelectedIds.has(String(o.id));
+                                    const overdueInfo = overdueByItemId.get(String(o.id)) || getStatusItemOverdueInfo(o, null);
                                     const disabled = o.orderPlaced !== true && o.stage === 'Đã giao hàng';
                                     const price = Number.isFinite(Number(o.purchasePrice)) ? formatPurchaseMoney(o.purchasePrice) : '-';
                                     const placedAt = o.orderedAt ? formatDateTimeVN(o.orderedAt) : '';
                                     return `
-                                        <tr class="${purchased ? 'bg-indigo-50/20' : 'bg-rose-50/30'} hover:bg-slate-50/80 align-top">
+                                        <tr class="${overdueInfo.overdue ? 'bg-rose-50/70 border-l-4 border-l-rose-500' : (purchased ? 'bg-indigo-50/20' : 'bg-rose-50/30')} hover:bg-slate-50/80 align-top">
                                             <td class="py-3 px-3 text-center">
                                                 <input type="checkbox" class="status-no-po-selector w-4 h-4 accent-indigo-600" value="${escapeHTMLAttribute(o.id)}" ${checked ? 'checked' : ''} ${disabled ? 'disabled' : ''} onchange="toggleStatusNoPOSelection(${JSON.stringify(o.id)}, this.checked)">
                                             </td>
                                             <td class="py-3 px-3 text-xs font-semibold text-slate-500 text-center">${idx + 1}</td>
                                             <td class="py-3 px-3 text-xs whitespace-nowrap text-indigo-700 font-semibold">${escapeHTML(formatDateVN(o.date))}</td>
                                             <td class="py-3 px-3 text-xs font-semibold text-slate-700 min-w-[170px]">${escapeHTML(o.restaurant || '-')}</td>
-                                            <td class="py-3 px-3 font-semibold ${purchased ? 'text-slate-800' : 'text-rose-800'} min-w-[240px]">${escapeHTML(o.item || '-')}</td>
+                                            <td class="py-3 px-3 font-semibold ${overdueInfo.overdue ? 'text-rose-800' : (purchased ? 'text-slate-800' : 'text-rose-800')} min-w-[240px]">
+                                                <div>${escapeHTML(o.item || '-')}</div>
+                                                ${overdueInfo.overdue ? renderOverdueWarningHTML(overdueInfo, true) : ''}
+                                            </td>
                                             <td class="py-3 px-3 text-xs text-slate-700 min-w-[130px]">${escapeHTML(o.supplier || '-')}</td>
                                             <td class="py-3 px-3 text-xs text-slate-600">${escapeHTML(getOrderPlacementPurchaseType(o) || '-')}</td>
                                             <td class="py-3 px-3 text-xs text-right font-semibold text-slate-800">${escapeHTML(price)}</td>
@@ -9703,6 +10227,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const container = document.getElementById('status-table-body');
             if (!container) return;
 
+            reconcileStatusNoPOSelection();
             const sortedList = getSortedOrders('desc');
             const searchMode = getStatusSearchMode(search, sortedList);
             const resolved = applyStatusSearchAndResolvePOs(sortedList, search, searchMode);
@@ -9724,36 +10249,11 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
             const isConcretePOValue = value => !['Tất cả PO', 'Đã có PO', 'Đã tạo PO', 'Chưa có PO', 'Chưa tạo PO', 'Đã mua – Chưa có PO', 'Chưa mua', 'Đã gửi NCC', 'Đang giao', 'Hoàn thành'].includes(value);
             let isConcretePO = isConcretePOValue(effectiveFilterPO);
 
-            // A concrete PO filter should not silently suppress a newly-entered search
-            // when that search resolved to another PO (or to a no-PO item).
-            if (hasSearch && isConcretePO) {
-                const concreteKey = String(effectiveFilterPO || '').trim();
-                if (!matchedPOIds.has(concreteKey)) {
-                    const poSelect = document.getElementById('filter-status-po');
-                    if (poSelect) poSelect.value = 'Tất cả PO';
-                    effectiveFilterPO = 'Tất cả PO';
-                    isConcretePO = false;
-                }
-            }
-
             const isNoPOFilter = ['Chưa có PO', 'Chưa tạo PO'].includes(effectiveFilterPO);
             const isPurchasedNoPOFilter = effectiveFilterPO === 'Đã mua – Chưa có PO';
             const isNotPurchasedFilter = effectiveFilterPO === 'Chưa mua';
             const isHasPOFilter = ['Đã có PO', 'Đã tạo PO'].includes(effectiveFilterPO);
             const isStatusPOFilter = ['Đã gửi NCC', 'Đang giao', 'Hoàn thành'].includes(effectiveFilterPO);
-
-            // When a new search resolves to a different PO (or to a no-PO item),
-            // do not let a stale concrete PO filter silently hide the search result.
-            // Normal non-search filtering remains unchanged.
-            if (hasSearch && isConcretePO) {
-                const concreteKey = String(effectiveFilterPO || '').trim();
-                if (!matchedPOIds.has(concreteKey)) {
-                    const poSelect = document.getElementById('filter-status-po');
-                    if (poSelect) poSelect.value = 'Tất cả PO';
-                    effectiveFilterPO = 'Tất cả PO';
-                    isConcretePO = false;
-                }
-            }
 
             const blocks = [];
             let renderedPOs = 0;
@@ -9807,7 +10307,7 @@ Mỗi mặt hàng được tạo một orderGroupId mới. Dữ liệu mặt hà
                             blocks.push({ type: 'NO_PO_NOT_PURCHASED', items });
                             renderedItems += items.length;
                         }
-                    } else if (isNoPOFilter || !hasSearch) {
+                    } else if (isNoPOFilter || !hasSearch || searchMode === 'ITEM') {
                         const purchasedItems = noPO.filter(item => item.orderPlaced === true);
                         const notPurchasedItems = noPO.filter(item => item.orderPlaced !== true);
                         if (purchasedItems.length) {
